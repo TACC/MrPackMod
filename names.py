@@ -148,8 +148,9 @@ def srcdir_local_name( **kwargs ):
 def srcdir_name( **kwargs ):
     homedir = create_homedir( **kwargs )
     srcdir_local = srcdir_local_name( **kwargs )
-    srcdir = kwargs.get( "srcpath", f"{homedir}/{srcdir_local}" )
-    return srcdir
+    if srcdir := nonzero_keyword( "srcpath",**kwargs ):
+        return srcdir
+    else: return  f"{homedir}/{srcdir_local}"
 
 def builddir_name( **kwargs ):
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):

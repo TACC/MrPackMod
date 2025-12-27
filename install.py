@@ -18,21 +18,6 @@ from process import process_execute, process_initiate, process_terminate
 from process import echo_string, error_abort, abort_on_zero_env
 from process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 
-def configure_prep( **kwargs ):
-    modules.test_modules( **kwargs )
-    #
-    # setup directories
-    #
-    srcdir    = names.srcdir_name( **kwargs )
-    builddir  = names.builddir_name( **kwargs )
-    prefixdir = names.prefixdir_name( **kwargs )
-    #print(srcdir,builddir,prefixdir)
-    try:
-        shutil.rmtree(builddir)
-    except FileNotFoundError: pass
-    os.makedirs(builddir,exist_ok=True)
-    return srcdir,builddir,prefixdir
-
 def export_compilers( **kwargs ):
     compilers = names.compilers_names( **kwargs )
     cmdline = ""; cont = ""
@@ -77,6 +62,21 @@ def close_logfile( logname,loghandle,kwargs ):
     kwargs["logfiles"].pop(logname)
     loghandle.close()
     
+def configure_prep( **kwargs ):
+    modules.test_modules( **kwargs )
+    #
+    # setup directories
+    #
+    srcdir    = names.srcdir_name( **kwargs )
+    builddir  = names.builddir_name( **kwargs )
+    prefixdir = names.prefixdir_name( **kwargs )
+    #print(srcdir,builddir,prefixdir)
+    try:
+        shutil.rmtree(builddir)
+    except FileNotFoundError: pass
+    os.makedirs(builddir,exist_ok=True)
+    return srcdir,builddir,prefixdir
+
 def cmake_configure( **kwargs ):
     tracing = kwargs.get( "tracing" )
     logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
