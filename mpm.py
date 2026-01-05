@@ -56,7 +56,7 @@ def mpm( args,**kwargs ):
             if args := process.nonnull( command_arguments ):
                 srcdir = names.srcdir_name( **configuration )
                 process.process_execute\
-                    ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \; -print",
+                    ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
                       **configuration )
             else:
                 echo_string( f"WARNING: find_string command needs --args",**configuration )
