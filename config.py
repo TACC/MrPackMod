@@ -175,5 +175,5 @@ def read_config(configfile,tracing=False):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict,macros )
     if tracing:
-        print(configuration_dict)
+        print( f"Configuration dict:\n{configuration_dict}" )
     return configuration_dict
