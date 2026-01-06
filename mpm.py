@@ -41,8 +41,6 @@ def mpm( args,**kwargs ):
     # take care of jcount, dependencies, tracing
     for arg,val in kwargs.items():
         configuration[arg] = val
-    configuration["logfiles"] = {} # name,handle pairs
-    configuration["scriptdir"] = os.getcwd()
     #print(configuration)
     for action in args:
         if tracing:
@@ -65,7 +63,7 @@ def mpm( args,**kwargs ):
         elif action=="test":
             modules.test_modules( **configuration )
         elif action=="version":
-            print( configuration["packageversion"] )
+            print( configuration["PACKAGEVERSION"] )
         # download stuff
         elif action=="download":
             download.download_from_url( **configuration )

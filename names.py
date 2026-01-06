@@ -29,15 +29,12 @@ from process import error_abort,requirenonzero,nonnull
 # Result: pair package,version
 #
 def package_names( **kwargs ):
-    package = kwargs.get("package").lower()
-    version = kwargs.get("packageversion").lower()
-    terminal = kwargs.get("terminal")
+    package = abort_on_zero_keyword("PACKAGE",**kwargs)
+    version = abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
     if version == "git":
         # raise Exception( "gitdate not yet implemented" )
         today = re.sub( '-','',str(datetime.date.today()) )
         version = f"git{today}"
-    echo_string( f"setting internal variables packagebasename={package} packageversion={version}",
-                 terminal=terminal )
     return package,version
 
 #
@@ -48,8 +45,11 @@ def logfile_name( logstage,**kwargs ):
     packagename,_   = package_names( **kwargs )
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
-    logfilename = f"{scriptdir}/{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
-    if mode := nonzero_keyword( "mode",**kwargs ):
+    if nonnull(packagename):
+        logfilename = f"{scriptdir}/{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
+    else:
+        logfilename = f"{scriptdir}/{logstage}-{moduleversion}_{compiler}-{cversion}"
+    if mode := nonzero_keyword( "MODE",**kwargs ):
         logfilename += f"_{mpi}-{mversion}"
     logfilename += ".log"
     return logfilename
@@ -62,21 +62,20 @@ def create_homedir( **kwargs ):
     package  = kwargs.get( "package","nullpackage" )
     homedir  = kwargs.get( "homedir",None )
     terminal = kwargs.get( "terminal",None )
-    package,_ = package_names(package=package,packageversion="0.0",termminal=terminal)
+    package,_ = package_names( **kwargs )
     if root:
-        echo_string( f"creating homedir value based on root: {root}",terminal=terminal )
+        echo_string( f"creating homedir value based on root: {root}",**kwargs )
         homedir = f"{root}/{package}"
     else:
         if not nonnull( homedir ): raise Exception( "need either root or homedir" )
-        echo_string( f"creating homedir value based on homedir: {homedir}",terminal=terminal )
-    echo_string( f"using homedir: {homedir}",terminal=terminal )
+        echo_string( f"creating homedir value based on homedir: {homedir}",**kwargs )
+    echo_string( f"using homedir: {homedir}",**kwargs )
     if not os.path.isdir(homedir):
-        echo_string( f"creating homedir: {homedir}",terminal=terminal )
+        echo_string( f"creating homedir: {homedir}",**kwargs )
         try:
             os.mkdir(homedir)
         except PermissionError:
-            echo_string( f"ERROR: no permission to create homedir: {homedir}" )
-            sys.exit(1)
+            error_abort( f"No permission to create homedir: {homedir}",**kwargs )
     return homedir
 
 ##
@@ -108,14 +107,14 @@ def compilers_names( **kwargs ):
         compilers["FC"]  = abort_on_zero_env( "TACC_FC",**kwargs )
     elif mode == "core":
         compilers["CC"] = "gcc"; compilers["CXX"] = "g++"; compilers["FC"] = "gfortran"
-    else: raise Exception( "Unknown mode: {mode}" )
+    else: raise Exception( f"Unknown mode: {mode}" )
     return compilers
 
 ##
 ## Description: compute single system/compiler/mpi identifier
 ##
 def environment_code( **kwargs ):
-    mode = abort_on_zero_keyword( "mode",**kwargs )
+    mode = abort_on_zero_keyword( "MODE",**kwargs )
     systemcode,compilercode,compilerversion,compilershortversion,mpicode,mpiversion = \
         family_names( **kwargs )
     if compilercode is None:
@@ -200,7 +199,7 @@ def prefixdir_name( **kwargs ):
 def package_dir_names( **kwargs ):
     prefixdir = names.prefixdir_name( **kwargs )
     # lib
-    if zero_keyword( "nolib",**kwargs ):
+    if zero_keyword( "NOLIB",**kwargs ):
         libdir = f"{prefixdir}/lib64"
         if not os.path.isdir( libdir ):
             libdir = f"{prefixdir}/lib"
@@ -208,13 +207,13 @@ def package_dir_names( **kwargs ):
                 raise Exception( "Could not find lib or lib64 dir; maybe set NOLIB?" )
     else: libdir = ""
     # inc
-    if zero_keyword( "noinc",**kwargs ):
+    if zero_keyword( "NOINC",**kwargs ):
         incdir = f"{prefixdir}/include"
         if not os.path.isdir( incdir ):
             raise Exception( "Could not find include dir, maybe set NOINC?" )
     else: incdir = ""
     # bin
-    if nonzero_keyword( "hasbin",**kwargs ):
+    if nonzero_keyword( "HASBIN",**kwargs ):
         bindir = f"{prefixdir}/bin"
         if not os.path.isdir( bindir ):
             raise Exception( "Could not find bin dir but HASBIN was specified" )

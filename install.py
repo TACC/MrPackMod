@@ -85,28 +85,28 @@ def cmake_configure( **kwargs ):
     # flags
     #
     cmakeflags = ""; cmakeflagsplatform = ""; exports = ""
-    if standard := kwargs.get("cppstandard"):
+    if standard := kwargs.get("CPPSTANDARD"):
         cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
-    if flags := nonzero_keyword( "cmakeflags",**kwargs ):
+    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
         cmakeflags += f" {flags}"
-    cmake = kwargs.get("cmakename","cmake")
-    if nonzero_keyword("cmakeuseninja"):
+    cmake = kwargs.get("CMAKENAME","cmake")
+    if nonzero_keyword("CMAKEUSENINJA"):
         cmake = f"{cmake} -G Ninja"
-    if kwargs.get("cmakebuilddebug"):
+    if kwargs.get("CMAKEBUILDDEBUG"):
         defaultbuild = "Debug"
     else: defaultbuild = "RelWithDebInfo"
-    cmakebuildtype = kwargs.get("cmakebuildtype",defaultbuild)
+    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
     if static := kwargs.get("buildstaticlibs"):
         buildsharedlibs = "OFF"
     else: buildsharedlibs = "ON"
-    if nonnull( source := kwargs.get("cmakesubdir") ):
+    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         cmakesourcesetting = f"-S {srcdir}/{source} -B {builddir}"
         settingsfile = f"{srcdir}/{source}/CMakeLists.txt"
     else:
         cmakesourcesetting = f"{srcdir}"
         settingsfile = f"{cmakesourcesetting}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
-        raise Exception( f"Can not find file: {settingsfile}" )
+        error_abort( f"Can not find file: {settingsfile}",**kwargs )
     
     #
     # execute cmake

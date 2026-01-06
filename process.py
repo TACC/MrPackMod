@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 
 def echo_string( string,**kwargs ):
     if  terminal:= kwargs.get( "terminal",sys.stdout ):
@@ -21,6 +22,7 @@ def trace_string( string,**kwargs ):
 
 def error_abort( string,**kwargs ):
     echo_string( f"ERROR {string}" )
+    traceback.print_stack()
     sys.exit(1)
 
 def nonzero_env( envvar,**kwargs ):
