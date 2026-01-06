@@ -99,7 +99,7 @@ def family_names( **kwargs ):
 
 def compilers_names( **kwargs ):
     compilers = { 'CC':"unknown_cc", 'CXX':"unknown_cxx", 'FC':"unknown_fc", }
-    if ( mode := kwargs.get("mode","mode_not_found") ) in [ "mpi","hybrid", ]:
+    if ( mode := abort_on_zero_keyword( "MODE",**kwargs ) ) in [ "mpi","hybrid", ]:
         compilers["CC"] = "mpicc"; compilers["CXX"] = "mpicxx"; compilers["FC"] = "mpif90"
     elif mode in [ "seq", "omp", ]:
         compilers["CC"]  = abort_on_zero_env( "TACC_CC",**kwargs )
