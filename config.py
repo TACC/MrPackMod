@@ -54,10 +54,10 @@ def environment_settings( config_dict ):
                 #echo_string( f"Macro {macro}: {val}",**kwargs )
                 config_dict[macro] = val
 
-def add_settings_from_config( configfile,configuration_dict ):
-    tracing = configuration_dict.get("tracing",False)
+def add_settings_from_config( configfile,config_dict ):
+    tracing = config_dict.get("tracing",False)
     with open(configfile,"r") as configuration_file:
-        trace_string( f"Read configuration: {configfile}",**configuration_dict )
+        trace_string( f"Read configuration: {configfile}",**config_dict )
         saving = False
         for line in configuration_file.readlines():
             line = line.strip(); line = line.lstrip("let ") ## WARNING
@@ -80,9 +80,9 @@ def add_settings_from_config( configfile,configuration_dict ):
                 continue
             else:
                 saving = False # time to ship out
-                add_new_dict_item( key,val,configuration_dict )
+                add_new_dict_item( key,val,config_dict )
 
-def system_settings( configuration_dict,rc_files,**kwargs ):
+def system_settings( config_dict,rc_files,**kwargs ):
     for k,v in {
             'system':setting_from_env_or_rc(
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
@@ -102,31 +102,31 @@ def system_settings( configuration_dict,rc_files,**kwargs ):
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","UNKNOWN_MPI_VERSION",
                 rc_files,**kwargs  ),
             }.items():
-        configuration_dict[k] = v
-    if configuration_dict['system'] == "vista":
-        configuration_dict['blaslapack_inc'] = setting_from_env_or_rc(
+        config_dict[k] = v
+    if config_dict['system'] == "vista":
+        config_dict['blaslapack_inc'] = setting_from_env_or_rc(
             "BLASLAPACK_INC","TACC_NVPL_INC","NO_NVPL_INC_SETTING",
             rc_files,**kwargs )
-        configuration_dict['blaslapack_lib'] = setting_from_env_or_rc(
+        config_dict['blaslapack_lib'] = setting_from_env_or_rc(
             "BLASLAPACK_LIB","TACC_NVPL_LIB","NO_NVPL_LIB_SETTING",
             rc_files,**kwargs )
-        configuration_dict['blaslapack_libs'] = setting_from_env_or_rc(
+        config_dict['blaslapack_libs'] = setting_from_env_or_rc(
             "BLASLAPACK_LIB","nvpl_blas_lp64_seq;nvpl_blas_core",
             "NO_NVPL_LIBS_SETTING",
             rc_files,**kwargs )
     else:
-        configuration_dict['blaslapack_inc'] = setting_from_env_or_rc(
+        config_dict['blaslapack_inc'] = setting_from_env_or_rc(
             "BLASLAPACK_INC","TACC_MKL_INC","NO_MKL_INC_SETTING",
             rc_files,**kwargs )
-        configuration_dict['blaslapack_lib'] = setting_from_env_or_rc(
+        config_dict['blaslapack_lib'] = setting_from_env_or_rc(
             "BLASLAPACK_LIB","TACC_MKL_LIB","NO_MKL_LIB_SETTING",
             rc_files,**kwargs )
-        configuration_dict['blaslapack_libs'] = setting_from_env_or_rc(
+        config_dict['blaslapack_libs'] = setting_from_env_or_rc(
             "BLASLAPACK_LIB","mkl_intel_lp64;mkl_sequential;mkl_core;pthread",
             "NO_MKL_LIBS_SETTING",
             rc_files,**kwargs )
 
-def install_settings( configuration_dict,rc_files,**kwargs ):
+def install_settings( config_dict,rc_files,**kwargs ):
     tracing = kwargs.get("tracing")
     for k,v in {
             'homedir':setting_from_env_or_rc(
@@ -161,7 +161,7 @@ def install_settings( configuration_dict,rc_files,**kwargs ):
                 "MODULEVERSIONEXTRA", "MODULEVERSIONEXTRA", "",
                 rc_files,**kwargs  ),
     }.items():
-        configuration_dict[k] = v
+        config_dict[k] = v
 
 def expr_value( expr,**kwargs ):
     # expression is a key or literal
