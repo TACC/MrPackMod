@@ -46,8 +46,12 @@ def config_from_rc_files( config_dict ):
         add_settings_from_config( f"{rc_dir}/{rc2}",config_dict )
 
 def environment_settings( config_dict ):
-    for module,_ in modules.loaded_modules( **config_dict,terminal=None ):
-        #echo_string( f"investigate module: {module}",**kwargs )
+    mods = [ m for m,_ in
+             modules.loaded_modules( **config_dict,terminal=None ) 
+             + [ ["mkl",""], ["nvpl",""] ] ]
+    trace_string( f"Setting variables from modules:\n{modules}",**config_dict )
+    for module in mods:
+        trace_string( f"investigate module: {module}",**config_dict )
         for ext in [ "dir", "inc", "lib", "bin", ]:
             macro = f"TACC_{module.upper()}_{ext.upper()}"
             if val := nonzero_env( macro,**config_dict ):
@@ -201,7 +205,9 @@ def read_config(configfile,tracing=False):
     system_settings      ( configuration_dict,rc_files,tracing=tracing )
     logname,loghandle = open_logfile( "setup",configuration_dict )
     trace_string( f"system settings:\n{configuration_dict}",**configuration_dict )
+    # install paths
     install_settings     ( configuration_dict,rc_files,tracing=tracing )
+    # variables from installed modules
     environment_settings ( configuration_dict )
     config_from_rc_files ( configuration_dict )
     if not os.path.exists(configfile):

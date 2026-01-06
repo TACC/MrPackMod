@@ -66,13 +66,13 @@ def module_help_string( **kwargs ):
     package,packageversion   = names.package_names( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
 
-    about = abort_on_zero_keyword( "about",**kwargs )
+    about = abort_on_zero_keyword( "ABOUT",**kwargs )
     about += "\n"
-    if notes    := nonzero_keyword( "modulenotes",**kwargs ):
+    if notes    := nonzero_keyword( "MODULENOTES",**kwargs ):
         about += f"Notes: {notes}\n"
-    if url      := nonzero_keyword( "url",**kwargs ):
+    if url      := nonzero_keyword( "URL",**kwargs ):
         about += f"Homepage: {url}\n"
-    if software := nonzero_keyword( "softwareurl",**kwargs ):
+    if software := nonzero_keyword( "SOFTWAREURL",**kwargs ):
         about += f"Software: {software}\n"
 
     vars = f"TACC_{package.upper()}_DIR"
@@ -85,8 +85,8 @@ def module_help_string( **kwargs ):
             vars += f", TACC_{package.upper()}_BIN"
 
     notes = ""
-    cmake     = kwargs.get( "prefixpathset" )
-    pkgconfig = kwargs.get( "pkgconfig" ) or kwargs.get( "pkgconfiglib" )
+    cmake     = kwargs.get( "PREFIXPATHSET" )
+    pkgconfig = kwargs.get( "PKGCONFIG" ) or kwargs.get( "PKGCONFIGLIB" )
     if cmake    : notes += "Discoverable by CMake through find_package.\n"
     if pkgconfig: notes += "Discoverable by CMake through pkg-config.\n"
     notes += f"\n(modulefile generated {datetime.date.today()})"
