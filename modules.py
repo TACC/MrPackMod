@@ -13,7 +13,7 @@ import sys
 #
 import names
 import process
-from process import isnull,nonnull,echo_string,error_abort
+from process import isnull,nonnull,echo_string,error_abort,trace_string
 from process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,nonzero_keyword_or_default
 from process import abort_on_zero_env
 from process import process_execute
