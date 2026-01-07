@@ -9,7 +9,7 @@ import os
 #
 import modules
 from install import open_logfile,close_logfile
-from process import echo_string,trace_string,error_abort,\
+from process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
 def add_new_dict_item( newkey,newval,config_dict ):
@@ -167,7 +167,10 @@ def environment_settings( config_dict ):
         for ext in [ "dir", "inc", "lib", "bin", ]:
             macro = f"TACC_{module.upper()}_{ext.upper()}"
             if val := nonzero_env( macro,**config_dict ):
-                #echo_string( f"Macro {macro}: {val}",**kwargs )
+                if not os.path.isdir(val):
+                    echo_warning(
+                        f"Path does not exist: {val}",
+                        **config_dict )
                 config_dict[macro] = val
 
 def config_from_rc_files( config_dict ):

@@ -27,8 +27,8 @@ non_packages = [ "mkl","nvpl","blaslapack", "mpi", ]
 def test_modules( **kwargs ):
     tracing = kwargs.get( "tracing" )
     error = False
-    if not (modules := nonzero_keyword( "modules",**kwargs ) ):
-        echo_string( "No prerequisite modules",**kwargs )
+    if not (modules := nonzero_keyword( "MODULES",**kwargs ) ):
+        trace_string( "No prerequisite modules",**kwargs )
         return
     if tracing:
         modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) )
