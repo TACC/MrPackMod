@@ -40,12 +40,15 @@ def config_from_rc_files( config_dict ):
     rc0 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
     rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
     rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-    trace_string( f"{rc0}\n{rc1}\n{rc2}",**config_dict )
-    if os.path.exists( f"{rc0}" ):
+    has0 = os.path.exists( f"{rc0}" )
+    has1 = os.path.exists( f"{rc1}" )
+    has2 = os.path.exists( f"{rc2}" )
+    trace_string( f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}",**config_dict )
+    if has0:
         add_settings_from_config( f"{rc0}",config_dict )
-    elif os.path.exists( f"{rc1}" ):
+    elif has1:
         add_settings_from_config( f"{rc1}",config_dict )
-    elif os.path.exists( f"{rc2}" ):
+    elif has2:
         add_settings_from_config( f"{rc2}",config_dict )
 
 def environment_settings( config_dict ):
