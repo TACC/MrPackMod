@@ -12,64 +12,17 @@ from install import open_logfile,close_logfile
 from process import echo_string,trace_string,error_abort,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
-def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
-    val = ""
-    for file in rc_files:
-        with open( file,"r" ) as rc:
-            for line in rc.readlines():
-                line = line.strip()
-                if re.match( r"\s*#",line ): continue
-                if re.match( name,line ):
-                    val = re.search( fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",line ).groups()[0]
-                    trace_string(
-                        f"file <<{file}>> found setting for {name}: {val}",
-                        **kwargs )
-                    return val
-    osval = os.getenv( env,default )
-    trace_string( f"environment variable {name}: {osval}",**kwargs )
-    return osval
-
-def config_from_rc_files( config_dict ):
-    system   = abort_on_zero_keyword( "system",**config_dict )
-    compiler = abort_on_zero_keyword( "compiler",**config_dict )
-    # assume that we are in the makefiles/package dir
-    rc_dir = f"{os.getcwd()}/.."
-    if os.path.isdir(rc_dir):
-        trace_string( f"Looking for rc files in{rc_dir}",**config_dict )
-    else:
-        error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict )
-    rc0 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
-    rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
-    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-    rc3 = f"{rc_dir}/.mrpackmodrc"
-    has0 = os.path.exists( f"{rc0}" )
-    has1 = os.path.exists( f"{rc1}" )
-    has2 = os.path.exists( f"{rc2}" )
-    has3 = os.path.exists( f"{rc3}" )
-    trace_string(
-        f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
-        **config_dict )
-    if has3:
-        add_settings_from_config( f"{rc3}",config_dict )
-    if has2:
-        add_settings_from_config( f"{rc2}",config_dict )
-    if has1:
-        add_settings_from_config( f"{rc1}",config_dict )
-    if has0:
-        add_settings_from_config( f"{rc0}",config_dict )
-
-def environment_settings( config_dict ):
-    mods = [ m for m,_ in
-             modules.loaded_modules( **config_dict,terminal=None ) 
-             + [ ["mkl",""], ["nvpl",""] ] ]
-    trace_string( f"Setting variables from modules:\n{modules}",**config_dict )
-    for module in mods:
-        trace_string( f"investigate module: {module}",**config_dict )
-        for ext in [ "dir", "inc", "lib", "bin", ]:
-            macro = f"TACC_{module.upper()}_{ext.upper()}"
-            if val := nonzero_env( macro,**config_dict ):
-                #echo_string( f"Macro {macro}: {val}",**kwargs )
-                config_dict[macro] = val
+def add_new_dict_item( newkey,newval,config_dict ):
+    newval = newval.strip('\n').strip(' ')
+    for key,val in config_dict.items():
+        if not type(val) is str: continue
+        searchstring = '${'+key+'}'
+        oldval = newval
+        newval = newval.replace( searchstring,val )
+        if oldval!=newval:
+            trace_string( f"replace: {key} => {val}",**config_dict )
+    config_dict[newkey] = newval
+    trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
 
 def add_settings_from_config( configfile,config_dict ):
     tracing = config_dict.get("tracing",False)
@@ -99,25 +52,49 @@ def add_settings_from_config( configfile,config_dict ):
                 saving = False # time to ship out
                 add_new_dict_item( key,val,config_dict )
 
+def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
+    val = ""
+    for file in rc_files:
+        with open( file,"r" ) as rc:
+            for line in rc.readlines():
+                line = line.strip()
+                if re.match( r"\s*#",line ): continue
+                if re.match( name,line ):
+                    val = re.search( fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",line ).groups()[0]
+                    trace_string(
+                        f"file <<{file}>> found setting for {name}: {val}",
+                        **kwargs )
+                    return val
+    osval = os.getenv( env,default )
+    trace_string( f"environment variable {name}: {osval}",**kwargs )
+    return osval
+
 def system_settings( config_dict,rc_files,**kwargs ):
     for k,v in {
             'system':setting_from_env_or_rc(
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
                 rc_files,**kwargs ),
-            # compiler
+            # compiler family
             'compiler':setting_from_env_or_rc(
             "COMPILER", "TACC_FAMILY_COMPILER","UNKNOWN_COMPILER",
                 rc_files,**kwargs  ),
             'compilerversion':setting_from_env_or_rc(
                 "COMPILERVERSION", "TACC_FAMILY_COMPILER_VERSION","UNKNOWN_COMPILER_VERSION",
                 rc_files,**kwargs  ),
-            # mpi
+            # mpi family
             'mpi':setting_from_env_or_rc(
                 "MPI", "TACC_FAMILY_MPI","UNKNOWN_MPI",
                 rc_files,**kwargs  ),
             'mpiversion':setting_from_env_or_rc(
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","UNKNOWN_MPI_VERSION",
                 rc_files,**kwargs  ),
+            # compiler names
+            'CC':setting_from_env_or_rc(
+                "CC","TACC_CC","NO_CC_DEFINED",rc_files,**kwargs ),
+            'FC':setting_from_env_or_rc(
+                "FC","TACC_FC","NO_FC_DEFINED",rc_files,**kwargs ),
+            'CXX':setting_from_env_or_rc(
+                "CXX","TACC_CXX","NO_CXX_DEFINED",rc_files,**kwargs ),
             }.items():
         config_dict[k] = v
     if config_dict['system'] == "vista":
@@ -180,6 +157,48 @@ def install_settings( config_dict,rc_files,**kwargs ):
     }.items():
         config_dict[k] = v
 
+def environment_settings( config_dict ):
+    mods = [ m for m,_ in
+             modules.loaded_modules( **config_dict,terminal=None ) 
+             + [ ["mkl",""], ["nvpl",""] ] ]
+    trace_string( f"Setting variables from modules:\n{modules}",**config_dict )
+    for module in mods:
+        trace_string( f"investigate module: {module}",**config_dict )
+        for ext in [ "dir", "inc", "lib", "bin", ]:
+            macro = f"TACC_{module.upper()}_{ext.upper()}"
+            if val := nonzero_env( macro,**config_dict ):
+                #echo_string( f"Macro {macro}: {val}",**kwargs )
+                config_dict[macro] = val
+
+def config_from_rc_files( config_dict ):
+    system   = abort_on_zero_keyword( "system",**config_dict )
+    compiler = abort_on_zero_keyword( "compiler",**config_dict )
+    # assume that we are in the makefiles/package dir
+    rc_dir = f"{os.getcwd()}/.."
+    if os.path.isdir(rc_dir):
+        trace_string( f"Looking for rc files in{rc_dir}",**config_dict )
+    else:
+        error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict )
+    rc0 = f"{rc_dir}/.mrpackmodrc"
+    rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
+    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+    rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
+    has0 = os.path.exists( f"{rc0}" )
+    has1 = os.path.exists( f"{rc1}" )
+    has2 = os.path.exists( f"{rc2}" )
+    has3 = os.path.exists( f"{rc3}" )
+    trace_string(
+        f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
+        **config_dict )
+    if has0:
+        add_settings_from_config( f"{rc0}",config_dict )
+    if has2:
+        add_settings_from_config( f"{rc2}",config_dict )
+    if has1:
+        add_settings_from_config( f"{rc1}",config_dict )
+    if has3:
+        add_settings_from_config( f"{rc3}",config_dict )
+
 def expr_value( expr,**kwargs ):
     # expression is a key or literal
     if osval := os.getenv(expr):
@@ -188,18 +207,6 @@ def expr_value( expr,**kwargs ):
         return keyval
     else:
         return expr
-
-def add_new_dict_item( newkey,newval,config_dict ):
-    newval = newval.strip('\n').strip(' ')
-    for key,val in config_dict.items():
-        if not type(val) is str: continue
-        searchstring = '${'+key+'}'
-        oldval = newval
-        newval = newval.replace( searchstring,val )
-        if oldval!=newval:
-            trace_string( f"replace: {key} => {val}",**config_dict )
-    config_dict[newkey] = newval
-    trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
 
 def read_config(configfile,tracing=False):
     rc_name = ".mrpackmodrc"
