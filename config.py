@@ -32,6 +32,7 @@ def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
 def config_from_rc_files( config_dict ):
     system   = abort_on_zero_keyword( "system",**config_dict )
     compiler = abort_on_zero_keyword( "compiler",**config_dict )
+    # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):
         trace_string( f"Looking for rc files in{rc_dir}",**config_dict )
@@ -40,16 +41,22 @@ def config_from_rc_files( config_dict ):
     rc0 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
     rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
     rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+    rc3 = f"{rc_dir}/.mrpackmodrc"
     has0 = os.path.exists( f"{rc0}" )
     has1 = os.path.exists( f"{rc1}" )
     has2 = os.path.exists( f"{rc2}" )
-    trace_string( f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}",**config_dict )
+    has3 = os.path.exists( f"{rc3}" )
+    trace_string(
+        f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
+        **config_dict )
+    if has3:
+        add_settings_from_config( f"{rc3}",config_dict )
+    if has2:
+        add_settings_from_config( f"{rc2}",config_dict )
+    if has1:
+        add_settings_from_config( f"{rc1}",config_dict )
     if has0:
         add_settings_from_config( f"{rc0}",config_dict )
-    elif has1:
-        add_settings_from_config( f"{rc1}",config_dict )
-    elif has2:
-        add_settings_from_config( f"{rc2}",config_dict )
 
 def environment_settings( config_dict ):
     mods = [ m for m,_ in
