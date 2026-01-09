@@ -50,7 +50,12 @@ def add_settings_from_config( configfile,config_dict ):
                 continue
             else:
                 saving = False # time to ship out
-                add_new_dict_item( key,val,config_dict )
+                if envval := nonzero_env( key,**config_dict ):
+                    # override with environment if specified
+                    add_new_dict_item( key,envval,config_dict )
+                else:
+                    # use value deduced from file
+                    add_new_dict_item( key,val,config_dict )
 
 def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
     val = ""
