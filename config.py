@@ -226,8 +226,8 @@ def read_config(configfile,tracing=False):
                                ] if os.path.exists(rc) ]
     #print( f"found rc files: {rc_files}" )
     configuration_dict = {
-        'buildsystem':"cmake",
-        'modules':"", 'mode':"seq",
+        'BUILDSYSTEM':"cmake",
+        'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"0.0",
         'tracing':tracing,
         'logfiles':{}, # name,handle pairs

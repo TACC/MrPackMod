@@ -24,7 +24,7 @@ def echo_warning( string,**kwargs ):
     echo_string( f"WARNING {string}",**kwargs )
 
 def error_abort( string,**kwargs ):
-    echo_string( f"ERROR {string}" )
+    echo_string( f"\nERROR {string}\n\ntraceback:" )
     traceback.print_stack()
     sys.exit(1)
 

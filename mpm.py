@@ -73,13 +73,13 @@ def mpm( args,**kwargs ):
         # build stuff
         elif action in [ "install", "configure", "build", "module", ]:
             if action in [ "install", "configure", ]:
-                if ( system := configuration["buildsystem"].lower() ) == "cmake":
+                if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )
                 elif system == "autotools":
                     install.autotools_configure( **configuration )
                 else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
             if action in [ "install", "build", ]:
-                if ( system := configuration["buildsystem"].lower() ) == "cmake":
+                if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_build( **configuration )
                 elif system == "autotools":
                     install.autotools_build( **configuration )
