@@ -75,20 +75,22 @@ def module_help_string( **kwargs ):
     if software := nonzero_keyword( "SOFTWAREURL",**kwargs ):
         about += f"Software: {software}\n"
 
-    vars = f"TACC_{package.upper()}_DIR"
+    vars = f"TACC_{modulename.upper()}_DIR"
     _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
     if nonnull( libdir ):
-            vars += f", TACC_{package.upper()}_LIB"
+            vars += f", TACC_{modulename.upper()}_LIB"
     if nonnull( incdir ):
-            vars += f", TACC_{package.upper()}_INC"
+            vars += f", TACC_{modulename.upper()}_INC"
     if nonnull( bindir ):
-            vars += f", TACC_{package.upper()}_BIN"
+            vars += f", TACC_{modulename.upper()}_BIN"
 
     notes = ""
-    cmake     = kwargs.get( "PREFIXPATHSET" )
     pkgconfig = kwargs.get( "PKGCONFIG" ) or kwargs.get( "PKGCONFIGLIB" )
-    if cmake    : notes += "Discoverable by CMake through find_package.\n"
-    if pkgconfig: notes += "Discoverable by CMake through pkg-config.\n"
+    if nonzero_keyword( "PREFIXPATHSET",**kwargs ):
+        notes += "Discoverable by CMake through find_package.\n"
+    if nonzero_keyword( "PKGCONFIG",**kwargs ) or \
+       nonzero_keyword( "PKGCONFIGLIB",**kwargs ):
+        notes += "Discoverable by CMake through pkg-config.\n"
     notes += f"\n(modulefile generated {datetime.date.today()})"
 
     return \
@@ -139,12 +141,15 @@ local prefixdir = \"{prefixdir}\"
 """.strip()
 
 def system_paths( **kwargs ):
+    print( f"In system_paths:\n{kwargs}" )
+    package       = kwargs.get("PACKAGE")
     prefixdir     = names.prefixdir_name( **kwargs )
 
     envs = ""
     for sub in [ "inc", "lib", "bin", ]:
-        if dir := kwargs.get( f"{sub}dir" ):
+        if dir := kwargs.get( f"TACC_{package.upper()}_{sub.upper()}" ):
             ext = re.sub( f"{prefixdir}/","",dir ).lstrip("/") # why the lstrip?
+            #print( f"path: {dir} => ext: {ext}" )
             path = f"pathJoin( prefixdir,\"{ext}\" )"
             if sub=="inc":
                 envs += f"prepend_path( \"INCLUDE\", {path} )\n"
@@ -152,30 +157,32 @@ def system_paths( **kwargs ):
                 envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
             elif sub=="bin":
                 envs += f"prepend_path( \"PATH\", {path} )\n"
-    for env,var in [ ["bindir","PATH"],
-                 ["pkgconfig","PKG_CONFIG_PATH"], ["pkgconfiglib","PKG_CONFIG_PATH"],
-                 ["prefixpathset","CMAKE_PREFIX_PATH"],
-                 ["pythonpathabs","PYTHONPATH"], ["pythonpathrel","PYTHONPATH"],
+    for env,var in [ ["BINDIR","PATH"],
+                     ["PKGCONFIG","PKG_CONFIG_PATH"],
+                     ["PKGCONFIGLIB","PKG_CONFIG_PATH"],
+                     ["PREFIXPATHSET","CMAKE_PREFIX_PATH"],
+                     ["PYTHONPATHABS","PYTHONPATH"],
+                     ["PYTHONPATHREL","PYTHONPATH"],
                 ]:
         if val := nonzero_keyword( env,**kwargs ):
-            if env in [ "bindir", "pkgconfig", "pkgconfiglib", "pythonpathrel",
+            if env in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHREL",
                        ]:
                 #
                 # add path relative to prefix
                 #
-                if env in [ "bindir", "pkgconfiglib", ]:
+                if env in [ "BINDIR", "PKGCONFIGLIB", ]:
                     # relative to prefix & standard extension
                     val = re.sub( f"{prefixdir}/","",val ).lstrip("/") # why the lstrip?
                     # else relative to prefix & custom path
                 path = f"pathJoin( prefixdir,\"{val}\" )"
                 envs += f"prepend_path( \"{var}\", {path} )\n"
-            elif env in [ "prefixpathset",
+            elif env in [ "PREFIXPATHSET",
                          ]:
                 #
                 # add prefix path itself
                 #
                 envs += f"prepend_path( \"{var}\", prefixdir )\n"
-            elif env in [ "pythonpathabs", ]:
+            elif env in [ "PYTHONPATHABS", ]:
                 #
                 # add absolute path
                 #

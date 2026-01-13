@@ -204,19 +204,19 @@ def package_dir_names( **kwargs ):
         if not os.path.isdir( libdir ):
             libdir = f"{prefixdir}/lib"
             if not os.path.isdir( libdir ):
-                raise Exception( "Could not find lib or lib64 dir; maybe set NOLIB?" )
+                raise Exception( f"Could not find lib or lib64 dir in prefix={prefixdir}; maybe set NOLIB?" )
     else: libdir = ""
     # inc
     if zero_keyword( "NOINC",**kwargs ):
         incdir = f"{prefixdir}/include"
         if not os.path.isdir( incdir ):
-            raise Exception( "Could not find include dir, maybe set NOINC?" )
+            raise Exception( f"Could not find include dir in prefix={prefixdir}, maybe set NOINC?" )
     else: incdir = ""
     # bin
     if nonzero_keyword( "HASBIN",**kwargs ):
         bindir = f"{prefixdir}/bin"
         if not os.path.isdir( bindir ):
-            raise Exception( "Could not find bin dir but HASBIN was specified" )
+            raise Exception( f"Could not find bin dir in prefix={prefixdir} but HASBIN was specified" )
     else: bindir = ""
     return prefixdir,libdir,incdir,bindir
 
@@ -234,7 +234,7 @@ def modulefile_path_and_name( **kwargs ):
     else:
         # otherwise we build the path from system & compiler info
         modulepath = abort_on_zero_keyword( "moduleroot",**kwargs )
-        if ( mode := kwargs.get("mode","mode_not_found") ) == "core":
+        if ( mode := kwargs.get("MODE","MODE_NOT_FOUND") ) == "core":
             modulepath += f"/Core"
         else:
             # ignore system & compiler short version
@@ -248,10 +248,10 @@ def modulefile_path_and_name( **kwargs ):
 
 def module_names( **kwargs):
     package,packageversion = package_names( **kwargs )
-    modulename = kwargs.get( "modulename",package )
-    if alt := nonzero_keyword( "modulenamealt" ):
+    modulename = kwargs.get( "MODULENAME",package )
+    if alt := nonzero_keyword( "MODULENAMEALT" ):
         modulename = alt
     moduleversion = packageversion
-    if nonnull( mx := kwargs.get("moduleversionextra") ):
+    if nonnull( mx := kwargs.get("MODULEVERSIONEXTRA") ):
         moduleversion += f"-{mx}"
     return modulename,moduleversion
