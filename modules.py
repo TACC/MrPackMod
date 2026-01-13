@@ -142,12 +142,13 @@ local prefixdir = \"{prefixdir}\"
 
 def system_paths( **kwargs ):
     print( f"In system_paths:\n{kwargs}" )
-    package       = kwargs.get("PACKAGE")
-    prefixdir     = names.prefixdir_name( **kwargs )
+    package    = kwargs.get("PACKAGE")
+    modulename = kwargs.get( "MODULENAME",package )
+    prefixdir  = names.prefixdir_name( **kwargs )
 
     envs = ""
     for sub in [ "inc", "lib", "bin", ]:
-        if dir := kwargs.get( f"TACC_{package.upper()}_{sub.upper()}" ):
+        if dir := kwargs.get( f"TACC_{modulename.upper()}_{sub.upper()}" ):
             ext = re.sub( f"{prefixdir}/","",dir ).lstrip("/") # why the lstrip?
             #print( f"path: {dir} => ext: {ext}" )
             path = f"pathJoin( prefixdir,\"{ext}\" )"

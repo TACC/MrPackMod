@@ -156,6 +156,9 @@ def install_settings( config_dict,rc_files,**kwargs ):
             'installext':setting_from_env_or_rc(
                 "INSTALLEXT", "INSTALLEXT", "",
                 rc_files,**kwargs  ),
+            'MODULENAMEALT':setting_from_env_or_rc(
+                "MODULENAMEALT", "MODULENAMEALT", "",
+                rc_files,**kwargs  ),
             'MODULEVERSIONEXTRA':setting_from_env_or_rc(
                 "MODULEVERSIONEXTRA", "MODULEVERSIONEXTRA", "",
                 rc_files,**kwargs  ),
