@@ -96,7 +96,7 @@ def module_help_string( **kwargs ):
     return \
 f"""\
 local helpMsg = [[
-Package: {package}/{packageversion}
+Package: {modulename}/{moduleversion}
 
 {about}
 The {package} modulefile defines the following variables:
@@ -110,7 +110,7 @@ def package_info( **kwargs ):
     modulename,moduleversion = names.module_names( **kwargs )
     return \
 f"""\
-whatis( "Name:",   \"{package}\" )
+whatis( "Name:",   \"{modulename}\" )
 whatis( "Version", \"{moduleversion}\" )
 """.strip()
 

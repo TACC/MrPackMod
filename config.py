@@ -156,7 +156,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
             'installext':setting_from_env_or_rc(
                 "INSTALLEXT", "INSTALLEXT", "",
                 rc_files,**kwargs  ),
-            'moduleversionextra':setting_from_env_or_rc(
+            'MODULEVERSIONEXTRA':setting_from_env_or_rc(
                 "MODULEVERSIONEXTRA", "MODULEVERSIONEXTRA", "",
                 rc_files,**kwargs  ),
     }.items():

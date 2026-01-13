@@ -252,6 +252,6 @@ def module_names( **kwargs):
     if alt := nonzero_keyword( "MODULENAMEALT" ):
         modulename = alt
     moduleversion = packageversion
-    if nonnull( mx := kwargs.get("MODULEVERSIONEXTRA") ):
+    if mx := nonzero_keyword( "MODULEVERSIONEXTRA",**kwargs ):
         moduleversion += f"-{mx}"
     return modulename,moduleversion
