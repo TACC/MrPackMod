@@ -177,7 +177,7 @@ def environment_settings( config_dict ):
             if val := nonzero_env( macro,**config_dict ):
                 if not os.path.isdir(val):
                     echo_warning(
-                        f"module {module}: path does not exist for ext={val}",
+                        f"module {module}: path {val} does not exist for ext={ext}",
                         prefix=" .. ",**config_dict )
                 config_dict[macro] = val
 
