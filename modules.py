@@ -150,7 +150,7 @@ def system_paths( **kwargs ):
     for sub in [ "inc", "lib", "bin", ]:
         if dir := kwargs.get( f"TACC_{modulename.upper()}_{sub.upper()}" ):
             ext = re.sub( f"{prefixdir}/","",dir ).lstrip("/") # why the lstrip?
-            #print( f"path: {dir} => ext: {ext}" )
+            print( f"path: {dir} => ext: {ext}" )
             path = f"pathJoin( prefixdir,\"{ext}\" )"
             if sub=="inc":
                 envs += f"prepend_path( \"INCLUDE\", {path} )\n"

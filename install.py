@@ -116,10 +116,13 @@ def cmake_configure( **kwargs ):
     shell = process_initiate( **kwargs )
     compilers_export = export_compilers( **kwargs )
     process_execute( compilers_export,**kwargs,process=shell )
-    cmdline = f"{cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
+    # --no-warn-unused-cli ?
+    cmdline = f"TERM=dumb {cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
 -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
 -D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
 -D CMAKE_VERBOSE_MAKEFILE=ON \
+-D CMAKE_COLOR_MAKEFILE=OFF \
+-D CMAKE_TERM_SUPPORTS_ANSI=OFF \
 -D BUILD_SHARED_LIBS={buildsharedlibs} \
 -D CMAKE_BUILD_TYPE={cmakebuildtype} \
 {cmakeflags} {cmakeflagsplatform} \
