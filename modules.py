@@ -54,7 +54,7 @@ def test_modules( **kwargs ):
         try:
             loadedversion = os.environ[ "TACC_"+mod.upper()+"_VERSION" ]
             if nonnull(ver):
-                if not process.version_satisfies(loadedversion,ver,terminal=None):
+                if not process.version_satisfies(loadedversion,ver,**kwargs):
                     echo_string( f"loaded version: {loadedversion} does not match version {ver}",
                                  **kwargs )
                     error = True

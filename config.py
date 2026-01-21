@@ -169,16 +169,16 @@ def environment_settings( config_dict ):
     mods = [ m for m,_ in
              modules.loaded_modules( **config_dict,terminal=None ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
-    trace_string( f"Setting variables from modules:\n{modules}",**config_dict )
+    trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:
-        trace_string( f"investigate module: {module}",**config_dict )
+        trace_string( f" .. settings from module: {module}",**config_dict )
         for ext in [ "dir", "inc", "lib", "bin", ]:
             macro = f"TACC_{module.upper()}_{ext.upper()}"
             if val := nonzero_env( macro,**config_dict ):
                 if not os.path.isdir(val):
                     echo_warning(
-                        f"Path does not exist: {val}",
-                        **config_dict )
+                        f"module {module}: path does not exist for ext={val}",
+                        prefix=" .. ",**config_dict )
                 config_dict[macro] = val
 
 def config_from_rc_files( config_dict ):
