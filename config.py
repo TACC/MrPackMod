@@ -31,8 +31,32 @@ def add_settings_from_config( configfile,config_dict ):
         saving = False
         for line in configuration_file.readlines():
             line = line.strip(); line = line.lstrip("let ") ## WARNING
+            # ignore comments and blank lines
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
+            # detect conditionals
+            if reject := re.search( r'^([a-zA-Z0-9_]+)\!=([a-zA-Z0-9_]+)\s+(.*)$',line ):
+                field1,field2,line = reject.groups()
+                value1 = config_dict.get(field1,field1)
+                value2 = config_dict.get(field2,field2)
+                #trace_string( f"test {field1}:{value1} != {field2}:{value2}",**config_dict )
+                # if equal, this line is rejected, otherwise continue with line
+                if value1==value2:
+                    trace_string( f"{value1} == {value2} => reject {line}",**config_dict )
+                    continue
+                else:
+                    trace_string( f"{value1} != {value2} => accept {line}",**config_dict )
+            if accept := re.search( r'^([a-zA-Z0-9_]+)==([a-zA-Z0-9_]+)\s+(.*)$',line ):
+                field1,field2,line = accept.groups()
+                value1 = config_dict.get(field1,field1)
+                value2 = config_dict.get(field2,field2)
+                #trace_string( f"test {field1}:{value1} == {field2}:{value2}",**config_dict )
+                # if unequal, do next line, otherwise continue with line
+                if value1!=value2:
+                    trace_string( f"{value1} != {value2} => reject {line}",**config_dict )
+                    continue
+                else:
+                    trace_string( f"{value1} == {value2} => accept {line}",**config_dict )
             # either a definition line, or a continuation
             if keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
                 key,val = keyval.groups()
@@ -76,7 +100,7 @@ def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
 
 def system_settings( config_dict,rc_files,**kwargs ):
     for k,v in {
-            'system':setting_from_env_or_rc(
+            'SYSTEM':setting_from_env_or_rc(
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
                 rc_files,**kwargs ),
             # compiler family
@@ -102,7 +126,7 @@ def system_settings( config_dict,rc_files,**kwargs ):
                 "CXX","TACC_CXX","NO_CXX_DEFINED",rc_files,**kwargs ),
             }.items():
         config_dict[k] = v
-    if config_dict['system'] == "vista":
+    if config_dict["SYSTEM"] == "vista":
         config_dict['blaslapack_inc'] = setting_from_env_or_rc(
             "BLASLAPACK_INC","TACC_NVPL_INC","NO_NVPL_INC_SETTING",
             rc_files,**kwargs )
@@ -182,7 +206,7 @@ def environment_settings( config_dict ):
                 config_dict[macro] = val
 
 def config_from_rc_files( config_dict ):
-    system   = abort_on_zero_keyword( "system",**config_dict )
+    system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
     compiler = abort_on_zero_keyword( "compiler",**config_dict )
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."

@@ -86,7 +86,7 @@ def create_homedir( **kwargs ):
 def family_names( **kwargs ):
     try:
         # in jail we can run without compiler loaded
-        system   = nonzero_keyword("system",**kwargs)
+        system   = nonzero_keyword("SYSTEM",**kwargs)
         compiler = nonzero_keyword("compiler",**kwargs)
         cversion = nonzero_keyword("compilerversion",**kwargs)
         cshortv  = cversion

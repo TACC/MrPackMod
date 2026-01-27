@@ -22,7 +22,7 @@ let keymacro = value
 Typical keys are
 ```
 PACKAGE = somepackage
-let PACKAGEVERSION = 1.0.0
+PACKAGEVERSION = 1.0.0
 ABOUT = This package is for something
 BUILDSYSTEM = cmake
 CMAKEFLAGS = \
@@ -30,8 +30,16 @@ CMAKEFLAGS = \
  -D BAR=OFF
 DOWNLOADURL = https://github.com/SomePackage/v${PACKAGEVERSION}.tar.gz
 ```
-The `let` keyword indicates a macro, which can be used in other settings,
-such as here the download link.
+Each keyword can later be used as a macro,
+as is illustrated here for `PACKAGEVERSION`.
+
+There is a modest conditional facility:
+```
+SYSTEM!=legacy SETTING=OFF
+SYSTEM==legacy SETTING=OFF
+```
+with equality and inequality the only available tests.
+Both sides of the comparison can be literal or configuration keys.
 
 ## Global settings
 
