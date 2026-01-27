@@ -46,13 +46,14 @@ def logfile_name( logstage,**kwargs ):
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
     if nonnull(packagename):
-        logfilename = f"{scriptdir}/{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
+        logfileshortname = f"{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
     else:
-        logfilename = f"{scriptdir}/{logstage}-{moduleversion}_{compiler}-{cversion}"
+        logfileshortname = f"{logstage}-{moduleversion}_{compiler}-{cversion}"
     if mode := nonzero_keyword( "MODE",**kwargs ):
-        logfilename += f"_{mpi}-{mversion}"
-    logfilename += ".log"
-    return logfilename
+        logfileshortname += f"_{mpi}-{mversion}"
+    logfileshortname += ".log"
+    logfilename = f"{scriptdir}/{logfileshortname}"
+    return logfilename,logfileshortname
 
 #
 # Create a directory for either building or install

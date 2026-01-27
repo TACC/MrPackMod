@@ -15,7 +15,7 @@ import modules
 import names
 import process
 from process import process_execute, process_initiate, process_terminate
-from process import echo_string, error_abort, abort_on_zero_env
+from process import echo_string, trace_string, error_abort, abort_on_zero_env
 from process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 
 def export_compilers( **kwargs ):
@@ -49,10 +49,11 @@ def export_flags( **kwargs ):
     return cmdline
 
 def open_logfile( logstage,kwargs ):
-    logfile = names.logfile_name( logstage,**kwargs )
+    # get global name, ignore local name
+    logfile,_ = names.logfile_name( logstage,**kwargs )
     loghandle = open( logfile,"w" )
     kwargs["logfiles"][logfile] = loghandle
-    echo_string( f"Open logfile {logfile}",**kwargs )
+    trace_string( f"Open logfile {logfile}",**kwargs )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )

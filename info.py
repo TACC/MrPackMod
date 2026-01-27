@@ -23,3 +23,7 @@ def list_installations( **kwargs ):
              ]
     echo_string( f"Found installations in installroot {installroot}\n{dirs}" )
     
+def list_logfiles( **kwargs ):
+    _,configurelog = names.logfile_name( "configure",**kwargs )
+    _,installlog   = names.logfile_name( "install",**kwargs )
+    print( f"{configurelog} {installlog}" )
