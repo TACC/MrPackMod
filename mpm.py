@@ -14,7 +14,7 @@ parser.add_argument( '-c','--configuration',default="Configuration")
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '-A','--args',default="" )
-parser.add_argument( 'actions', nargs='*', help="test version url logfiles configure build module dependencies findstring, install=configure+build+module" )
+parser.add_argument( 'actions', nargs='*', help="test version url listmodules logfiles configure build module dependencies findstring, install=configure+build+module" )
 
 arguments = parser.parse_args()
 configfile   = arguments.configuration
@@ -63,6 +63,8 @@ def mpm( args,**kwargs ):
             info.list_logfiles( **configuration )
         elif action=="test":
             modules.test_modules( **configuration )
+        elif action=="listmodules":
+            if modules := configuration.get("MODULES"): print( modules )
         elif action=="url":
             if url := configuration.get("URL"): print( url )
             if url := configuration.get("CODEURL"): print( url )

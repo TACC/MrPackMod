@@ -148,6 +148,7 @@ def system_paths( **kwargs ):
 
     envs = ""
     for sub in [ "inc", "lib", "bin", ]:
+        # if this value has been set (by who?), generate a path update line
         if dir := kwargs.get( f"TACC_{modulename.upper()}_{sub.upper()}" ):
             ext = re.sub( f"{prefixdir}/","",dir ).lstrip("/") # why the lstrip?
             print( f"path: {dir} => ext: {ext}" )
@@ -171,16 +172,18 @@ def system_paths( **kwargs ):
                 #
                 # add path relative to prefix
                 #
-                if env in [ "BINDIR", "PKGCONFIGLIB", ]:
-                    # relative to prefix & standard extension
-                    val = re.sub( f"{prefixdir}/","",val ).lstrip("/") # why the lstrip?
-                    # else relative to prefix & custom path
-                path = f"pathJoin( prefixdir,\"{val}\" )"
-                envs += f"prepend_path( \"{var}\", {path} )\n"
-            elif env in [ "PREFIXPATHSET",
-                         ]:
+                if env == "BINDIR":
+                    suffix = "bin"
+                elif env == "PKGCONFIGLIB":
+                    suffix = f"{libext}/pkgconfig"
+                else:
+                    # relative to prefix & specified value
+                    suffix = val
+                newpath = f"pathJoin( prefixdir,\"{suffix}\" )"
+                envs += f"prepend_path( \"{var}\", {newpath} )\n"
+            elif env in [ "PREFIXPATHSET", ]:
                 #
-                # add prefix path itself
+                # value==1 so ignire: add prefix path itself
                 #
                 envs += f"prepend_path( \"{var}\", prefixdir )\n"
             elif env in [ "PYTHONPATHABS", ]:
