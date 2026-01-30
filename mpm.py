@@ -14,7 +14,7 @@ parser.add_argument( '-c','--configuration',default="Configuration")
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '-A','--args',default="" )
-parser.add_argument( 'actions', nargs='*', help="test version url listmodules logfiles configure build module dependencies findstring, install=configure+build+module" )
+parser.add_argument( 'actions', nargs='*', help="test version url logfiles configure build module public dependencies findstring, install=configure+build+module" )
 
 arguments = parser.parse_args()
 configfile   = arguments.configuration
@@ -93,6 +93,9 @@ def mpm( args,**kwargs ):
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
             if action in [ "install", "module", ]:
                 install.write_module_file( **configuration )
+        elif action=="public":
+            install.public_installation( **configuration )
+            install.public_module( **configuration )
         else: process.error_abort( f"Unknown action: {action}" )
                 
 mpm( actions,tracing=tracing,jcount=jcount,dependencies=dependencies )

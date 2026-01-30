@@ -249,6 +249,31 @@ def autotools_build( **kwargs ):
         process_execute( f"cp -r {cptoinstall} {prefixdir}",**kwargs )
     close_logfile( logfilename,logfilehandle,kwargs )
 
+import os
+import stat
+
+def recursive_rx( path ):
+    perm_dir = stat.S_IRUSR + stat.S_IWUSR + stat.S_IXUSR \
+        + stat.S_IRGRP + stat.S_IXGRP \
+        + stat.S_IROTH + stat.S_IXOTH
+    perm_file = perm_dir
+
+    # Change permissions for the top-level folder
+    os.chmod(path, perm_dir )
+
+    for root, dirs, files in os.walk(path):
+        # set perms on sub-directories  
+        for momo in dirs:
+            os.chmod(os.path.join(root, momo), perm_dir )
+
+    # set perms on files
+    for momo in files:
+        os.chmod(os.path.join(root, momo), perm_file )
+
+def public_installation( **kwargs ):
+    prefixdir = names.prefixdir_name( **kwargs )
+    recursive_rx(prefixdir)
+
 def write_module_file( **kwargs ):
     tracing = kwargs.get("tracing")
     logfilename,logfilehandle = open_logfile( "module",kwargs ) # note dict!
@@ -263,7 +288,7 @@ def write_module_file( **kwargs ):
     pkg_info      = modules.package_info       ( **kwargs )
     path_settings = modules.path_settings      ( **kwargs )
     system_paths  = modules.system_paths       ( **kwargs )
-    if nonnull( depends := modules.dependencies       ( **kwargs ) ):
+    if nonnull( depends := modules.dependencies( **kwargs ) ):
         depends = f"\n{depends}"
 
     #
@@ -290,3 +315,8 @@ def write_module_file( **kwargs ):
             echo_string( f"Module contents:\n{modulecontents}",**kwargs )
         modulefile.write( modulecontents )
     close_logfile( logfilename,logfilehandle,kwargs )
+
+def public_module( **kwargs ):
+    modulefilepath,_ = names.modulefile_path_and_name( **kwargs )
+    recursive_rx(modulefilepath)
+
