@@ -244,7 +244,7 @@ def autotools_build( **kwargs ):
     extra = kwargs.get( "extrainstalltarget","" )
     cmdline = f"make --no-print-directory install {extra}"
     process_execute( cmdline,**kwargs )
-    if cptoinstall := nonzero_keyword( "cptoinstalldir",**kwargs ):
+    if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
         echo_string( f"Extra installs: {cptoinstall}",**kwargs )
         process_execute( f"cp -r {cptoinstall} {prefixdir}",**kwargs )
     close_logfile( logfilename,logfilehandle,kwargs )
