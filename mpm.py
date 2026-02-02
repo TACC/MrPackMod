@@ -14,7 +14,11 @@ parser.add_argument( '-c','--configuration',default="Configuration")
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '-A','--args',default="" )
-parser.add_argument( 'actions', nargs='*', help="test version url logfiles configure build module public dependencies findstring, install=configure+build+module" )
+build_actions = "configure build module public"
+context_actions = "dependencies listmodules test"
+package_actions = "version url"
+utility_actions = "clean"
+parser.add_argument( 'actions', nargs='*', help=f"Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
 arguments = parser.parse_args()
 configfile   = arguments.configuration
@@ -93,9 +97,15 @@ def mpm( args,**kwargs ):
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
             if action in [ "install", "module", ]:
                 install.write_module_file( **configuration )
+        elif action=="clean":
+            os.system( "rm -f *~ *.log" )
         elif action=="public":
             install.public_installation( **configuration )
             install.public_module( **configuration )
-        else: process.error_abort( f"Unknown action: {action}" )
+        else:
+            if action in build_actions+context_actions+package_actions+utility_actions:
+                process.error_abort( f"Action promised in help but not implemented: {action}", **configuration )
+            else:
+                process.error_abort( f"Unknown action: {action}",**configuration )
                 
 mpm( actions,tracing=tracing,jcount=jcount,dependencies=dependencies )
