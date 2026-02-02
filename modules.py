@@ -157,6 +157,7 @@ def system_paths( **kwargs ):
                 envs += f"prepend_path( \"INCLUDE\", {path} )\n"
             elif sub=="lib":
                 envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
+                libext = re.sub( f"{prefixdir}/","",dir ).lstrip("/")
             elif sub=="bin":
                 envs += f"prepend_path( \"PATH\", {path} )\n"
     for env,var in [ ["BINDIR","PATH"],

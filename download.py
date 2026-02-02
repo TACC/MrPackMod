@@ -74,3 +74,7 @@ def unpack_from_url( **kwargs ):
             process.process_execute( f"mv {unpackdir} {srcdir}" )
         else:
             echo_string( f"Unpacked dir is at final name: {srcdir}" )
+    if bootstrap := process.nonzero_keyword( "BOOTSTRAP",**kwargs ):
+        echo_string( f"Bootstrap action: {bootstrap}",**kwargs )
+        os.system( f"cd {srcdir} && {bootstrap}" )
+        
