@@ -193,26 +193,33 @@ def system_paths( **kwargs ):
                 #
                 envs += f"prepend_path( \"{var}\", \"{val}\" )\n"
 
-    return \
+    system_path_settings = \
 f"""\
 {envs}
 """.strip()
+    trace_string( f"System paths:\n{system_path_settings}",**kwargs )
+    return system_path_settings
 
 def dependencies( **kwargs ):
     tracing = kwargs.get( "tracing" )
     depends = ""
-    if prereq := nonzero_keyword( "dependson",**kwargs ):
+    if prereq := nonzero_keyword( "DEPENDSON",**kwargs ):
         if tracing:
             echo_string( f"depends on: {prereq}" )
         for dep in prereq.split(" "):
             depends += f"depends_on( \"{dep}\" )\n"
-    if curreq  := nonzero_keyword( "dependsoncurrent",**kwargs ):
+    if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         version = abort_on_zero_env( f"TACC_{curreq.upper()}_VERSION" )
         if tracing:
             echo_string( f"depends on current: {curreq}/{version}" )
         depends += f"depends_on( \"{curreq}/{version}\" )\n"
-    if family    := nonzero_keyword( "family",**kwargs ):
+    if family    := nonzero_keyword( "FAMILY",**kwargs ):
         if tracing:
             echo_string( f"belongs to family: {family}" )
         depends += f"family( \"{family}\" )\n"
-    return depends
+    dependency_settings = \
+f"""\
+{depends}
+""".strip()
+    trace_string( f"Dependency settings:\n{dependency_settings}",**kwargs )
+    return dependency_settings
