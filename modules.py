@@ -147,19 +147,19 @@ def system_paths( **kwargs ):
     prefixdir  = names.prefixdir_name( **kwargs )
 
     envs = ""
-    for sub in [ "inc", "lib", "bin", ]:
-        # if this value has been set (by who?), generate a path update line
-        if dir := kwargs.get( f"TACC_{modulename.upper()}_{sub.upper()}" ):
-            ext = re.sub( f"{prefixdir}/","",dir ).lstrip("/") # why the lstrip?
-            print( f"path: {dir} => ext: {ext}" )
-            path = f"pathJoin( prefixdir,\"{ext}\" )"
-            if sub=="inc":
-                envs += f"prepend_path( \"INCLUDE\", {path} )\n"
-            elif sub=="lib":
-                envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
-                libext = re.sub( f"{prefixdir}/","",dir ).lstrip("/")
-            elif sub=="bin":
-                envs += f"prepend_path( \"PATH\", {path} )\n"
+    _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
+    ## print( f"dirs: {libdir} {incdir} {bindir}" )
+    if nonnull(incdir):
+        path = names.pathjoin(prefixdir,incdir)
+        envs += f"prepend_path( \"INCLUDE\", {path} )\n"
+    if nonnull(libdir):
+        path = names.pathjoin(prefixdir,libdir)
+        envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
+        libext = re.sub( f"{prefixdir}/","",libdir ).lstrip("/")
+    if nonnull(bindir):
+        path = names.pathjoin(prefixdir,bindir)
+        envs += f"prepend_path( \"PATH\", {path} )\n"
+        
     for env,var in [ ["BINDIR","PATH"],
                      ["PKGCONFIG","PKG_CONFIG_PATH"],
                      ["PKGCONFIGLIB","PKG_CONFIG_PATH"],

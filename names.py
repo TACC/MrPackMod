@@ -256,3 +256,7 @@ def module_names( **kwargs):
     if mx := nonzero_keyword( "MODULEVERSIONEXTRA",**kwargs ):
         moduleversion += f"-{mx}"
     return modulename,moduleversion
+
+def pathjoin( prefix,dir ):
+    ext = re.sub(prefix,"",dir).lstrip('/')
+    return f"pathJoin( prefixdir, \"{ext}\" )"
