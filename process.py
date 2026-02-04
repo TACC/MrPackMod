@@ -174,18 +174,18 @@ def version_satisfies( loaded,tomatch,**kwargs ):
     want_mjr,want_mnr,want_mcr = f"{tomatch}.99.99".split(".",maxsplit=2)
     want_mnr = want_mnr.strip(".99")
     want_mcr = want_mnr.strip(".99.99")
-    trace_string( f" .. test loaded version={loaded} against wanted={tomatch}",
+    trace_string( f" .. test loaded version {loaded}={load_mjr}.{load_mnr}.{load_mcr} against wanted {tomatch}={want_mjr}.{want_mnr}.{want_mcr}",
                   **kwargs )
     #
     # test successively major, minor, micro
     #
     for l,w in zip( [load_mjr,load_mnr,load_mcr],[want_mjr,want_mnr,want_mcr] ):
+        if null(w): break
         trace_string( f" .. component {l} <> {w}",**kwargs )
         if number_satisfies(l,w,**kwargs) or w=="99":
             trace_string( f" .. module version matched load={l} want={w}",**kwargs )
         else:
-            trace_string( f" .. module version mismatch load={l} want={w}",
-                          **kwargs )
+            trace_string( f" .. module version mismatch load={l} want={w}",**kwargs )
             return False
     return True
 

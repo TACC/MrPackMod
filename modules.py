@@ -45,8 +45,8 @@ def test_modules( **kwargs ):
             error = True
             echo_string( f"Please load module: {mod}",**kwargs )
             continue
-        echo_string( f" .. module {mod} is at: {packdir}" )
-        loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None )
+        trace_string( f" .. module {mod} is at: {packdir}",**kwargs )
+        loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None ) # 2>&1 ??
         echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
         if not os.path.isdir(packdir):
             error = True
