@@ -160,34 +160,34 @@ def system_paths( **kwargs ):
         path = names.pathjoin(prefixdir,bindir)
         envs += f"prepend_path( \"PATH\", {path} )\n"
         
-    for env,var in [ ["BINDIR","PATH"],
+    for cfg,var in [ ["BINDIR","PATH"],
                      ["PKGCONFIG","PKG_CONFIG_PATH"],
                      ["PKGCONFIGLIB","PKG_CONFIG_PATH"],
                      ["PREFIXPATHSET","CMAKE_PREFIX_PATH"],
                      ["PYTHONPATHABS","PYTHONPATH"],
-                     ["PYTHONPATHREL","PYTHONPATH"],
+                     ["PYTHONPATHADD","PYTHONPATH"],
                 ]:
-        if val := nonzero_keyword( env,**kwargs ):
-            if env in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHREL",
+        if val := nonzero_keyword( cfg,**kwargs ):
+            if cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD",
                        ]:
                 #
                 # add path relative to prefix
                 #
-                if env == "BINDIR":
+                if cfg == "BINDIR":
                     suffix = "bin"
-                elif env == "PKGCONFIGLIB":
+                elif cfg == "PKGCONFIGLIB":
                     suffix = f"{libext}/pkgconfig"
                 else:
                     # relative to prefix & specified value
                     suffix = val
                 newpath = f"pathJoin( prefixdir,\"{suffix}\" )"
                 envs += f"prepend_path( \"{var}\", {newpath} )\n"
-            elif env in [ "PREFIXPATHSET", ]:
+            elif cfg in [ "PREFIXPATHSET", ]:
                 #
                 # value==1 so ignire: add prefix path itself
                 #
                 envs += f"prepend_path( \"{var}\", prefixdir )\n"
-            elif env in [ "PYTHONPATHABS", ]:
+            elif cfg in [ "PYTHONPATHABS", ]:
                 #
                 # add absolute path
                 #
