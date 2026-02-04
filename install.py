@@ -180,34 +180,34 @@ def autotools_configure( **kwargs ):
     process_execute( compilers_export,**kwargs,process=shell )
     flags_export = export_flags( **kwargs )
     process_execute( flags_export,**kwargs,process=shell )
-    if before := nonzero_keyword( "beforeconfigurecmds",**kwargs ):
+    if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
         process_execute( before,**kwargs,process=shell )
-    if nonzero_keyword( "defunprogfc",**kwargs ):
+    if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
         process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
                          **kwargs,process=shell )
     if not os.path.exists("configure") and os.path.exists("autogen.sh"):
         process_execute( "./autogen.sh",**kwargs,process=shell )
-    if not os.path.exists("configure") or nonzero_keyword( "forcereconf",**kwargs ):
+    if not os.path.exists("configure") or nonzero_keyword( "FORCERECONF",**kwargs ):
         if not os.path.exists( "configure.ac" ):
             raise Exception( "Need configure.ac to generate configure script" )
-        if reconf := nonzero_keyword( "autoreconf",**kwargs ):
+        if reconf := nonzero_keyword( "AUTORECONF",**kwargs ):
             cmdline = f"{reconf} -i"
         else:
             cmdline = f"aclocal && autoconf"
         process_execute( cmdline,**kwargs,process=shell )
-    if nonzero_keyword( "configinbuilddir",**kwargs ):
+    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
         os.chdir(builddir) # only gcc
         cmdline = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "configuresubdir",**kwargs ):
+    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
         os.chdir(subdir)
         cmdline = f"./configure"
     else:
         cmdline = f"./configure"
-    if option := nonzero_keyword( "prefixoption",**kwargs ):
+    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
         prefixoption = option # pdtoolkit
     else: prefixoption = "--prefix"
     cmdline += f" {prefixoption}={prefixdir} --libdir={prefixdir}/lib"
-    if flags := nonzero_keyword( "configureflags",**kwargs ):
+    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
         cmdline += f" {flags}"
     process_execute( cmdline,**kwargs,process=shell )
     process_terminate( shell,**kwargs )
@@ -221,9 +221,9 @@ def autotools_build( **kwargs ):
     srcdir    = names.srcdir_name( **kwargs )
     builddir  = names.builddir_name( **kwargs )
     prefixdir = names.prefixdir_name( **kwargs )
-    if nonzero_keyword("noinstall"):
+    if nonzero_keyword("NOINSTALL"):
         return
-    if subdir := nonzero_keyword("makesubdir",**kwargs):
+    if subdir := nonzero_keyword("MAKESUBDIR",**kwargs):
         os.chdir(subdir)
     else:
         os.chdir(srcdir)
@@ -235,13 +235,13 @@ def autotools_build( **kwargs ):
     makecommand = f"make --no-print-directory -j {jval}"
     echo_string( f"Making default target with: {makecommand}",**kwargs )
     process_execute( makecommand,**kwargs )
-    if extra := nonzero_keyword( "extrabuildtargets",**kwargs ):
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
         echo_string( f" .. making extra targets: {extra}",**kwargs )
         process_execute( f"{makecommand} {extra}",**kwargs )
     #
     # install
     #
-    extra = kwargs.get( "extrainstalltarget","" )
+    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
     cmdline = f"make --no-print-directory install {extra}"
     process_execute( cmdline,**kwargs )
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
