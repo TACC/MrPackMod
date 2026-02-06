@@ -41,7 +41,8 @@ from MrPackMod import names
 from MrPackMod import process
 
 def mpm( args,**kwargs ):
-    configuration = config.read_config(configfile,tracing)
+    nowarn = any( [ action in [ "clean","dependencies","modules",] for action in args ] )
+    configuration = config.read_config(configfile,tracing=tracing,nowarn=nowarn)
     # take care of jcount, dependencies, tracing
     for arg,val in kwargs.items():
         configuration[arg] = val
@@ -52,7 +53,7 @@ def mpm( args,**kwargs ):
             usage(program); sys.exit(0)
         # auxiliaries
         elif action=="dependencies":
-            print( configuration['modules'] )
+            print( configuration['MODULES'] )
         elif action=="find_string":
             if args := process.nonnull( command_arguments ):
                 srcdir = names.srcdir_name( **configuration )

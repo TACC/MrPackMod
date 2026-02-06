@@ -189,7 +189,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
     }.items():
         config_dict[k] = v
 
-def environment_settings( config_dict ):
+def environment_settings( config_dict,nowarn=False ):
     mods = [ m for m,_ in
              modules.loaded_modules( **config_dict,terminal=None ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
@@ -199,7 +199,7 @@ def environment_settings( config_dict ):
         for ext in [ "dir", "inc", "lib", "bin", ]:
             macro = f"TACC_{module.upper()}_{ext.upper()}"
             if val := nonzero_env( macro,**config_dict ):
-                if not os.path.isdir(val):
+                if not os.path.isdir(val) and not nowarn:
                     echo_warning(
                         f"module {module}: path {val} does not exist for ext={ext}",
                         prefix=" .. ",**config_dict )
@@ -243,7 +243,9 @@ def expr_value( expr,**kwargs ):
     else:
         return expr
 
-def read_config(configfile,tracing=False):
+def read_config(configfile,**kwargs):
+    tracing = kwargs.get("tracing",False)
+    nowarn  = kwargs.get("nowarn",False)
     rc_name = ".mrpackmodrc"
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
                                 f"{os.path.expanduser('~')}/{rc_name}" 
@@ -263,7 +265,7 @@ def read_config(configfile,tracing=False):
     # install paths
     install_settings     ( configuration_dict,rc_files,tracing=tracing )
     # variables from installed modules
-    environment_settings ( configuration_dict )
+    environment_settings ( configuration_dict,nowarn=nowarn )
     config_from_rc_files ( configuration_dict )
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
