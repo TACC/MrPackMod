@@ -65,12 +65,12 @@ def create_homedir( **kwargs ):
     terminal = kwargs.get( "terminal",None )
     package,_ = package_names( **kwargs )
     if root:
-        echo_string( f"creating homedir value based on root: {root}",**kwargs )
+        trace_string( f"homedir value based on root: {root}",**kwargs )
         homedir = f"{root}/{package}"
     else:
         if not nonnull( homedir ): raise Exception( "need either root or homedir" )
-        echo_string( f"creating homedir value based on homedir: {homedir}",**kwargs )
-    echo_string( f"using homedir: {homedir}",**kwargs )
+        trace_string( f"homedir value based on homedir: {homedir}",**kwargs )
+    trace_string( f"using homedir: {homedir}",**kwargs )
     if not os.path.isdir(homedir):
         echo_string( f"creating homedir: {homedir}",**kwargs )
         try:

@@ -16,7 +16,7 @@ parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '-A','--args',default="" )
 build_actions = "configure build module public"
 context_actions = "dependencies listmodules test"
-package_actions = "version url"
+package_actions = "version url configurelog logfiles"
 utility_actions = "clean"
 parser.add_argument( 'actions', nargs='*', help=f"Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
@@ -41,7 +41,9 @@ from MrPackMod import names
 from MrPackMod import process
 
 def mpm( args,**kwargs ):
-    nowarn = any( [ action in [ "clean","dependencies","modules",] for action in args ] )
+    nowarn = any( [ action in [ "clean","configurelog","dependencies",
+                                "listmodules", "modules",]
+                    for action in args ] )
     configuration = config.read_config(configfile,tracing=tracing,nowarn=nowarn)
     # take care of jcount, dependencies, tracing
     for arg,val in kwargs.items():
@@ -66,10 +68,14 @@ def mpm( args,**kwargs ):
             info.list_installations( **configuration )
         elif action=="logfiles":
             info.list_logfiles( **configuration )
+        elif action=="configurelog":
+            logfile = info.configurelog_name( **configuration,nowarn=True )
+            print( logfile )
         elif action=="test":
             modules.test_modules( **configuration )
         elif action=="listmodules":
-            if modules := configuration.get("MODULES"): print( modules )
+            if modulelist := configuration.get("MODULES"):
+                print( modulelist )
         elif action=="url":
             if url := configuration.get("URL"): print( url )
             if url := configuration.get("CODEURL"): print( url )
