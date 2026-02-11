@@ -25,6 +25,9 @@ def export_compilers( **kwargs ):
         echo_string( f"Setting compiler: {key}={val}",**kwargs )
         which = process_execute( f"which {val}",**kwargs,terminal=None )
         echo_string( f" .. where {val}={which}",**kwargs )
+        if ( mpi := kwargs.get("MODE") ) == "mpi":
+            info = process_execute( f"{which} --show",**kwargs,terminal=None )
+            echo_string( f" .. which is:\n    {info}",**kwargs )
         cmdline += f"{cont}export {key}={val}"
         cont = " && "
     return cmdline

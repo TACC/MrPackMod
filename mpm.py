@@ -42,7 +42,7 @@ from MrPackMod import process
 
 def mpm( args,**kwargs ):
     nowarn = any( [ action in [ "clean","configurelog","dependencies",
-                                "listmodules", "modules",]
+                                "listmodules", "modules", "version",]
                     for action in args ] )
     configuration = config.read_config(configfile,tracing=tracing,nowarn=nowarn)
     # take care of jcount, dependencies, tracing
