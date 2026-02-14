@@ -24,6 +24,28 @@ def add_new_dict_item( newkey,newval,config_dict ):
     config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
 
+def condition_split( cond,**config_dict ):
+    field1,op,field2,line = cond.groups()
+    value1 = config_dict.get(field1,field1)
+    value2 = config_dict.get(field2,field2)
+    return value1,op,value2,line
+
+def line_strip_conditionals( line,**config_dict ):
+    """ returns: line,accept """
+    trace_string( f"Test line for conditions: {line}",**config_dict,terminal=None )
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
+        value1,comparison,value2,line = condition_split( test,**config_dict )
+        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",**config_dict )
+        if ( comparison=="==" and value1!=value2 ) or \
+           ( comparison=="!=" and value1==value2 ):
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",**config_dict )
+            return line,False
+        else: 
+            trace_string( f" .. accept because {value1}{comparison}{value2}",**config_dict )
+            return line_strip_conditionals( line,**config_dict )
+    else:
+        trace_string( f" .. accept because no conditionals detected",**config_dict,terminal=None )
+        return line,True
 def add_settings_from_config( configfile,config_dict ):
     tracing = config_dict.get("tracing",False)
     with open(configfile,"r") as configuration_file:
@@ -35,28 +57,8 @@ def add_settings_from_config( configfile,config_dict ):
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
             # detect conditionals
-            if reject := re.search( r'^([a-zA-Z0-9_]+)\!=([a-zA-Z0-9_]+)\s+(.*)$',line ):
-                field1,field2,line = reject.groups()
-                value1 = config_dict.get(field1,field1)
-                value2 = config_dict.get(field2,field2)
-                #trace_string( f"test {field1}:{value1} != {field2}:{value2}",**config_dict )
-                # if equal, this line is rejected, otherwise continue with line
-                if value1==value2:
-                    trace_string( f"{value1} == {value2} => reject {line}",**config_dict )
-                    continue
-                else:
-                    trace_string( f"{value1} != {value2} => accept {line}",**config_dict )
-            if accept := re.search( r'^([a-zA-Z0-9_]+)==([a-zA-Z0-9_]+)\s+(.*)$',line ):
-                field1,field2,line = accept.groups()
-                value1 = config_dict.get(field1,field1)
-                value2 = config_dict.get(field2,field2)
-                #trace_string( f"test {field1}:{value1} == {field2}:{value2}",**config_dict )
-                # if unequal, do next line, otherwise continue with line
-                if value1!=value2:
-                    trace_string( f"{value1} != {value2} => reject {line}",**config_dict )
-                    continue
-                else:
-                    trace_string( f"{value1} == {value2} => accept {line}",**config_dict )
+            line,accept = line_strip_conditionals( line,**config_dict )
+            if not accept: continue
             # either a definition line, or a continuation
             if keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
                 key,val = keyval.groups()
@@ -104,17 +106,17 @@ def system_settings( config_dict,rc_files,**kwargs ):
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
                 rc_files,**kwargs ),
             # compiler family
-            'compiler':setting_from_env_or_rc(
+            'COMPILER':setting_from_env_or_rc(
             "COMPILER", "TACC_FAMILY_COMPILER","UNKNOWN_COMPILER",
                 rc_files,**kwargs  ),
-            'compilerversion':setting_from_env_or_rc(
+            'COMPILERVERSION':setting_from_env_or_rc(
                 "COMPILERVERSION", "TACC_FAMILY_COMPILER_VERSION","UNKNOWN_COMPILER_VERSION",
                 rc_files,**kwargs  ),
             # mpi family
-            'mpi':setting_from_env_or_rc(
+            'MPI':setting_from_env_or_rc(
                 "MPI", "TACC_FAMILY_MPI","UNKNOWN_MPI",
                 rc_files,**kwargs  ),
-            'mpiversion':setting_from_env_or_rc(
+            'MPIVERSION':setting_from_env_or_rc(
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","UNKNOWN_MPI_VERSION",
                 rc_files,**kwargs  ),
             # compiler names
@@ -207,7 +209,7 @@ def environment_settings( config_dict,nowarn=False ):
 
 def config_from_rc_files( config_dict ):
     system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
-    compiler = abort_on_zero_keyword( "compiler",**config_dict )
+    compiler = abort_on_zero_keyword( "COMPILER",**config_dict )
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):

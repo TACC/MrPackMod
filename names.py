@@ -87,12 +87,12 @@ def family_names( **kwargs ):
     try:
         # in jail we can run without compiler loaded
         system   = nonzero_keyword("SYSTEM",**kwargs)
-        compiler = nonzero_keyword("compiler",**kwargs)
-        cversion = nonzero_keyword("compilerversion",**kwargs)
+        compiler = nonzero_keyword("COMPILER",**kwargs)
+        cversion = nonzero_keyword("COMPILERVERSION",**kwargs)
         cshortv  = cversion
         # re.sub( r'^([^\.]*)\.([^\.]*)(\.*)?$',r'\1\2',cversion ) # DOESN'T WORK
-        mpi      = nonzero_keyword("mpi",**kwargs)
-        mversion = nonzero_keyword("mpiversion",**kwargs)
+        mpi      = nonzero_keyword("MPI",**kwargs)
+        mversion = nonzero_keyword("MPIVERSION",**kwargs)
         return system,compiler,cversion,cshortv,mpi,mversion
     except:
         print( "Deduce running in jail" )
