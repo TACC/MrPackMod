@@ -24,41 +24,79 @@ def loaded_modules( **kwargs ):
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
 non_packages = [ "mkl","nvpl","blaslapack", "mpi", ]
+def mod_ver(m):
+    mod,ver = f"{m}/".split('/',maxsplit=1)
+    mod = mod.lower(); ver = ver.strip("/")
+    return mod,ver
+
+def test_module_loaded( mod,ver,**kwargs ):
+    echo_string( f"Test presence of module={mod} version={ver}" )
+    if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
+        return False
+    elif not os.path.isdir(packdir):
+        echo_string( f"Module {mod} loaded but directory not found: {packdir}",
+                     **kwargs )
+        return False
+    else:
+        trace_string( f" .. module {mod} is at: {packdir}",**kwargs )
+        return True
+
+def test_module_version( mod,ver,**kwargs ):
+    if isnull(ver):
+        trace_string( " .. no particular version required",**kwargs )
+        return True
+    if isnull( loadedversion := os.getenv( "TACC_"+mod.upper()+"_VERSION","" ) ):
+        trace_string( " .. module does not declared VERSION parameter",**kwargs )
+        return True
+    else:
+        trace_string( f"loaded version: {loadedversion} does not match version {ver}",
+                     **kwargs )
+        return False
+
+# are the required modules loaded?
+def test_loaded_modules( **kwargs ):
+    if not (modules := nonzero_keyword( "MODULES",**kwargs ) ):
+        trace_string( "No prerequisite modules",**kwargs )
+        return True
+    success = True
+    for m in modules.split(" "):
+        if not nonnull(m):continue
+        mod,ver = mod_ver(m)
+        if mod in non_packages:
+            trace_string( f"Skip test for non-package: {mod}",**kwargs )
+            continue
+        if not ( loaded := test_module_loaded( mod,ver,**kwargs ) ):
+            echo_string( f"Please load module: {mod}",**kwargs )
+            success = False; continue
+        if not test_module_version( mod,ver,**kwargs ):
+            success = False; continue
+        loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None ) # 2>&1 ??
+        echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
+    return success
+
+# are no nonmodules loaded?
+def test_nonmodules( **kwargs ):
+    if not (nonmodules := nonzero_keyword( "NONMODULES",**kwargs ) ):
+        trace_string( "No nonmodules",**kwargs )
+        return True
+    success = True
+    for m in nonmodules.split(" "):
+        if not nonnull(m):continue
+        mod,ver = mod_ver(m)
+        if loaded := test_module_loaded( mod,ver,**kwargs ):
+            echo_string( f"Please unload module: {mod}",**kwargs )
+            success = False
+        else: trace_string( " .. module correctly not loaded",**kwargs )
+    return success
+
 def test_modules( **kwargs ):
     tracing = kwargs.get( "tracing" )
     error = False
-    if not (modules := nonzero_keyword( "MODULES",**kwargs ) ):
-        trace_string( "No prerequisite modules",**kwargs )
-        return
     if tracing:
         modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) )
         echo_string( f"\nUsing modulepath {modulepath}\n",**kwargs )
-    for m in modules.split(" "):
-        if not nonnull(m):continue
-        mod,ver = f"{m}/".split('/',maxsplit=1)
-        mod = mod.lower(); ver=ver.strip("/")
-        if mod in non_packages:
-            echo_string( f"Skip test for non-package: {mod}",**kwargs )
-            continue
-        echo_string( f"Test presence of module={mod} version={ver}" )
-        if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
-            error = True
-            echo_string( f"Please load module: {mod}",**kwargs )
-            continue
-        trace_string( f" .. module {mod} is at: {packdir}",**kwargs )
-        loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None ) # 2>&1 ??
-        echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
-        if not os.path.isdir(packdir):
-            error = True
-            echo_string( f"Module {mod} loaded but directory not found: {packdir}",**kwargs )
-        try:
-            loadedversion = os.environ[ "TACC_"+mod.upper()+"_VERSION" ]
-            if nonnull(ver):
-                if not process.version_satisfies(loadedversion,ver,**kwargs):
-                    echo_string( f"loaded version: {loadedversion} does not match version {ver}",
-                                 **kwargs )
-                    error = True
-        except: continue
+    error = error or not test_loaded_modules( **kwargs ) \
+        or not test_nonmodules( **kwargs )
     if error:
         error_abort( "Errors during module testing",**kwargs )
 

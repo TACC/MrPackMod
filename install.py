@@ -283,9 +283,6 @@ def write_module_file( **kwargs ):
     logfilename,logfilehandle = open_logfile( "module",kwargs ) # note dict!
 
     #
-    # paths
-    #
-    #
     # module contents
     #
     help_string   = modules.module_help_string ( **kwargs )

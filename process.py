@@ -168,6 +168,7 @@ def number_satisfies( loaded,wanted,**kwargs ):
     return res
 
 def version_satisfies( loaded,tomatch,**kwargs ):
+    if isnull(loaded) or isnull(tomatch): return True
     load_mjr,load_mnr,load_mcr = f"{loaded}.0.0".split(".",maxsplit=2)
     load_mnr = load_mnr.strip(".0")
     load_mcr = load_mcr.strip(".0")
