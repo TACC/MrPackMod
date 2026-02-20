@@ -26,8 +26,6 @@ def download_from_url( **kwargs, ):
     url = abort_on_zero_keyword( "DOWNLOADURL",**kwargs )
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
     cd_download_path( **kwargs,logfile=downloadlog )
-    if url == "":
-        raise Exception("No URL given to download")
     echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
     tgz = re.sub( r'.*/','',url )
     process.process_execute( f"rm -f {tgz}" )
@@ -78,3 +76,9 @@ def unpack_from_url( **kwargs ):
         echo_string( f"Bootstrap action: {bootstrap}",**kwargs )
         os.system( f"cd {srcdir} && {bootstrap}" )
         
+def clone_from_url( **kwargs ):
+    url = abort_on_zero_keyword( "GITREPO",** kwargs )
+    gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","w" ) )
+    cd_download_path( **kwargs,logfile=gitlog )
+    gitdir_local = names.gitdir_local_name( **kwargs )
+    process.process_execute( f"git clone {url} {gitdir_local}",**kwargs )

@@ -31,10 +31,10 @@ from process import error_abort,requirenonzero,nonnull
 def package_names( **kwargs ):
     package = abort_on_zero_keyword("PACKAGE",**kwargs)
     version = abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
-    if version == "git":
-        # raise Exception( "gitdate not yet implemented" )
-        today = re.sub( '-','',str(datetime.date.today()) )
-        version = f"git{today}"
+    # if version == "git":
+    #     # raise Exception( "gitdate not yet implemented" )
+    #     today = re.sub( '-','',str(datetime.date.today()) )
+    #     version = f"git{today}"
     return package,version
 
 #
@@ -143,6 +143,11 @@ def install_extension( **kwargs ):
 
 def srcdir_local_name( **kwargs ):
     packagebasename,packageversion = package_names( **kwargs )
+    return f"{packagebasename}-{packageversion}"
+
+def gitdir_local_name( **kwargs ):
+    packagebasename,_ = package_names( **kwargs )
+    packageversion = "git"
     return f"{packagebasename}-{packageversion}"
 
 def srcdir_name( **kwargs ):
