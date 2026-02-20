@@ -275,6 +275,7 @@ def recursive_rx( path ):
 
 def public_installation( **kwargs ):
     prefixdir = names.prefixdir_name( **kwargs )
+    trace_string( f"Chmod rx prefixdir={prefixdir}",**kwargs )
     recursive_rx(prefixdir)
 
 def write_module_file( **kwargs ):
@@ -321,5 +322,6 @@ def write_module_file( **kwargs ):
 
 def public_module( **kwargs ):
     modulefilepath,_ = names.modulefile_path_and_name( **kwargs )
+    trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
 
