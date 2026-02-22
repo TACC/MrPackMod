@@ -46,12 +46,17 @@ def test_module_version( mod,ver,**kwargs ):
         trace_string( " .. no particular version required",**kwargs )
         return True
     if isnull( loadedversion := os.getenv( "TACC_"+mod.upper()+"_VERSION","" ) ):
-        trace_string( " .. module does not declared VERSION parameter",**kwargs )
+        trace_string( " .. module does not declare VERSION parameter",**kwargs )
         return True
     else:
-        trace_string( f"loaded version: {loadedversion} does not match version {ver}",
+        if not ( version_match := process.version_satisfies( loadedversion,ver,**kwargs ) ):
+            trace_string( f"loaded version: {loadedversion} does not match version {ver}",
                      **kwargs )
-        return False
+            return False
+        else:
+            trace_string( f"loaded version: {loadedversion} matches version {ver}",
+                          **kwargs )
+            return True
 
 # are the required modules loaded?
 def test_loaded_modules( **kwargs ):
@@ -66,9 +71,10 @@ def test_loaded_modules( **kwargs ):
             trace_string( f"Skip test for non-package: {mod}",**kwargs )
             continue
         if not ( loaded := test_module_loaded( mod,ver,**kwargs ) ):
-            echo_string( f"Please load module: {mod}",**kwargs )
+            echo_string( f"\nPlease load module: {mod}\n",**kwargs )
             success = False; continue
         if not test_module_version( mod,ver,**kwargs ):
+            echo_string( f"\nLoad module version matching {mod}/{ver}\n",**kwargs )
             success = False; continue
         loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None ) # 2>&1 ??
         echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
