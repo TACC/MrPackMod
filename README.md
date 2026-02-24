@@ -41,6 +41,12 @@ SYSTEM==legacy SETTING=OFF
 with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
 
+Since a line is reconsidered after the conditional is stripped
+you can have compound tests:
+```
+SYSTEM==vista COMPILER==nvidia NVIDIA_SETTING=-Wcompiler
+```
+
 ## Global settings
 
 The MrPackMod system relies on a couple of global variables. 

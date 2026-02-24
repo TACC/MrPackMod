@@ -12,7 +12,14 @@ from install import open_logfile,close_logfile
 from process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
+additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULES", ]
+
 def add_new_dict_item( newkey,newval,config_dict ):
+    """ Add a new value under the given key.
+    Any macros in the value are expanded.
+    Note: only one expansion pass, but macros can not contains macros anyway.
+    If a key is added more than once, the initial value is silently overwritten,
+    except for keys that are additive such as DEPENDSON"""
     newval = newval.strip('\n').strip(' ')
     for key,val in config_dict.items():
         if not type(val) is str: continue
@@ -21,7 +28,10 @@ def add_new_dict_item( newkey,newval,config_dict ):
         newval = newval.replace( searchstring,val )
         if oldval!=newval:
             trace_string( f"replace: {key} => {val}",**config_dict )
-    config_dict[newkey] = newval
+    if newkey in additive_keys and newkey in config_dict.keys() :
+        config_dict[newkey] = f"{config_dict[newkey]} {newval}"
+    else:
+        config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
 
 def condition_split( cond,**config_dict ):
