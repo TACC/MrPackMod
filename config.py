@@ -189,7 +189,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
                 "MODULEDIR", "MODULEDIR","",
                 rc_files,**kwargs  ),
             # optional stuff
-            'installext':setting_from_env_or_rc(
+            'INSTALLEXT':setting_from_env_or_rc(
                 "INSTALLEXT", "INSTALLEXT", "",
                 rc_files,**kwargs  ),
             'MODULENAMEALT':setting_from_env_or_rc(

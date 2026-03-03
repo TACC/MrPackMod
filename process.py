@@ -159,7 +159,7 @@ def number_satisfies( loaded,wanted,**kwargs ):
         res = int(loaded)>int(wanted); op = ">"
     elif ext := re.match( r'\*(.*)$',wanted ):
         match = ext.groups()[0].lstrip( "*" ).rstrip( "*" )
-        res = r.search( match,loaded ); op = "*..."
+        res = re.search( match,loaded ); op = "*..."
     elif loaded==wanted:
         res = True; op = "=="
     else:

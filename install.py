@@ -173,7 +173,6 @@ def cmake_build( **kwargs ):
 def autotools_configure( **kwargs ):
     logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
-    #installext
     #
     # execute configure
     #

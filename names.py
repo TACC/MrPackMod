@@ -135,9 +135,9 @@ def install_extension( **kwargs ):
     package,packageversion = package_names( **kwargs )
     envcode = abort_on_null( environment_code( **kwargs ),"environment code for install ext" )
     installext = f"{packageversion}-{envcode}"
-    if nonnull( iext := kwargs.get( "installext","" ) ):
+    if nonnull( iext := kwargs.get( "INSTALLEXT","" ) ):
         installext = f"{installext}-{iext}"
-    if nonnull( variant := kwargs.get("installvariant","") ):
+    if nonnull( variant := kwargs.get("INSTALLVARIANT","") ):
         installext = f"{installext}-{variant}"
     return installext
 
