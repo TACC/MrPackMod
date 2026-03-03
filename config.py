@@ -42,19 +42,23 @@ def condition_split( cond,**config_dict ):
 
 def line_strip_conditionals( line,**config_dict ):
     """ returns: line,accept """
-    trace_string( f"Test line for conditions: {line}",**config_dict,terminal=None )
+    trace_string( f"Test line for conditions: {line}",**config_dict )
     if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
         value1,comparison,value2,line = condition_split( test,**config_dict )
-        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",**config_dict )
+        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
+                      **config_dict )
         if ( comparison=="==" and value1!=value2 ) or \
            ( comparison=="!=" and value1==value2 ):
-            trace_string( f" .. reject because not {value1}{comparison}{value2}",**config_dict )
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
             return line,False
         else: 
-            trace_string( f" .. accept because {value1}{comparison}{value2}",**config_dict )
+            trace_string( f" .. accept because {value1}{comparison}{value2}",
+                          **config_dict )
             return line_strip_conditionals( line,**config_dict )
     else:
-        trace_string( f" .. accept because no conditionals detected",**config_dict,terminal=None )
+        trace_string( f" .. accept because no conditionals detected: {line}",
+                      **config_dict )
         return line,True
 def add_settings_from_config( configfile,config_dict ):
     tracing = config_dict.get("tracing",False)
@@ -62,17 +66,26 @@ def add_settings_from_config( configfile,config_dict ):
         trace_string( f"Read configuration: {configfile}",**config_dict )
         saving = False
         for line in configuration_file.readlines():
-            line = line.strip(); line = line.lstrip("let ") ## WARNING
+            line = line.strip()
+            if re.match( r'let ',line ):
+                raise error_abort( f"obsolete syntax: <<{line}>>",**config_dict )
             # ignore comments and blank lines
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
-            # detect conditionals
+            # detect and strip conditionals, return acceptability & line to process
             line,accept = line_strip_conditionals( line,**config_dict )
             if not accept: continue
-            # either a definition line, or a continuation
-            if keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
+            if False:
+                continue
+            elif export := re.search( r'export\s+(.+)$',line ):
+                # setting = export.groups()[0];
+                trace_string( f"Adding export: <<{line}>>",**config_dict )
+                config_dict["exports"].append(line)
+            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
+                # definition line
                 key,val = keyval.groups()
             elif saving:
+                # continuation:
                 # we inherit key from the previous iteration
                 # we also inherit val & extend it with the current line
                 trace_string( f" .. building up key={key} with: {line}" )
@@ -268,6 +281,7 @@ def read_config(configfile,**kwargs):
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"0.0",
         'tracing':tracing,
+        'exports':[], # vars to set before cmake/configure call
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }

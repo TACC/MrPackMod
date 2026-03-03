@@ -58,7 +58,10 @@ def abort_on_zero_keyword( keyword,**kwargs ):
     else: return val
 
 def nonnull( val ):
-    return ( val is not None ) and ( val is not False ) and ( not re.match( r'^[ \t\n]*$',val ) )
+    return ( val is not None ) \
+        and ( val is not False ) \
+        and  ( ( isinstance(val,list) and len(val)>0) \
+               or ( isinstance(val,str) and not re.match( r'^\s*$',val ) ) )
 
 def isnull( val ):
     return not nonnull( val )

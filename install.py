@@ -93,8 +93,8 @@ def cmake_configure( **kwargs ):
         cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
         cmakeflags += f" {flags}"
-    cmake = kwargs.get("CMAKENAME","cmake")
-    if nonzero_keyword("CMAKEUSENINJA"):
+    cmake = kwargs.get( "CMAKENAME","cmake" )
+    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
         cmake = f"{cmake} -G Ninja"
     if kwargs.get("CMAKEBUILDDEBUG"):
         defaultbuild = "Debug"
@@ -119,6 +119,9 @@ def cmake_configure( **kwargs ):
     os.chdir( builddir )
     shell = process_initiate( **kwargs )
     compilers_export = export_compilers( **kwargs )
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline = " && ".join(exports)
+        process_execute( export_cmdline,**kwargs,process=shell )
     process_execute( compilers_export,**kwargs,process=shell )
     # --no-warn-unused-cli ?
     cmdline = f"TERM=dumb {cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
