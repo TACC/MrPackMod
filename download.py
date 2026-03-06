@@ -35,7 +35,7 @@ def download_from_url( **kwargs, ):
 def unpack_from_url( **kwargs ):
     url          = kwargs.get( "DOWNLOADURL" )
     srcdir       = kwargs.get("srcdir")
-    downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/unpack.log","w" ) )
+    downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","a" ) )
     ## downloadpath = ???
     cd_download_path( **kwargs,logfile=downloadlog )
     echo_string( f"Unpacking in {os.getcwd()}",logfile=downloadlog )
@@ -76,6 +76,14 @@ def unpack_from_url( **kwargs ):
         echo_string( f"Bootstrap action: {bootstrap}",**kwargs )
         os.system( f"cd {srcdir} && {bootstrap}" )
         
+def retar_to_standard_name( **kwargs ):
+    downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","a" ) )
+    cd_download_path( **kwargs,logfile=downloadlog )
+    url          = kwargs.get( "DOWNLOADURL" )
+    file = re.sub( r'.*/','',url )
+    unpackdir = process.process_execute( f"tar ftz {file} | head -n 1" ).rstrip('/')
+    process.process_execute( f"tar fcz {unpackdir}.tgz {unpackdir}",**kwargs )
+
 def clone_from_url( **kwargs ):
     url = abort_on_zero_keyword( "GITREPO",** kwargs )
     gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","w" ) )
