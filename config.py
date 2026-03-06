@@ -193,6 +193,9 @@ def install_settings( config_dict,rc_files,**kwargs ):
             'installpath':setting_from_env_or_rc(
                 "INSTALLPATH", "INSTALLPATH","",
                 rc_files,**kwargs  ),
+            'downloadpath':setting_from_env_or_rc(
+                "DOWNLOADPATH", "DOWNLOADPATH","",
+                rc_files,**kwargs  ),
             'builddirroot':setting_from_env_or_rc(
                 "BUILDDIRROOT", "BUILDDIRROOT","",
                 rc_files,**kwargs  ),
