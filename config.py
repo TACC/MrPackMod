@@ -60,6 +60,7 @@ def line_strip_conditionals( line,**config_dict ):
         trace_string( f" .. accept because no conditionals detected: {line}",
                       **config_dict )
         return line,True
+
 def add_settings_from_config( configfile,config_dict ):
     tracing = config_dict.get("tracing",False)
     with open(configfile,"r") as configuration_file:

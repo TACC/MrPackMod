@@ -47,6 +47,7 @@ def usage():
 
 def mpm( actions,**kwargs ):
     nowarn = any( [ action in [ "clean","configurelog","dependencies",
+                                "url",
                                 "listmodules", "modules", "version",]
                     for action in actions ] ) \
                         or len(actions)==0 # help only
