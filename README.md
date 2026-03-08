@@ -140,7 +140,7 @@ Alternatively, use `MODULEDIRSET` for a fully explicit path.
 ### Lib,Inc,Bin and such
 
 By default, the module will have variables for an include and lib directory.
-- If there is not include dir, set `NOINC = 1`;
+- If there is no include dir, set `NOINC = 1`;
 - If there is no lib dir, set `NOLIB = 1`;
 - If there is a bin dir, set `HASBIN = 1`.
 
@@ -163,3 +163,4 @@ More settings:
 - `URL`, `SOFTWAREURL` are URLs for homepage and software page;
 - `DEPENDSON = package` : inserts a `depends_on( "package" )` line;
 - `DEPENDSONCURRENT = package` generates a `depends_on` clause that additionally includes the version number of the currently loaded package.
+- `EXTRAPATHREL = PACKAGE_MORE=more` allows one variable to be declared as relative to the prefix dir. The `more` can be empty to let the variable correspond to the prefix path.
