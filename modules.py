@@ -184,26 +184,8 @@ local prefixdir = \"{prefixdir}\"
 {info}{paths}
 """.strip()
 
-def system_paths( **kwargs ):
-    print( f"In system_paths:\n{kwargs}" )
-    package    = kwargs.get("PACKAGE")
-    modulename = kwargs.get( "MODULENAME",package )
-    prefixdir  = names.prefixdir_name( **kwargs )
-
-    envs = ""
-    _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
-    ## print( f"dirs: {libdir} {incdir} {bindir}" )
-    if nonnull(incdir):
-        path = names.pathjoin(prefixdir,incdir)
-        envs += f"prepend_path( \"INCLUDE\", {path} )\n"
-    if nonnull(libdir):
-        path = names.pathjoin(prefixdir,libdir)
-        envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
-        libext = re.sub( f"{prefixdir}/","",libdir ).lstrip("/")
-    if nonnull(bindir):
-        path = names.pathjoin(prefixdir,bindir)
-        envs += f"prepend_path( \"PATH\", {path} )\n"
-        
+def other_paths( **kwargs ):
+    paths = ""
     for cfg,var in [ ["BINDIR","PATH"],
                      ["PKGCONFIG","PKG_CONFIG_PATH"],
                      ["PKGCONFIGLIB","PKG_CONFIG_PATH"],
@@ -225,17 +207,43 @@ def system_paths( **kwargs ):
                     # relative to prefix & specified value
                     suffix = val
                 newpath = f"pathJoin( prefixdir,\"{suffix}\" )"
-                envs += f"prepend_path( \"{var}\", {newpath} )\n"
+                paths += f"prepend_path( \"{var}\", {newpath} )\n"
             elif cfg in [ "PREFIXPATHSET", ]:
                 #
                 # value==1 so ignire: add prefix path itself
                 #
-                envs += f"prepend_path( \"{var}\", prefixdir )\n"
+                paths += f"prepend_path( \"{var}\", prefixdir )\n"
             elif cfg in [ "PYTHONPATHABS", ]:
                 #
                 # add absolute path
                 #
-                envs += f"prepend_path( \"{var}\", \"{val}\" )\n"
+                paths += f"prepend_path( \"{var}\", \"{val}\" )\n"
+    if extra_path := nonzero_keyword( "EXTRAPATHREL",**kwargs ):
+        k,v = extra_path.split("=")
+        paths += f"setenv( \"{k}\", pathJoin( prefixdir,\"{v}\" ) )"
+    return paths
+
+def system_paths( **kwargs ):
+    print( f"In system_paths:\n{kwargs}" )
+    package    = kwargs.get("PACKAGE")
+    modulename = kwargs.get( "MODULENAME",package )
+    prefixdir  = names.prefixdir_name( **kwargs )
+
+    envs = ""
+    _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
+    ## print( f"dirs: {libdir} {incdir} {bindir}" )
+    if nonnull(incdir):
+        path = names.pathjoin(prefixdir,incdir)
+        envs += f"prepend_path( \"INCLUDE\", {path} )\n"
+    if nonnull(libdir):
+        path = names.pathjoin(prefixdir,libdir)
+        envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
+        libext = re.sub( f"{prefixdir}/","",libdir ).lstrip("/")
+    if nonnull(bindir):
+        path = names.pathjoin(prefixdir,bindir)
+        envs += f"prepend_path( \"PATH\", {path} )\n"
+    envs += other_paths( **kwargs )
+        
 
     system_path_settings = \
 f"""\
