@@ -90,3 +90,12 @@ def clone_from_url( **kwargs ):
     cd_download_path( **kwargs,logfile=gitlog )
     gitdir_local = names.gitdir_local_name( **kwargs )
     process_execute( f"git clone {url} {gitdir_local}",**kwargs )
+
+def pull_from_url( **kwargs ):
+    gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","a" ) )
+    cd_download_path( **kwargs,logfile=gitlog )
+    gitdir_local = names.gitdir_local_name( **kwargs )
+    cmdline = f"cd {gitdir_local} && git pull"
+    if branch := nonzero_keyword( "BRANCH",**kwargs ):
+        cmdline += f" && git checkout {branch}"
+    process_execute( cmdline,**kwargs,logfile=gitlog )

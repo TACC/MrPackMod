@@ -101,6 +101,8 @@ def mpm( actions,**kwargs ):
             download.retar_to_standard_name( **configuration )
         elif action=="clone":
             download.clone_from_url( **configuration )
+        elif action=="pull":
+            download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", ]:
             if action in [ "install", "configure", ]:
