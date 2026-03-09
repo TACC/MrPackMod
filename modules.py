@@ -186,6 +186,7 @@ local prefixdir = \"{prefixdir}\"
 
 def other_paths( **kwargs ):
     paths = ""
+    libext = nonzero_keyword( "libext",**kwargs )
     for cfg,var in [ ["BINDIR","PATH"],
                      ["PKGCONFIG","PKG_CONFIG_PATH"],
                      ["PKGCONFIGLIB","PKG_CONFIG_PATH"],
@@ -232,6 +233,7 @@ def system_paths( **kwargs ):
     envs = ""
     _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
     ## print( f"dirs: {libdir} {incdir} {bindir}" )
+    libext = "lib"
     if nonnull(incdir):
         path = names.pathjoin(prefixdir,incdir)
         envs += f"prepend_path( \"INCLUDE\", {path} )\n"
@@ -242,7 +244,7 @@ def system_paths( **kwargs ):
     if nonnull(bindir):
         path = names.pathjoin(prefixdir,bindir)
         envs += f"prepend_path( \"PATH\", {path} )\n"
-    envs += other_paths( **kwargs )
+    envs += other_paths( **kwargs,libext=libext )
         
 
     system_path_settings = \
