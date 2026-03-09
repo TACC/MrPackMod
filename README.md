@@ -1,9 +1,11 @@
 # MrPackMod: Package installer with LMod integration
 
 Usage:
+
 ``` 
 mpm.py [ -c Configuration ] [ -t ] keywords
 ```
+
 where keywords: `test download unpack configure build module`, 
 or `install` for `configure build module`.
 This can download, configure, install a package, 
@@ -14,12 +16,15 @@ and generate LMod modules.
 By default, `mpm` looks for a file `Configuration`, but the `-c` option
 allows you to specify another name.
 The configuration file contains lines:
+
 ```
 # comment
 key = value
 let keymacro = value
 ```
+
 Typical keys are
+
 ```
 PACKAGE = somepackage
 PACKAGEVERSION = 1.0.0
@@ -30,14 +35,17 @@ CMAKEFLAGS = \
  -D BAR=OFF
 DOWNLOADURL = https://github.com/SomePackage/v${PACKAGEVERSION}.tar.gz
 ```
+
 Each keyword can later be used as a macro,
 as is illustrated here for `PACKAGEVERSION`.
 
 There is a modest conditional facility:
+
 ```
 SYSTEM!=legacy SETTING=OFF
 SYSTEM==legacy SETTING=OFF
 ```
+
 with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
 
@@ -50,10 +58,12 @@ SYSTEM==vista COMPILER==nvidia NVIDIA_SETTING=-Wcompiler
 ## Global settings
 
 The MrPackMod system relies on a couple of global variables. 
+
 - `SYSTEM` : this is used for path generation in case you have multiple systems on a shared file system
 - `COMPILER `, `COMPILER_VERSION`, `MPI`, `MPI_VERSION` : these are mostly used for module path generation.
-- 
+ 
 Certain environment variables can be overriden in the configuration file (see above):
+
 - `PACKAGEROOT` : packages are downloaded and unpacked in `${PACKAGEROOT}/${PACKAGENAME}`; override this with the `DOWNLOADPATH` setting.
   The packageroot is also used as the default location of any builddirectory; override this with `BUILDDIRROOT`. (!!!not yet implemented!!!)
 - `INSTALLROOT` : the package is installed in `${INSTALLROOT}/installation-${PACKAGE}-${EXTENSION}` where the extension is compound of system, compiler, mpi.
@@ -64,15 +74,19 @@ Certain environment variables can be overriden in the configuration file (see ab
 These can be set through a file called `.mrpackmodrc`, which is searched in 1) the current directory 2) one level back, 
 to accomodate the case where you have one large "software" directory with each package a subdirectory, and
 3) your home directory. Syntax:
+
 ```
 # Comment about my settings
 SYSTEM = MyLaptop
 ```
 
 On TACC systems these settings can be set through environment variables (!!!this needs to be generalized!!!):
+
 - `TACC_SYSTEM` : for the `SYSTEM` setting
 - `TACC_FAMILY_COMPILER `, `TACC_FAMILY_COMPILER_VERSION`, `TACC_FAMILY_MPI`, `TACC_FAMILY_MPI_VERSION` : for the `COMPILER` and `MPI` settings.
+
 Certain environment variables can be overriden:
+
 - `PACKAGEROOT` : packages are downloaded and unpacked in `${PACKAGEROOT}/${PACKAGENAME}`; override this with the `DOWNLOADPATH` setting.
   The packageroot is also used as the default location of any builddirectory; override this with `BUILDDIRROOT`. (!!!not yet implemented!!!)
 - `INSTALLROOT` : the package is installed in `${INSTALLROOT}/installation-${PACKAGE}-${EXTENSION}` where the extension is compound of system, compiler, mpi.
@@ -96,6 +110,7 @@ A subsequent `unpack` action unpacks the downloaded file and renames the result 
 
 The `BUILDSYSTEM` setting can be `cmake` or `autotools`.
 Correspondingly, the `CMAKEFLAGS` and `CONFIGUREFLAGS` settings are used.
+
 - CMake uses a number of default flags such as:
   - `-D CMAKE_BUILD_TYPE=RelWithDebInfo`. Override this with `CMAKEBUILDTYPE`.
   - `-D BUILD_SHARED_LIBS=ON`. Override this with a nonzero value for `BUILDSTATICLIBS`.
@@ -119,15 +134,18 @@ The setting `EXTRABUILDTARGETS` is used in a second `make` call (sqlite).
 ## Module
 
 Prerequisite modules are given as
+
 ```
 MODULES = zlib hdf5
 ```
+
 where optionally version numbers can be attached: `hdf5/<2` or `hdf5/1.>12`.
 The `configure` and `build` actions tests for these modules to be loaded.
 
 ### Module file
 
 An LMod module file `${MODULENAME}/${PACKAGEVERSION}.lua` is generated on an automatically generated path, depending on the `MODE` setting:
+
 - `core` : `${MODULEROOT}/Core`.
 - `seq` or `omp` : `${MODULEROOT}/Compiler/${TACC_FAMILY_COMPILER}/${TACC_FAMILY_COMPILER_VERSION}`
 - `mpi` or `hybrid` : `${MODULEROOT}/MPI/${TACC_FAMILY_COMPILER}/${TACC_FAMILY_COMPILER_VERSION}/${TACC_MPI_FAMILY}/${TACC_MPI_FAMILY_VERSION}`
@@ -140,6 +158,7 @@ Alternatively, use `MODULEDIRSET` for a fully explicit path.
 ### Lib,Inc,Bin and such
 
 By default, the module will have variables for an include and lib directory.
+
 - If there is no include dir, set `NOINC = 1`;
 - If there is no lib dir, set `NOLIB = 1`;
 - If there is a bin dir, set `HASBIN = 1`.
@@ -153,12 +172,14 @@ variable with an absolute path, and a path relative to the installation respecti
 
 If the package generates `.cmake` files, specify `PREFIXPATHSET = 1`.
 If the package generates `.pc` files, specify 
+
 - `PKGCONFIG = path` for a path relative to the installation, or
 - `PKGCONFIGLIB = path` for a path relative to the lib directory.
 
 ### More
 
 More settings:
+
 - `ABOUT` is a compulsory one-line description of the package;
 - `URL`, `SOFTWAREURL` are URLs for homepage and software page;
 - `DEPENDSON = package` : inserts a `depends_on( "package" )` line;
