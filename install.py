@@ -25,6 +25,9 @@ def export_compilers( **kwargs ):
         echo_string( f"Setting compiler: {key}={val}",**kwargs )
         which = process_execute( f"which {val}",**kwargs,terminal=None )
         echo_string( f" .. where {val}={which}",**kwargs )
+        if ( mpi := kwargs.get("MODE") ) == "mpi":
+            info = process_execute( f"{which} -show",**kwargs,terminal=None )
+            echo_string( f" .. which is:\n    {info}",**kwargs )
         cmdline += f"{cont}export {key}={val}"
         cont = " && "
     return cmdline
@@ -90,8 +93,8 @@ def cmake_configure( **kwargs ):
         cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
         cmakeflags += f" {flags}"
-    cmake = kwargs.get("CMAKENAME","cmake")
-    if nonzero_keyword("CMAKEUSENINJA"):
+    cmake = kwargs.get( "CMAKENAME","cmake" )
+    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
         cmake = f"{cmake} -G Ninja"
     if kwargs.get("CMAKEBUILDDEBUG"):
         defaultbuild = "Debug"
@@ -116,6 +119,9 @@ def cmake_configure( **kwargs ):
     os.chdir( builddir )
     shell = process_initiate( **kwargs )
     compilers_export = export_compilers( **kwargs )
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline = " && ".join(exports)
+        process_execute( export_cmdline,**kwargs,process=shell )
     process_execute( compilers_export,**kwargs,process=shell )
     # --no-warn-unused-cli ?
     cmdline = f"TERM=dumb {cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
@@ -170,7 +176,6 @@ def cmake_build( **kwargs ):
 def autotools_configure( **kwargs ):
     logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
-    #installext
     #
     # execute configure
     #
@@ -272,15 +277,13 @@ def recursive_rx( path ):
 
 def public_installation( **kwargs ):
     prefixdir = names.prefixdir_name( **kwargs )
+    trace_string( f"Chmod rx prefixdir={prefixdir}",**kwargs )
     recursive_rx(prefixdir)
 
 def write_module_file( **kwargs ):
     tracing = kwargs.get("tracing")
     logfilename,logfilehandle = open_logfile( "module",kwargs ) # note dict!
 
-    #
-    # paths
-    #
     #
     # module contents
     #
@@ -318,5 +321,6 @@ def write_module_file( **kwargs ):
 
 def public_module( **kwargs ):
     modulefilepath,_ = names.modulefile_path_and_name( **kwargs )
+    trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
 

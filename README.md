@@ -49,6 +49,12 @@ SYSTEM==legacy SETTING=OFF
 with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
 
+Since a line is reconsidered after the conditional is stripped
+you can have compound tests:
+```
+SYSTEM==vista COMPILER==nvidia NVIDIA_SETTING=-Wcompiler
+```
+
 ## Global settings
 
 The MrPackMod system relies on a couple of global variables. 
@@ -178,3 +184,4 @@ More settings:
 - `URL`, `SOFTWAREURL` are URLs for homepage and software page;
 - `DEPENDSON = package` : inserts a `depends_on( "package" )` line;
 - `DEPENDSONCURRENT = package` generates a `depends_on` clause that additionally includes the version number of the currently loaded package.
+- `EXTRAPATHREL = PACKAGE_MORE=more` allows one variable to be declared as relative to the prefix dir. The `more` can be empty to let the variable correspond to the prefix path.

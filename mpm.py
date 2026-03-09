@@ -14,11 +14,12 @@ parser.add_argument( '-c','--configuration',default="Configuration")
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '-A','--args',default="" )
+file_actions    = "download unpack retar clone pull"
 build_actions = "configure build module public"
 context_actions = "dependencies listmodules test"
-package_actions = "version url"
+package_actions = "version url configurelog logfiles"
 utility_actions = "clean"
-parser.add_argument( 'actions', nargs='*', help=f"Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
+parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
 arguments = parser.parse_args()
 configfile   = arguments.configuration
@@ -40,19 +41,30 @@ from MrPackMod import modules
 from MrPackMod import names 
 from MrPackMod import process
 
-def mpm( args,**kwargs ):
-    configuration = config.read_config(configfile,tracing)
+def usage():
+    global parser
+    parser.print_help()
+
+def mpm( actions,**kwargs ):
+    nowarn = any( [ action in [ "clean","configurelog","dependencies",
+                                "url",
+                                "listmodules", "modules", "version",]
+                    for action in actions ] ) \
+                        or len(actions)==0 # help only
+    configuration = config.read_config(configfile,tracing=tracing,nowarn=nowarn)
     # take care of jcount, dependencies, tracing
     for arg,val in kwargs.items():
         configuration[arg] = val
-    for action in args:
+    if len(actions)==0:
+            usage(); sys.exit(0)
+    for action in actions:
         if tracing:
             print( f"Action: {action}" )
         if action=="help":
-            usage(program); sys.exit(0)
+            usage(); sys.exit(0)
         # auxiliaries
         elif action=="dependencies":
-            print( configuration['modules'] )
+            print( configuration['MODULES'] )
         elif action=="find_string":
             if args := process.nonnull( command_arguments ):
                 srcdir = names.srcdir_name( **configuration )
@@ -65,10 +77,14 @@ def mpm( args,**kwargs ):
             info.list_installations( **configuration )
         elif action=="logfiles":
             info.list_logfiles( **configuration )
+        elif action=="configurelog":
+            logfile = info.configurelog_name( **configuration,nowarn=True )
+            print( logfile )
         elif action=="test":
             modules.test_modules( **configuration )
         elif action=="listmodules":
-            if modules := configuration.get("MODULES"): print( modules )
+            if modulelist := configuration.get("MODULES"):
+                print( modulelist )
         elif action=="url":
             if url := configuration.get("URL"): print( url )
             if url := configuration.get("CODEURL"): print( url )
@@ -81,6 +97,10 @@ def mpm( args,**kwargs ):
         elif action in [ "unpack", "untar", ]:
             srcdir_local = names.srcdir_local_name( **configuration )
             download.unpack_from_url( srcdir=srcdir_local,**configuration )
+        elif action=="retar":
+            download.retar_to_standard_name( **configuration )
+        elif action=="clone":
+            download.clone_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", ]:
             if action in [ "install", "configure", ]:

@@ -12,7 +12,14 @@ from install import open_logfile,close_logfile
 from process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
+additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULES", ]
+
 def add_new_dict_item( newkey,newval,config_dict ):
+    """ Add a new value under the given key.
+    Any macros in the value are expanded.
+    Note: only one expansion pass, but macros can not contains macros anyway.
+    If a key is added more than once, the initial value is silently overwritten,
+    except for keys that are additive such as DEPENDSON"""
     newval = newval.strip('\n').strip(' ')
     for key,val in config_dict.items():
         if not type(val) is str: continue
@@ -21,8 +28,38 @@ def add_new_dict_item( newkey,newval,config_dict ):
         newval = newval.replace( searchstring,val )
         if oldval!=newval:
             trace_string( f"replace: {key} => {val}",**config_dict )
-    config_dict[newkey] = newval
+    if newkey in additive_keys and newkey in config_dict.keys() :
+        config_dict[newkey] = f"{config_dict[newkey]} {newval}"
+    else:
+        config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
+
+def condition_split( cond,**config_dict ):
+    field1,op,field2,line = cond.groups()
+    value1 = config_dict.get(field1,field1)
+    value2 = config_dict.get(field2,field2)
+    return value1,op,value2,line
+
+def line_strip_conditionals( line,**config_dict ):
+    """ returns: line,accept """
+    trace_string( f"Test line for conditions: {line}",**config_dict )
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
+        value1,comparison,value2,line = condition_split( test,**config_dict )
+        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
+                      **config_dict )
+        if ( comparison=="==" and value1!=value2 ) or \
+           ( comparison=="!=" and value1==value2 ):
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
+            return line,False
+        else: 
+            trace_string( f" .. accept because {value1}{comparison}{value2}",
+                          **config_dict )
+            return line_strip_conditionals( line,**config_dict )
+    else:
+        trace_string( f" .. accept because no conditionals detected: {line}",
+                      **config_dict )
+        return line,True
 
 def add_settings_from_config( configfile,config_dict ):
     tracing = config_dict.get("tracing",False)
@@ -30,37 +67,26 @@ def add_settings_from_config( configfile,config_dict ):
         trace_string( f"Read configuration: {configfile}",**config_dict )
         saving = False
         for line in configuration_file.readlines():
-            line = line.strip(); line = line.lstrip("let ") ## WARNING
+            line = line.strip()
+            if re.match( r'let ',line ):
+                raise error_abort( f"obsolete syntax: <<{line}>>",**config_dict )
             # ignore comments and blank lines
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
-            # detect conditionals
-            if reject := re.search( r'^([a-zA-Z0-9_]+)\!=([a-zA-Z0-9_]+)\s+(.*)$',line ):
-                field1,field2,line = reject.groups()
-                value1 = config_dict.get(field1,field1)
-                value2 = config_dict.get(field2,field2)
-                #trace_string( f"test {field1}:{value1} != {field2}:{value2}",**config_dict )
-                # if equal, this line is rejected, otherwise continue with line
-                if value1==value2:
-                    trace_string( f"{value1} == {value2} => reject {line}",**config_dict )
-                    continue
-                else:
-                    trace_string( f"{value1} != {value2} => accept {line}",**config_dict )
-            if accept := re.search( r'^([a-zA-Z0-9_]+)==([a-zA-Z0-9_]+)\s+(.*)$',line ):
-                field1,field2,line = accept.groups()
-                value1 = config_dict.get(field1,field1)
-                value2 = config_dict.get(field2,field2)
-                #trace_string( f"test {field1}:{value1} == {field2}:{value2}",**config_dict )
-                # if unequal, do next line, otherwise continue with line
-                if value1!=value2:
-                    trace_string( f"{value1} != {value2} => reject {line}",**config_dict )
-                    continue
-                else:
-                    trace_string( f"{value1} == {value2} => accept {line}",**config_dict )
-            # either a definition line, or a continuation
-            if keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
+            # detect and strip conditionals, return acceptability & line to process
+            line,accept = line_strip_conditionals( line,**config_dict )
+            if not accept: continue
+            if False:
+                continue
+            elif export := re.search( r'export\s+(.+)$',line ):
+                # setting = export.groups()[0];
+                trace_string( f"Adding export: <<{line}>>",**config_dict )
+                config_dict["exports"].append(line)
+            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
+                # definition line
                 key,val = keyval.groups()
             elif saving:
+                # continuation:
                 # we inherit key from the previous iteration
                 # we also inherit val & extend it with the current line
                 trace_string( f" .. building up key={key} with: {line}" )
@@ -104,17 +130,17 @@ def system_settings( config_dict,rc_files,**kwargs ):
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
                 rc_files,**kwargs ),
             # compiler family
-            'compiler':setting_from_env_or_rc(
+            'COMPILER':setting_from_env_or_rc(
             "COMPILER", "TACC_FAMILY_COMPILER","UNKNOWN_COMPILER",
                 rc_files,**kwargs  ),
-            'compilerversion':setting_from_env_or_rc(
+            'COMPILERVERSION':setting_from_env_or_rc(
                 "COMPILERVERSION", "TACC_FAMILY_COMPILER_VERSION","UNKNOWN_COMPILER_VERSION",
                 rc_files,**kwargs  ),
             # mpi family
-            'mpi':setting_from_env_or_rc(
+            'MPI':setting_from_env_or_rc(
                 "MPI", "TACC_FAMILY_MPI","UNKNOWN_MPI",
                 rc_files,**kwargs  ),
-            'mpiversion':setting_from_env_or_rc(
+            'MPIVERSION':setting_from_env_or_rc(
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","UNKNOWN_MPI_VERSION",
                 rc_files,**kwargs  ),
             # compiler names
@@ -167,6 +193,9 @@ def install_settings( config_dict,rc_files,**kwargs ):
             'installpath':setting_from_env_or_rc(
                 "INSTALLPATH", "INSTALLPATH","",
                 rc_files,**kwargs  ),
+            'downloadpath':setting_from_env_or_rc(
+                "DOWNLOADPATH", "DOWNLOADPATH","",
+                rc_files,**kwargs  ),
             'builddirroot':setting_from_env_or_rc(
                 "BUILDDIRROOT", "BUILDDIRROOT","",
                 rc_files,**kwargs  ),
@@ -177,7 +206,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
                 "MODULEDIR", "MODULEDIR","",
                 rc_files,**kwargs  ),
             # optional stuff
-            'installext':setting_from_env_or_rc(
+            'INSTALLEXT':setting_from_env_or_rc(
                 "INSTALLEXT", "INSTALLEXT", "",
                 rc_files,**kwargs  ),
             'MODULENAMEALT':setting_from_env_or_rc(
@@ -189,7 +218,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
     }.items():
         config_dict[k] = v
 
-def environment_settings( config_dict ):
+def environment_settings( config_dict,nowarn=False ):
     mods = [ m for m,_ in
              modules.loaded_modules( **config_dict,terminal=None ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
@@ -199,7 +228,7 @@ def environment_settings( config_dict ):
         for ext in [ "dir", "inc", "lib", "bin", ]:
             macro = f"TACC_{module.upper()}_{ext.upper()}"
             if val := nonzero_env( macro,**config_dict ):
-                if not os.path.isdir(val):
+                if not os.path.isdir(val) and not nowarn:
                     echo_warning(
                         f"module {module}: path {val} does not exist for ext={ext}",
                         prefix=" .. ",**config_dict )
@@ -207,7 +236,7 @@ def environment_settings( config_dict ):
 
 def config_from_rc_files( config_dict ):
     system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
-    compiler = abort_on_zero_keyword( "compiler",**config_dict )
+    compiler = abort_on_zero_keyword( "COMPILER",**config_dict )
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):
@@ -243,7 +272,9 @@ def expr_value( expr,**kwargs ):
     else:
         return expr
 
-def read_config(configfile,tracing=False):
+def read_config(configfile,**kwargs):
+    tracing = kwargs.get("tracing",False)
+    nowarn  = kwargs.get("nowarn",False)
     rc_name = ".mrpackmodrc"
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
                                 f"{os.path.expanduser('~')}/{rc_name}" 
@@ -254,6 +285,7 @@ def read_config(configfile,tracing=False):
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"0.0",
         'tracing':tracing,
+        'exports':[], # vars to set before cmake/configure call
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }
@@ -263,7 +295,7 @@ def read_config(configfile,tracing=False):
     # install paths
     install_settings     ( configuration_dict,rc_files,tracing=tracing )
     # variables from installed modules
-    environment_settings ( configuration_dict )
+    environment_settings ( configuration_dict,nowarn=nowarn )
     config_from_rc_files ( configuration_dict )
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )

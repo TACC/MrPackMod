@@ -58,7 +58,10 @@ def abort_on_zero_keyword( keyword,**kwargs ):
     else: return val
 
 def nonnull( val ):
-    return ( val is not None ) and ( val is not False ) and ( not re.match( r'^[ \t\n]*$',val ) )
+    return ( val is not None ) \
+        and ( val is not False ) \
+        and  ( ( isinstance(val,list) and len(val)>0) \
+               or ( isinstance(val,str) and not re.match( r'^\s*$',val ) ) )
 
 def isnull( val ):
     return not nonnull( val )
@@ -159,7 +162,7 @@ def number_satisfies( loaded,wanted,**kwargs ):
         res = int(loaded)>int(wanted); op = ">"
     elif ext := re.match( r'\*(.*)$',wanted ):
         match = ext.groups()[0].lstrip( "*" ).rstrip( "*" )
-        res = r.search( match,loaded ); op = "*..."
+        res = re.search( match,loaded ); op = "*..."
     elif loaded==wanted:
         res = True; op = "=="
     else:
@@ -168,19 +171,20 @@ def number_satisfies( loaded,wanted,**kwargs ):
     return res
 
 def version_satisfies( loaded,tomatch,**kwargs ):
+    if isnull(loaded) or isnull(tomatch): return True
     load_mjr,load_mnr,load_mcr = f"{loaded}.0.0".split(".",maxsplit=2)
     load_mnr = load_mnr.strip(".0")
     load_mcr = load_mcr.strip(".0")
     want_mjr,want_mnr,want_mcr = f"{tomatch}.99.99".split(".",maxsplit=2)
     want_mnr = want_mnr.strip(".99")
-    want_mcr = want_mnr.strip(".99.99")
+    want_mcr = want_mcr.strip(".99.99")
     trace_string( f" .. test loaded version {loaded}={load_mjr}.{load_mnr}.{load_mcr} against wanted {tomatch}={want_mjr}.{want_mnr}.{want_mcr}",
                   **kwargs )
     #
     # test successively major, minor, micro
     #
     for l,w in zip( [load_mjr,load_mnr,load_mcr],[want_mjr,want_mnr,want_mcr] ):
-        if null(w): break
+        if isnull(w): break
         trace_string( f" .. component {l} <> {w}",**kwargs )
         if number_satisfies(l,w,**kwargs) or w=="99":
             trace_string( f" .. module version matched load={l} want={w}",**kwargs )
