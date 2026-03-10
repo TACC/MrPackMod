@@ -187,31 +187,52 @@ def autotools_configure( **kwargs ):
     process_execute( flags_export,**kwargs,process=shell )
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
         process_execute( before,**kwargs,process=shell )
-    if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
-        process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
-                         **kwargs,process=shell )
-    if not os.path.exists("configure") and os.path.exists("autogen.sh"):
-        process_execute( "./autogen.sh",**kwargs,process=shell )
-    if not os.path.exists("configure") or nonzero_keyword( "FORCERECONF",**kwargs ):
-        if not os.path.exists( "configure.ac" ):
-            raise Exception( "Need configure.ac to generate configure script" )
-        if reconf := nonzero_keyword( "AUTORECONF",**kwargs ):
-            cmdline = f"{reconf} -i"
-        else:
-            cmdline = f"aclocal && autoconf"
-        process_execute( cmdline,**kwargs,process=shell )
+    ##
+    ## go to the right location
+    ##
     if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
-        os.chdir(builddir) # only gcc
+        trace_string( " .. going to configure in build dir",**kwargs )
+        has_configure = os.path.exists( f"{builddir}/configure" )
+        has_autogen = os.path.exists( f"{builddir}/autogen.sh" )
+        has_ac = os.path.exists( f"{builddir}/configure.ac" )
+        os.chdir(builddir) # needed for gcc
         cmdline = f"{srcdir}/configure"
     elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
-        os.chdir(subdir)
+        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
+        has_configure = os.path.exists( f"{subdir}/configure" )
+        has_autogen = os.path.exists( f"{subdir}/autogen.sh" )
+        has_ac = os.path.exists( f"{subdir}/configure.ac" )
+        process_execute( f"cd {subdir}",**kwargs,process=shell )
+        # os.chdir(subdir) # needed for taccstats
         cmdline = f"./configure"
     else:
+        has_configure = os.path.exists( f"configure" )
+        has_autogen = os.path.exists( f"autogen.sh" )
+        has_ac = os.path.exists( f"configure.ac" )
         cmdline = f"./configure"
+    ##
+    ## do stuff before configure
+    ##
+    if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
+        if has_ac: 
+            if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
+                process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
+                                 **kwargs,process=shell )
+            if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
+                cmdline = f"{reconf} -i"
+            else:
+                cmdline = f"aclocal && autoconf"
+        elif has_autogen:
+            cmdline = "./autogen.sh"
+        else:
+            raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
+        process_execute( cmdline,**kwargs,process=shell )
+    ##
+    ## do configure
     if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
         prefixoption = option # pdtoolkit
     else: prefixoption = "--prefix"
-    cmdline += f" {prefixoption}={prefixdir} --libdir={prefixdir}/lib"
+    cmdline = f"./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib"
     if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
         cmdline += f" {flags}"
     process_execute( cmdline,**kwargs,process=shell )
