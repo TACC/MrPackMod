@@ -49,12 +49,6 @@ SYSTEM==legacy SETTING=OFF
 with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
 
-Since a line is reconsidered after the conditional is stripped
-you can have compound tests:
-```
-SYSTEM==vista COMPILER==nvidia NVIDIA_SETTING=-Wcompiler
-```
-
 ## Global settings
 
 The MrPackMod system relies on a couple of global variables. 
@@ -163,6 +157,10 @@ By default, the module will have variables for an include and lib directory.
 - If there is no lib dir, set `NOLIB = 1`;
 - If there is a bin dir, set `HASBIN = 1`.
 
+If the include directory is non-standard, specify `INCLUDELOC = share/include` or so.
+
+Depending on inscrutable cmake mechanisms, the library dir can be `lib` or `lib64`. Mpm searches for either and sets the variable accordingly.
+
 The `INCLUDE`, `PATH`, `LD_LIBRARY_PATH` variables are updated accordingly.
 
 The settings `PYTHONPATHABS`, `PYTHONPATHREL` update the `PYTHONPATH` 
@@ -184,4 +182,3 @@ More settings:
 - `URL`, `SOFTWAREURL` are URLs for homepage and software page;
 - `DEPENDSON = package` : inserts a `depends_on( "package" )` line;
 - `DEPENDSONCURRENT = package` generates a `depends_on` clause that additionally includes the version number of the currently loaded package.
-- `EXTRAPATHREL = PACKAGE_MORE=more` allows one variable to be declared as relative to the prefix dir. The `more` can be empty to let the variable correspond to the prefix path.
