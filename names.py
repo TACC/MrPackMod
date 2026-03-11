@@ -214,7 +214,10 @@ def package_dir_names( **kwargs ):
     else: libdir = ""
     # inc
     if zero_keyword( "NOINC",**kwargs ):
-        incdir = f"{prefixdir}/include"
+        if custom := nonzero_keyword( "INCLUDELOC",**kwargs ):
+            incdir = f"{prefixdir}/{custom}"
+        else:
+            incdir = f"{prefixdir}/include"
         if not os.path.isdir( incdir ):
             raise Exception( f"Could not find include dir in prefix={prefixdir}, maybe set NOINC?" )
     else: incdir = ""
