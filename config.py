@@ -12,9 +12,9 @@ from install import open_logfile,close_logfile
 from process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
-additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULES", ]
+additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", ]
 
-def add_new_dict_item( newkey,newval,config_dict ):
+def add_new_dict_item( newkey,assign,newval,config_dict ):
     """ Add a new value under the given key.
     Any macros in the value are expanded.
     Note: only one expansion pass, but macros can not contains macros anyway.
@@ -28,11 +28,11 @@ def add_new_dict_item( newkey,newval,config_dict ):
         newval = newval.replace( searchstring,val )
         if oldval!=newval:
             trace_string( f"replace: {key} => {val}",**config_dict )
-    if newkey in additive_keys and newkey in config_dict.keys() :
+    if ( newkey in additive_keys or assign=="+=" ) and newkey in config_dict.keys() :
         config_dict[newkey] = f"{config_dict[newkey]} {newval}"
     else:
         config_dict[newkey] = newval
-    trace_string( f"Setting: {newkey} = {newval} from config",**config_dict )
+    trace_string( f"Setting: {newkey} {assign} {newval} from config",**config_dict )
 
 def condition_split( cond,**config_dict ):
     field1,op,field2,line = cond.groups()
@@ -79,12 +79,15 @@ def add_settings_from_config( configfile,config_dict ):
             if False:
                 continue
             elif export := re.search( r'export\s+(.+)$',line ):
-                # setting = export.groups()[0];
                 trace_string( f"Adding export: <<{line}>>",**config_dict )
                 config_dict["exports"].append(line)
-            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*=\s*(.*)$',line ):
+            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*(\+?=)\s*(.*)$',line ):
                 # definition line
-                key,val = keyval.groups()
+                key,assign,val = keyval.groups()
+                if assign=="+=":
+                    trace_string( f" .. addition {key} {assign} {val}",**config_dict )
+                else:
+                    trace_string( f" .. assignment {key} {assign} {val}",**config_dict )
             elif saving:
                 # continuation:
                 # we inherit key from the previous iteration
@@ -102,10 +105,10 @@ def add_settings_from_config( configfile,config_dict ):
                 saving = False # time to ship out
                 if envval := nonzero_env( key,**config_dict ):
                     # override with environment if specified
-                    add_new_dict_item( key,envval,config_dict )
+                    add_new_dict_item( key,assign,envval,config_dict )
                 else:
                     # use value deduced from file
-                    add_new_dict_item( key,val,config_dict )
+                    add_new_dict_item( key,assign,val,config_dict )
 
 def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
     val = ""

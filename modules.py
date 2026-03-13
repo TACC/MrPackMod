@@ -23,7 +23,7 @@ def loaded_modules( **kwargs ):
         ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
-non_packages = [ "mkl","nvpl","blaslapack", "mpi", ]
+non_packages = [ "blaslapack", "mpi", ] # mkl","nvpl","
 def mod_ver(m):
     mod,ver = f"{m}/".split('/',maxsplit=1)
     mod = mod.lower(); ver = ver.strip("/")
