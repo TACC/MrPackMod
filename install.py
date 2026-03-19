@@ -217,16 +217,21 @@ def autotools_configure( **kwargs ):
         if has_ac: 
             if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
                 process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
-                                 **kwargs,process=shell )
+                                 process=shell,**kwargs )
             if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
                 cmdline = f"{reconf} -i"
             else:
                 cmdline = f"aclocal && autoconf"
+            if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
+                process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
+                                 process=shell,**kwargs )
         elif has_autogen:
             cmdline = "./autogen.sh"
         else:
             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
         process_execute( cmdline,**kwargs,process=shell )
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        process_execute( "./autoupdate",**kwargs,process=shell )
     ##
     ## do configure
     if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
