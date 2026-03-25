@@ -79,13 +79,9 @@ def unpack_from_url( **kwargs ):
 def retar_to_standard_name( **kwargs ):
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","a" ) )
     cd_download_path( **kwargs,logfile=downloadlog )
-    if kwargs.get( "PACKAGEVERSION" )=="git":
-        package = kwargs.get( "PACKAGE" )
-        unpackdir = f"{package}-git"
-    else:
-        url = kwargs.get( "GITREPO" )
-        file = re.sub( r'.*/','',url )
-        unpackdir = process_execute( f"tar ftz {file} | head -n 1" ).rstrip('/')
+    package = kwargs.get( "PACKAGE" )
+    version = kwargs.get( "PACKAGEVERSION" )
+    unpackdir = f"{package}-{version}"
     process_execute( f"tar fcz {unpackdir}.tgz {unpackdir}",**kwargs )
 
 def clone_from_url( **kwargs ):
