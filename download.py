@@ -28,9 +28,9 @@ def download_from_url( **kwargs, ):
     cd_download_path( **kwargs,logfile=downloadlog )
     echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
     tgz = re.sub( r'.*/','',url )
-    process_execute( f"rm -f {tgz}" )
+    process_execute( f"rm -f {tgz}",**kwargs,logfile=downloadlog )
     cmdline=f"wget {url}"
-    process_execute( cmdline,logfile=downloadlog,terminal=None )
+    process_execute( cmdline,logfile=downloadlog )
 
 def unpack_from_url( **kwargs ):
     url          = kwargs.get( "DOWNLOADURL" )
@@ -44,9 +44,12 @@ def unpack_from_url( **kwargs ):
         raise Exception( f"Unpack {url} gives empty file name" )
     if not os.path.isfile( f"./{file}" ):
         raise Exception( f"No such file {file} in directory {os.getcwd()}" )
-    ext = re.sub( r'.*\.','',file )
-    echo_string( f"Unpacking file: {file} ext: {ext}",logfile=downloadlog )
-    if ext in [ "gz","tgz", ]:
+    if root_ext := re.search( r'(.+)\.([^\.]+)$',file):
+        _,ext = root_ext.groups()
+    else:
+        ext = "" # gnuplot downloads to `download' with no extension
+    echo_string( f"Unpacking file: <<{file}>> ext: <<{ext}>>",logfile=downloadlog )
+    if ext in [ "gz","tgz", "", ]: 
         unpackdir = process_execute( f"tar ftz {file} | head -n 1" )
         # the `.*' is only needed for gmsh which has `.clang-tidy' on the 1st line
         unpackdir = re.sub( r'/.*$','',unpackdir )
