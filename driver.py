@@ -2,6 +2,7 @@
 ## Main driver function
 ##
 
+import os
 import sys
 
 from MrPackMod import config 
