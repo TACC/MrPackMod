@@ -32,9 +32,10 @@ def mod_ver(m):
 def test_module_loaded( mod,ver,**kwargs ):
     echo_string( f"Test presence of module={mod} version={ver}" )
     if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
+        trace_string( f" .. variable TACC_{mod.upper()}_DIR not set",**kwargs )
         return False
     elif not os.path.isdir(packdir):
-        echo_string( f"Module {mod} loaded but directory not found: {packdir}",
+        trace_string( f" .. module {mod} loaded but directory not found: {packdir}",
                      **kwargs )
         return False
     else:
@@ -50,11 +51,11 @@ def test_module_version( mod,ver,**kwargs ):
         return True
     else:
         if not ( version_match := process.version_satisfies( loadedversion,ver,**kwargs ) ):
-            trace_string( f"loaded version: {loadedversion} does not match version {ver}",
+            trace_string( f" .. loaded version: {loadedversion} does not match version {ver}",
                      **kwargs )
             return False
         else:
-            trace_string( f"loaded version: {loadedversion} matches version {ver}",
+            trace_string( f" .. loaded version: {loadedversion} matches version {ver}",
                           **kwargs )
             return True
 

@@ -183,9 +183,9 @@ def version_satisfies( loaded,tomatch,**kwargs ):
     #
     # test successively major, minor, micro
     #
-    for l,w in zip( [load_mjr,load_mnr,load_mcr],[want_mjr,want_mnr,want_mcr] ):
+    for level,l,w in zip( ["major","minor","micro",],[load_mjr,load_mnr,load_mcr],[want_mjr,want_mnr,want_mcr] ):
         if isnull(w): break
-        trace_string( f" .. component {l} <> {w}",**kwargs )
+        trace_string( f" .. {level} component {l} <> {w}",**kwargs )
         if number_satisfies(l,w,**kwargs) or w=="99":
             trace_string( f" .. module version matched load={l} want={w}",**kwargs )
         else:
