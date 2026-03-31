@@ -13,7 +13,7 @@ from MrPackMod import modules
 from MrPackMod import names 
 from MrPackMod import process
 
-def mpm( parser ):
+def mpm( parser,**kwargs ):
     arguments = parser.parse_args()
     configfile   = arguments.configuration
     dependencies = arguments.dependencies
@@ -22,6 +22,12 @@ def mpm( parser ):
     tracing      = arguments.trace
     command_arguments = arguments.args
 
+    file_actions    = kwargs.get( "file_actions" )
+    build_actions   = kwargs.get( "build_actions" )
+    context_actions = kwargs.get( "context_actions" )
+    package_actions = kwargs.get( "package_actions" )
+    utility_actions = kwargs.get( "utility_actions" )
+    
     ##
     ## what actions are we performing?
     ##
@@ -31,8 +37,9 @@ def mpm( parser ):
     if tracing:
         print( f"Actions: {actions}" )
     nowarn = any( [ action in [ "clean","configurelog","dependencies",
-                                "url",
-                                "listmodules", "modules", "version",]
+                                "actions", "url",
+                                "listmodules", "modules", "public", "version",
+                               ]
                     for action in actions ] ) \
                         or len(actions)==0 # help only
 
@@ -44,8 +51,16 @@ def mpm( parser ):
     for action in actions:
         if tracing:
             print( f"Action: {action}" )
+        # informative
         if action=="help":
             parser.print_help(); sys.exit(0)
+        elif action=="actions":
+            print( f"""file_actions: {file_actions}
+build_actions   : {build_actions}
+context_actions : {context_actions}
+package_actions : {package_actions}
+utility_actions : {utility_actions}
+""" )
         # auxiliaries
         elif action=="dependencies":
             print( configuration['MODULES'] )

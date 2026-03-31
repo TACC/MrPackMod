@@ -21,10 +21,15 @@ file_actions    = "download unpack retar clone pull"
 build_actions = "configure build module public"
 context_actions = "dependencies listmodules test"
 package_actions = "version url configurelog logfiles"
-utility_actions = "clean"
+utility_actions = "actions clean"
 parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
 from MrPackMod import driver
 
-driver.mpm( parser )
-# actions,configfile=configfile,tracing=tracing,jcount=jcount,dependencies=dependencies )
+driver.mpm( parser,
+            file_actions=file_actions,
+            build_actions=build_actions,
+            context_actions=context_actions,
+            package_actions=package_actions,
+            utility_actions=utility_actions,
+           )
