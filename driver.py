@@ -12,6 +12,7 @@ from MrPackMod import install
 from MrPackMod import modules
 from MrPackMod import names 
 from MrPackMod import process
+from MrPackMod import regression
 
 def mpm( parser,**kwargs ):
     arguments = parser.parse_args()
