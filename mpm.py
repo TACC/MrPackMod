@@ -5,7 +5,6 @@ import sys
 if sys.version_info<(3,9,0):
     raise Exception("MrPackMod requires at least Python 3.9")
 
-args = sys.argv
 import argparse
 parser = argparse.ArgumentParser\
     ( prog="MrPackMod",
