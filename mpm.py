@@ -21,7 +21,7 @@ file_actions    = "download unpack retar clone pull"
 build_actions = "configure build module public"
 context_actions = "dependencies listmodules test"
 package_actions = "version url configurelog logfiles"
-utility_actions = "actions clean"
+utility_actions = "actions clean regression"
 parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
 from MrPackMod import driver

@@ -111,7 +111,7 @@ def module_help_string( **kwargs ):
     package,packageversion   = names.package_names( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
 
-    about = abort_on_zero_keyword( "ABOUT",**kwargs )
+    about = kwargs.get( "ABOUT", f"The {package} package" )
     about += "\n"
     if notes    := nonzero_keyword( "MODULENOTES",**kwargs ):
         about += f"Notes: {notes}\n"

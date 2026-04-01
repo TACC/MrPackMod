@@ -13,6 +13,7 @@ from process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
 additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", ]
+list_keys = [ "CMAKETEST", "EXISTENCETEST", ]
 
 def add_new_dict_item( newkey,assign,newval,config_dict ):
     """ Add a new value under the given key.
@@ -28,8 +29,16 @@ def add_new_dict_item( newkey,assign,newval,config_dict ):
         newval = newval.replace( searchstring,val )
         if oldval!=newval:
             trace_string( f"replace: {key} => {val}",**config_dict )
-    if ( newkey in additive_keys or assign=="+=" ) and newkey in config_dict.keys() :
-        config_dict[newkey] = f"{config_dict[newkey]} {newval}"
+    if ( newkey in additive_keys or assign=="+=" ) :
+        if newkey in config_dict.keys() :
+            config_dict[newkey] = f"{config_dict[newkey]} {newval}"
+        else:
+            # we tolerate "+=" if not previous value set
+            config_dict[newkey] = newval
+    elif newkey in list_keys:
+        if newkey not in config_dict.keys() :
+            config_dict[newkey] = []
+        config_dict[newkey].append( newval )
     else:
         config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} {assign} {newval} from config",**config_dict )

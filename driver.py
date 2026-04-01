@@ -123,6 +123,8 @@ utility_actions : {utility_actions}
         elif action=="public":
             install.public_installation( **configuration )
             install.public_module( **configuration )
+        elif action=="regression":
+            regression.do_tests( **configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
                 process.error_abort( f"Action promised in help but not implemented: {action}", **configuration )
