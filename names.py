@@ -204,7 +204,7 @@ def prefixdir_name( **kwargs ):
     return prefixdir
 
 def package_dir_names( **kwargs ):
-    prefixdir = names.prefixdir_name( **kwargs )
+    prefixdir = prefixdir_name( **kwargs )
     # lib
     if zero_keyword( "NOLIB",**kwargs ):
         libdir = f"{prefixdir}/lib64"

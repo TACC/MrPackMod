@@ -11,7 +11,7 @@ import sys
 #
 # my own modules
 #
-import MrPackMod.names as names
+from  MrPackMod import names 
 from MrPackMod.process import isnull,nonnull,echo_string,error_abort,trace_string
 from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,nonzero_keyword_or_default
 from MrPackMod.process import abort_on_zero_env

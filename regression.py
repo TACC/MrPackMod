@@ -68,6 +68,8 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     package,packageversion =  names.package_names( **kwargs )
     process_execute\
         ( f"module load {package}/{packageversion}",**kwargs,process=process )
+    process_execute\
+        ( f"module -t list 2>&1 | sort", **kwargs,process=process )
 
 def start_test_stage( name,stage,logdir,chdir=None,**kwargs ):
     logfile = open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
@@ -100,19 +102,10 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     process_execute\
         ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs,**output )
     process_execute\
-        ( f"Variable {dir_variable} = \${dir_variable}", **kwargs,**output )
-    # if directory := nonzero_keyword( dir_variable,**kwargs ):
-    #     msg : str = f"Variable {dir_variable} set to {directory}"
-    #     success.append( msg )
-    #     trace_string( msg,**kwargs,terminal=None )
-    #     if not os.path.isdir( directory ):
-    #         msg = f"Directory {directory} does not exist"
-    #         failure.append( msg )
-    #         trace_string( msg,**kwargs,terminal=None )
-    # else:
-    #     msg = f"Variable {dir_variable} not set"
-    #     failure.append( msg )
-    #     trace_string( msg,**kwargs,terminal=None )
+        ( f"echo Variable {dir_variable} : ${dir_variable}", **kwargs,**output )
+    process_execute\
+        ( f"if [ ! -d ${dir_variable} ] ; then echo Eror: {dir_variable} does not exist ; fi ",
+          **kwargs,**output )
     process_terminate( output["process"],**kwargs )
     close_logfile( output["logfile"],kwargs )
 

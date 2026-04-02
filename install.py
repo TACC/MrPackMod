@@ -11,7 +11,7 @@ import shutil
 #
 # my own modules
 #
-import MrPackMod.modulefile as modulefile
+#import module_help_string,package_info,path_settings,system_paths,dependencies
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate
@@ -148,7 +148,7 @@ def cmake_configure( **kwargs ):
     close_logfile( logfilename,kwargs )
 
 def cmake_build( **kwargs ):
-    logfilename,logfilehandle = open_logfile( "install",kwargs ) # note dict!
+    logfilename = open_logfile( "install",kwargs ) # note dict!
     #
     # setup directories
     #
@@ -179,10 +179,10 @@ def cmake_build( **kwargs ):
     if extra_targets := nonzero_keyword( "extrainstalltargets" ):
         cmdline = f"{make} {extra_targets}"
         process_execute( cmdline )
-    close_logfile( logfilename,logfilehandle,kwargs )
+    close_logfile( logfilename,kwargs )
 
 def autotools_configure( **kwargs ):
-    logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
+    logfilename = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
     #
     # execute configure
@@ -250,10 +250,10 @@ def autotools_configure( **kwargs ):
         cmdline += f" {flags}"
     process_execute( cmdline,**kwargs,process=shell )
     process_terminate( shell,**kwargs )
-    close_logfile( logfilename,logfilehandle,kwargs )
+    close_logfile( logfilename,kwargs )
     
 def autotools_build( **kwargs ):
-    logfilename,logfilehandle = open_logfile( "install",kwargs ) # note dict!
+    logfilename = open_logfile( "install",kwargs ) # note dict!
     #
     # setup directories
     #
@@ -286,7 +286,7 @@ def autotools_build( **kwargs ):
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
         echo_string( f"Extra installs: {cptoinstall}",**kwargs )
         process_execute( f"cp -r {cptoinstall} {prefixdir}",**kwargs )
-    close_logfile( logfilename,logfilehandle,kwargs )
+    close_logfile( logfilename,kwargs )
 
 import os
 import stat
@@ -315,8 +315,9 @@ def public_installation( **kwargs ):
     recursive_rx(prefixdir)
 
 def write_module_file( **kwargs ):
+    from  MrPackMod import  modulefile
     tracing = kwargs.get("tracing")
-    logfilename,logfilehandle = open_logfile( "module",kwargs ) # note dict!
+    logfilename = open_logfile( "module",kwargs ) # note dict!
 
     #
     # module contents
@@ -351,7 +352,7 @@ def write_module_file( **kwargs ):
         if tracing:
             echo_string( f"Module contents:\n{modulecontents}",**kwargs )
         modulefile.write( modulecontents )
-    close_logfile( logfilename,logfilehandle,kwargs )
+    close_logfile( logfilename,kwargs )
 
 def public_module( **kwargs ):
     modulefilepath,_ = modulefile_path_and_name( **kwargs )
