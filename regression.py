@@ -39,12 +39,13 @@ def parse_command( test_options,**kwargs ) -> dict:
 
     argument_list = shlex.split( f"{test_options}" )
     arguments  = parser.parse_args( argument_list )
+    #print(arguments)
 
     # cmake test
     do_run     = arguments.run
     
     # existence test
-    dir        = arguments.dir
+    dirtype    = arguments.dir
     ldd        = arguments.ldd
     # always
     test_title = arguments.title
@@ -52,7 +53,7 @@ def parse_command( test_options,**kwargs ) -> dict:
     print( f"Test: {test_title}, program: {program}, run: {do_run}" )
     return { "program":program, "title":test_title,
              "do_run":do_run, # cmake tests
-             "ldd":ldd, "dir":dir, # existence test
+             "ldd":ldd, "dirtype":dirtype, # existence test
              }
 
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
@@ -87,24 +88,38 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     except KeyError:
         error_abort( "Did not find program/ldd/dirtype",**kwargs )
 
+    logdir : str = ensure_dir( "logfiles",**kwargs )
+    builddir : str = create_dir( "build",**kwargs )
+
+    #
+    # existence
+    #
     package,_ = names.package_names( **kwargs )
-    dir_variable = f"TACC_{package.upper()}_{dir.upper()}"
-    if directory := nonzero_keyword( dir_variable,**kwargs ):
-        msg : str = f"Variable {dir_variable} set to {directory}"
-        success.append( msg )
-        trace_string( msg,**kwargs,terminal=None )
-        if not os.path.isdir( directory ):
-            msg = f"Directory {directory} does not exist"
-            failure.append( msg )
-            trace_string( msg,**kwargs,terminal=None )
-    else:
-        msg = f"Variable {dir_variable} not set"
-        failure.append( msg )
-        trace_string( msg,**kwargs,terminal=None )
+    output = start_test_stage( package,f"exist_{program}",logdir,chdir=builddir,**kwargs )
+    dir_variable = f"TACC_{package.upper()}_{dirtype.upper()}"
+    process_execute\
+        ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs,**output )
+    process_execute\
+        ( f"Variable {dir_variable} = \${dir_variable}", **kwargs,**output )
+    # if directory := nonzero_keyword( dir_variable,**kwargs ):
+    #     msg : str = f"Variable {dir_variable} set to {directory}"
+    #     success.append( msg )
+    #     trace_string( msg,**kwargs,terminal=None )
+    #     if not os.path.isdir( directory ):
+    #         msg = f"Directory {directory} does not exist"
+    #         failure.append( msg )
+    #         trace_string( msg,**kwargs,terminal=None )
+    # else:
+    #     msg = f"Variable {dir_variable} not set"
+    #     failure.append( msg )
+    #     trace_string( msg,**kwargs,terminal=None )
+    process_terminate( output["process"],**kwargs )
+    close_logfile( output["logfile"],kwargs )
+
     return success,failure
 
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
-    failure = []; success = []
+    failure : list[str] = []; success : list[str] = []
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
         program = parsed_options["program"]
@@ -154,11 +169,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 def do_tests( **kwargs ):
     #
     # existence tests
-    # we make one big logfile
     #
-    package,_ = names.package_names( **kwargs )
-    logdir : str = ensure_dir( "logfiles",**kwargs )
-    logfile = open_logfile( f"{package}_existence",kwargs,dir=logdir,terminal=None ) # note dict
     if tests := kwargs.get( "EXISTENCETEST" ):
         for test in tests:
             success,failure = do_existence_test( test,**kwargs )
@@ -166,10 +177,8 @@ def do_tests( **kwargs ):
                 echo_string( s,**kwargs )
             for f in failure:
                 echo_string( f,**kwargs )
-    close_logfile( logfile,kwargs )
     #
     # cmake tests
-    # each makes their own logfile
     #
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
