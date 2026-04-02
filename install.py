@@ -95,7 +95,7 @@ def cmake_options( **kwargs ):
 
 def cmake_configure( **kwargs ):
     tracing = kwargs.get( "tracing" )
-    logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
+    logfilename = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
     #
     # flags
@@ -145,7 +145,7 @@ def cmake_configure( **kwargs ):
 "
     process_execute( cmdline,**kwargs,process=shell )
     process_terminate( shell,**kwargs )
-    close_logfile( logfilename,logfilehandle,kwargs )
+    close_logfile( logfilename,kwargs )
 
 def cmake_build( **kwargs ):
     logfilename,logfilehandle = open_logfile( "install",kwargs ) # note dict!
