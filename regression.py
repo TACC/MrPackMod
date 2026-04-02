@@ -17,28 +17,43 @@ from MrPackMod.install import export_compilers,cmake_options,\
 from MrPackMod import modulefile
 from MrPackMod import names 
 from process import process_execute, process_initiate, process_terminate,\
-    create_dir,ensure_dir
+    create_dir,ensure_dir,\
+    nonzero_keyword, echo_string,trace_string,error_abort
 
 #
 # Parse the options with argparse
 #
-def parse_command( test_options,**kwargs ):
+def parse_command( test_options,**kwargs ) -> dict:
     parser = argparse.ArgumentParser\
         ( prog="mpm_cmake_tester",
           description="CMake based tester for MrPackMod regression tests",
           add_help=True )
-    parser.add_argument( '-i','--title',default="some cmake test" )
+    # cmake
     parser.add_argument( '-r',"--run", action='store_true', default=False )
+    # existence
+    parser.add_argument( '-l',"--ldd", action='store_true', default=False )
+    parser.add_argument( "-d","--dir" )
+    # universal
+    parser.add_argument( '-i','--title',default="some cmake test" )
     parser.add_argument( 'program', nargs=1, help=f"program.c" )
 
     argument_list = shlex.split( f"{test_options}" )
-    #print( argument_list )
     arguments  = parser.parse_args( argument_list )
-    test_title = arguments.title
+
+    # cmake test
     do_run     = arguments.run
+    
+    # existence test
+    dir        = arguments.dir
+    ldd        = arguments.ldd
+    # always
+    test_title = arguments.title
     program    = arguments.program[0]
-    print( f"title: {test_title}, program: {program}, run: {do_run}" )
-    return program,test_title,do_run
+    print( f"Test: {test_title}, program: {program}, run: {do_run}" )
+    return { "program":program, "title":test_title,
+             "do_run":do_run, # cmake tests
+             "ldd":ldd, "dir":dir, # existence test
+             }
 
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     # load the compiler since this is a fresh process
@@ -62,12 +77,45 @@ def start_test_stage( name,stage,logdir,chdir=None,**kwargs ):
     load_compiler_and_mpi_and_package( **kwargs,**output )
     return output
 
-def do_cmake_test( test_options,**kwargs ) -> None:
-    program,title,do_run = parse_command( test_options,**kwargs )
+def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+    failure : list[str] = []; success : list[str] = []
+    parsed_options : dict = parse_command( test_options,**kwargs )
+    try :
+        program = parsed_options["program"]
+        ldd     = parsed_options["ldd"]
+        dirtype = parsed_options["dirtype"]
+    except KeyError:
+        error_abort( "Did not find program/ldd/dirtype",**kwargs )
+
+    package,_ = names.package_names( **kwargs )
+    dir_variable = f"TACC_{package.upper()}_{dir.upper()}"
+    if directory := nonzero_keyword( dir_variable,**kwargs ):
+        msg : str = f"Variable {dir_variable} set to {directory}"
+        success.append( msg )
+        trace_string( msg,**kwargs,terminal=None )
+        if not os.path.isdir( directory ):
+            msg = f"Directory {directory} does not exist"
+            failure.append( msg )
+            trace_string( msg,**kwargs,terminal=None )
+    else:
+        msg = f"Variable {dir_variable} not set"
+        failure.append( msg )
+        trace_string( msg,**kwargs,terminal=None )
+    return success,failure
+
+def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+    failure = []; success = []
+    parsed_options : dict = parse_command( test_options,**kwargs )
+    try :
+        program = parsed_options["program"]
+        title   = parsed_options["title"]
+        do_run  = parsed_options["do_run"]
+    except KeyError:
+        error_abort( "Did not find program/title/do_run",**kwargs )
+
     name,ext = re.search( r'^(.+)\.(.+)$',program ).groups()
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
-    failure = []; success = []
 
     #
     # compilation
@@ -104,7 +152,29 @@ def do_cmake_test( test_options,**kwargs ) -> None:
     return success,failure
 
 def do_tests( **kwargs ):
+    #
+    # existence tests
+    # we make one big logfile
+    #
+    package,_ = names.package_names( **kwargs )
+    logdir : str = ensure_dir( "logfiles",**kwargs )
+    logfile = open_logfile( f"{package}_existence",kwargs,dir=logdir,terminal=None ) # note dict
+    if tests := kwargs.get( "EXISTENCETEST" ):
+        for test in tests:
+            success,failure = do_existence_test( test,**kwargs )
+            for s in success:
+                echo_string( s,**kwargs )
+            for f in failure:
+                echo_string( f,**kwargs )
+    close_logfile( logfile,kwargs )
+    #
+    # cmake tests
+    # each makes their own logfile
+    #
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
-            do_cmake_test( test,**kwargs )
-            
+            success,failure = do_cmake_test( test,**kwargs )
+            for s in success:
+                echo_string( s,**kwargs )
+            for f in failure:
+                echo_string( f,**kwargs )

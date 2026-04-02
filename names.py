@@ -26,9 +26,9 @@ from MrPackMod.process import error_abort,requirenonzero,nonnull
 # in the future we will handle the case of git pulls
 # Result: pair package,version
 #
-def package_names( **kwargs ):
-    package = abort_on_zero_keyword("PACKAGE",**kwargs)
-    version = abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
+def package_names( **kwargs ) -> tuple[str,str]:
+    package : str = abort_on_zero_keyword("PACKAGE",**kwargs)
+    version : str = abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
     # if version == "git":
     #     # raise Exception( "gitdate not yet implemented" )
     #     today = re.sub( '-','',str(datetime.date.today()) )
