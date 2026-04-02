@@ -9,8 +9,8 @@ import re
 #
 # my own modules
 #
-import names
-from process import echo_string,error_abort,abort_on_zero_keyword
+import MrPackMod.names as names
+from MrPackMod.process import echo_string,error_abort,abort_on_zero_keyword
 
 
 def list_installations( **kwargs ):

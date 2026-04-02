@@ -5,13 +5,20 @@
 ##
 import os
 import re
+import shutil
 import subprocess
 import sys
 import traceback
 
+##
+## Tracing
+##
+
 def echo_string( string,**kwargs ):
-    if  terminal:= kwargs.get( "terminal",sys.stdout ):
+    # echo to terminal unless `terminal=None' has disabled this
+    if  terminal:= kwargs.get( "terminal" ):
         print( string,file=terminal )
+    # even if no interactive output, we still go to all logfiles
     for logname,loghandle in kwargs.get("logfiles",{}).items():
         #print( f"log to {logname}: {string}" )
         print( string,file=loghandle )
@@ -29,6 +36,9 @@ def error_abort( string,**kwargs ):
     traceback.print_stack()
     sys.exit(1)
 
+##
+## Keyword handling
+##
 def nonzero_env( envvar,**kwargs ):
     return os.getenv( envvar,"" )
 
@@ -98,6 +108,32 @@ def unimplemented( var ):
     except:
         pass
 
+##
+## File handling
+##
+
+#
+# Create directory, or make sure it exists
+#
+def ensure_dir( name : str,**kwargs ) -> str:
+    if re.match( r'/',name):
+        dir : str = name
+    else:
+        pwd = os.getcwd()
+        dir = f"{pwd}/{name}"
+    trace_string( f"mkdir -p : {dir}",**kwargs )
+    os.makedirs( dir,exist_ok=True)
+    return dir
+
+def create_dir( name : str,**kwargs ) -> str:
+    try:
+        shutil.rmtree(name)
+    except FileNotFoundError: pass
+    return ensure_dir( name,**kwargs )
+
+##
+## Process routines
+##
 def process_initiate( **kwargs ):
     return subprocess.Popen\
         (['/bin/bash', '-l'], 

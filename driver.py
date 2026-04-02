@@ -9,7 +9,7 @@ from MrPackMod import config
 from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod import install
-from MrPackMod import modules
+from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod import process
 from MrPackMod import regression
@@ -81,7 +81,7 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
-            modules.test_modules( **configuration )
+            modulefile.test_modules( **configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
                 print( modulelist )

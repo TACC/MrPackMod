@@ -9,9 +9,9 @@ import re
 #
 # my own modules
 #
-from process import process_execute,echo_string,trace_string
-from process import echo_string,nonzero_keyword,abort_on_zero_keyword
-import names
+from MrPackMod.process import process_execute,echo_string,trace_string
+from MrPackMod.process import echo_string,nonzero_keyword,abort_on_zero_keyword
+import MrPackMod.names as names
 
 def cd_download_path( **kwargs ):
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):

@@ -11,15 +11,15 @@ import shutil
 #
 # my own modules
 #
-import modules
-import names
-import process
-from process import process_execute, process_initiate, process_terminate
-from process import echo_string, trace_string, error_abort, abort_on_zero_env
-from process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
+import MrPackMod.modulefile as modulefile
+from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
+    compilers_names,modulefile_path_and_name
+from MrPackMod.process import process_execute, process_initiate, process_terminate
+from MrPackMod.process import echo_string, trace_string, error_abort, abort_on_zero_env
+from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 
 def export_compilers( **kwargs ):
-    compilers = names.compilers_names( **kwargs )
+    compilers = compilers_names( **kwargs )
     cmdline = ""; cont = ""
     for key,val in compilers.items():
         echo_string( f"Setting compiler: {key}={val}",**kwargs )
@@ -51,29 +51,33 @@ def export_flags( **kwargs ):
             cont = " && "
     return cmdline
 
-def open_logfile( logstage,kwargs ):
+def open_logfile( logstage,kwargs,dir=None,terminal=None ) -> str:
     # get global name, ignore local name
-    logfile,_ = names.logfile_name( logstage,**kwargs )
-    loghandle = open( logfile,"w" )
-    kwargs["logfiles"][logfile] = loghandle
-    trace_string( f"Open logfile {logfile}",**kwargs )
+    logname,_ = logfile_name( logstage,dir,**kwargs )
+    loghandle = open( logname,"w" )
+    kwargs["logfiles"][logname] = loghandle
+    trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
-    return logfile,loghandle
+    return logname
 
-def close_logfile( logname,loghandle,kwargs ):
+def close_logfile( logname : str,kwargs ) -> None:
+    try :
+        loghandle = kwargs["logfiles"][logname]
+    except KeyError:
+        error_abort( f"Can not file logfile to close: {logname}",**kwargs )
     kwargs["logfiles"].pop(logname)
     loghandle.close()
     
 def configure_prep( **kwargs ):
-    modules.test_modules( **kwargs )
+    modulefile.test_modules( **kwargs )
     #
     # setup directories
     #
-    srcdir    = names.srcdir_name( **kwargs )
-    builddir  = names.builddir_name( **kwargs )
-    prefixdir = names.prefixdir_name( **kwargs )
+    srcdir    = srcdir_name( **kwargs )
+    builddir  = builddir_name( **kwargs )
+    prefixdir = prefixdir_name( **kwargs )
     #print(srcdir,builddir,prefixdir)
     try:
         shutil.rmtree(builddir)
@@ -148,9 +152,9 @@ def cmake_build( **kwargs ):
     #
     # setup directories
     #
-    srcdir    = names.srcdir_name( **kwargs )
-    builddir  = names.builddir_name( **kwargs )
-    prefixdir = names.prefixdir_name( **kwargs )
+    srcdir    = srcdir_name( **kwargs )
+    builddir  = builddir_name( **kwargs )
+    prefixdir = prefixdir_name( **kwargs )
     #
     # flags and options
     #
@@ -253,9 +257,9 @@ def autotools_build( **kwargs ):
     #
     # setup directories
     #
-    srcdir    = names.srcdir_name( **kwargs )
-    builddir  = names.builddir_name( **kwargs )
-    prefixdir = names.prefixdir_name( **kwargs )
+    srcdir    = srcdir_name( **kwargs )
+    builddir  = builddir_name( **kwargs )
+    prefixdir = prefixdir_name( **kwargs )
     if nonzero_keyword("NOINSTALL"):
         return
     if subdir := nonzero_keyword("MAKESUBDIR",**kwargs):
@@ -306,7 +310,7 @@ def recursive_rx( path ):
         os.chmod(os.path.join(root, momo), perm_file )
 
 def public_installation( **kwargs ):
-    prefixdir = names.prefixdir_name( **kwargs )
+    prefixdir = prefixdir_name( **kwargs )
     echo_string( f"Chmod rx prefixdir={prefixdir}",**kwargs )
     recursive_rx(prefixdir)
 
@@ -317,17 +321,17 @@ def write_module_file( **kwargs ):
     #
     # module contents
     #
-    help_string   = modules.module_help_string ( **kwargs )
-    pkg_info      = modules.package_info       ( **kwargs )
-    path_settings = modules.path_settings      ( **kwargs )
-    system_paths  = modules.system_paths       ( **kwargs )
-    if nonnull( depends := modules.dependencies( **kwargs ) ):
+    help_string   = modulefile.module_help_string ( **kwargs )
+    pkg_info      = modulefile.package_info       ( **kwargs )
+    path_settings = modulefile.path_settings      ( **kwargs )
+    system_paths  = modulefile.system_paths       ( **kwargs )
+    if nonnull( depends := modulefile.dependencies( **kwargs ) ):
         depends = f"\n{depends}"
 
     #
     # write
     #
-    modulefilepath,luaversion = names.modulefile_path_and_name( **kwargs )
+    modulefilepath,luaversion = modulefile_path_and_name( **kwargs )
     if not os.path.isdir(modulefilepath):
         echo_string( f"First create module dir: {modulefilepath}",**kwargs )
         # create directories recursively
@@ -350,7 +354,7 @@ def write_module_file( **kwargs ):
     close_logfile( logfilename,logfilehandle,kwargs )
 
 def public_module( **kwargs ):
-    modulefilepath,_ = names.modulefile_path_and_name( **kwargs )
+    modulefilepath,_ = modulefile_path_and_name( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
 

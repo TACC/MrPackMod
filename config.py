@@ -7,9 +7,9 @@ import os
 #
 # my modules
 #
-import modules
-from install import open_logfile,close_logfile
-from process import echo_string,trace_string,error_abort,echo_warning,\
+import MrPackMod.modulefile as modulefile
+from MrPackMod.install import open_logfile,close_logfile
+from MrPackMod.process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
 additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", ]
@@ -232,7 +232,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
 
 def environment_settings( config_dict,nowarn=False ):
     mods = [ m for m,_ in
-             modules.loaded_modules( **config_dict,terminal=None ) 
+             modulefile.loaded_modules( **config_dict,terminal=None ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:
@@ -302,7 +302,7 @@ def read_config(configfile,**kwargs):
         'scriptdir':os.getcwd(),
     }
     system_settings      ( configuration_dict,rc_files,tracing=tracing )
-    logname,loghandle = open_logfile( "setup",configuration_dict )
+    logname : str = open_logfile( "setup",configuration_dict )
     trace_string( f"system settings:\n{configuration_dict}",**configuration_dict )
     # install paths
     install_settings     ( configuration_dict,rc_files,tracing=tracing )
@@ -314,5 +314,5 @@ def read_config(configfile,**kwargs):
     add_settings_from_config( configfile,configuration_dict )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict )
-    close_logfile( logname,loghandle,configuration_dict )
+    close_logfile( logname,configuration_dict )
     return configuration_dict

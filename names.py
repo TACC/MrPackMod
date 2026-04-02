@@ -11,12 +11,10 @@ import sys
 #
 # my own modules
 #
-import names
-import process
-from process import echo_string,trace_string
-from process import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
+from MrPackMod.process import echo_string,trace_string
+from MrPackMod.process import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     zero_keyword,nonzero_keyword,abort_on_zero_keyword
-from process import error_abort,requirenonzero,nonnull
+from MrPackMod.process import error_abort,requirenonzero,nonnull
 
 ####
 #### General names
@@ -40,19 +38,22 @@ def package_names( **kwargs ):
 #
 # name of a logfile
 # 
-def logfile_name( logstage,**kwargs ):
-    scriptdir       = abort_on_zero_keyword( "scriptdir",**kwargs )
+def logfile_name( logstage : str,dir=None,**kwargs ) -> tuple[str,str]:
+    if dir :
+        logfiledir= dir
+    else:
+        logfiledir       = abort_on_zero_keyword( "scriptdir",**kwargs )
     packagename,_   = package_names( **kwargs )
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
     if nonnull(packagename):
-        logfileshortname = f"{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
+        logfileshortname : str = f"{logstage}_{packagename}-{moduleversion}_{compiler}-{cversion}"
     else:
         logfileshortname = f"{logstage}-{moduleversion}_{compiler}-{cversion}"
     if mode := nonzero_keyword( "MODE",**kwargs ):
         logfileshortname += f"_{mpi}-{mversion}"
     logfileshortname += ".log"
-    logfilename = f"{scriptdir}/{logfileshortname}"
+    logfilename = f"{logfiledir}/{logfileshortname}"
     return logfilename,logfileshortname
 
 #

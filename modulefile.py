@@ -11,12 +11,11 @@ import sys
 #
 # my own modules
 #
-import names
-import process
-from process import isnull,nonnull,echo_string,error_abort,trace_string
-from process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,nonzero_keyword_or_default
-from process import abort_on_zero_env
-from process import process_execute
+import MrPackMod.names as names
+from MrPackMod.process import isnull,nonnull,echo_string,error_abort,trace_string
+from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,nonzero_keyword_or_default
+from MrPackMod.process import abort_on_zero_env
+from MrPackMod.process import process_execute
 
 def loaded_modules( **kwargs ):
     name_version_list = process_execute\
