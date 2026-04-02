@@ -81,6 +81,14 @@ def configure_prep( **kwargs ):
     os.makedirs(builddir,exist_ok=True)
     return srcdir,builddir,prefixdir
 
+def cmake_options( **kwargs ):
+    cmakeflags = ""
+    if standard := kwargs.get("CPPSTANDARD"):
+        cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
+    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
+        cmakeflags += f" {flags}"
+    return cmakeflags.lstrip(" ")
+
 def cmake_configure( **kwargs ):
     tracing = kwargs.get( "tracing" )
     logfilename,logfilehandle = open_logfile( "configure",kwargs ) # note dict!
@@ -88,11 +96,7 @@ def cmake_configure( **kwargs ):
     #
     # flags
     #
-    cmakeflags = ""; cmakeflagsplatform = ""; exports = ""
-    if standard := kwargs.get("CPPSTANDARD"):
-        cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
-    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
-        cmakeflags += f" {flags}"
+    cmakeflags = cmake_options( **kwargs )
     cmake = kwargs.get( "CMAKENAME","cmake" )
     if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
         cmake = f"{cmake} -G Ninja"
@@ -132,7 +136,7 @@ def cmake_configure( **kwargs ):
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF \
 -D BUILD_SHARED_LIBS={buildsharedlibs} \
 -D CMAKE_BUILD_TYPE={cmakebuildtype} \
-{cmakeflags} {cmakeflagsplatform} \
+{cmakeflags} \
 {cmakesourcesetting} \
 "
     process_execute( cmdline,**kwargs,process=shell )
