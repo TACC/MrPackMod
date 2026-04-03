@@ -145,7 +145,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     output = start_test_stage( name,"compile",logdir,chdir=builddir,**kwargs )
     # set up for cmake/make
-    compiler_exports = export_compilers( **kwargs )
+    compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
     process_execute\
         ( f"{compiler_exports} && cmake -D PROJECTNAME={name} {cmakeflags} ../{ext}",
@@ -154,8 +154,8 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     # terminate this stage
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
-    if os.path.exists( name ):
-        success.append( f"Executable <<{name}>> created" )
+    if os.path.exists( f"{builddir}/{name}" ):
+        success.append( f"executable <<{name}>> created" )
     else:
         failure.append( f"Failed to create executable <<{name}>>" )
 
@@ -169,7 +169,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     if do_run:
         process_execute( f"./{name}",**kwargs,**output )
     # end of this stage
-    process_terminate( output["process"],**kwargs )
+    process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
 
     return success,failure
