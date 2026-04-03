@@ -59,6 +59,7 @@ def parse_command( test_options,**kwargs ) -> dict:
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = names.family_names( **kwargs )
+    # disable terminal output unless otherwise specified
     process_execute\
         ( f"module load {compiler}/{compilerversion}",**kwargs,process=process )
     if kwargs.get("MODE")=="mpi":
@@ -74,7 +75,7 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
 def start_test_stage( name,stage,logdir,chdir=None,**kwargs ):
     logfile = open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
     shell = process_initiate( **kwargs )
-    output = { "logfile":logfile,"terminal":None,"process":shell, }
+    output = { "logfile":logfile,"terminal":"suppress","process":shell, }
     if chdir:
         process_execute( f"cd {chdir}",**kwargs,**output )
     load_compiler_and_mpi_and_package( **kwargs,**output )
@@ -104,11 +105,23 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     process_execute\
         ( f"echo Variable {dir_variable} : ${dir_variable}", **kwargs,**output )
     process_execute\
-        ( f"if [ ! -d ${dir_variable} ] ; then echo Eror: {dir_variable} does not exist ; fi ",
+        ( f"if [ ! -z \"${dir_variable}\" -a -d \"${dir_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dir_variable} does not exist' ; fi ",
           **kwargs,**output )
-    process_terminate( output["process"],**kwargs )
+    process_execute\
+        ( f"if [ -f \"${dir_variable}/{program}\" ] ; then echo 'SUCCESS file exists: <<{program}>> ' ; else echo 'FAILURE: file does not exist <<{program}>>' ; fi ",
+          **kwargs,**output )
+    process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
-
+    with open( output["logfile"],"r" ) as logfile:
+        for line in logfile:
+            if succ := re.match( r'SUCCESS (.*)$',line ):
+                msg : str = succ.groups()[0]
+                trace_string( msg,**kwargs,**output )
+                success.append( msg )
+            if fail := re.match( r'FAILURE (.*)$',line ):
+                msg = fail.groups()[0]
+                trace_string( msg,**kwargs,**output )
+                failure.append( msg )
     return success,failure
 
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
@@ -137,12 +150,12 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
           **kwargs,**output )
     process_execute( f"make", **kwargs,**output )
     # terminate this stage
-    process_terminate( output["process"],**kwargs )
+    process_terminate( output["process"],**kwargs,**output )
+    close_logfile( output["logfile"],kwargs )
     if os.path.exists( name ):
         success.append( f"Executable <<{name}>> created" )
     else:
         failure.append( f"Failed to create executable <<{name}>>" )
-    close_logfile( output["logfile"],kwargs )
 
     #
     # execution
@@ -167,9 +180,9 @@ def do_tests( **kwargs ):
         for test in tests:
             success,failure = do_existence_test( test,**kwargs )
             for s in success:
-                echo_string( s,**kwargs )
+                echo_string( f"    {s}",**kwargs,terminal=sys.stdout, )
             for f in failure:
-                echo_string( f,**kwargs )
+                echo_string( f"    {f}",**kwargs,terminal=sys.stdout, )
     #
     # cmake tests
     #
@@ -177,6 +190,6 @@ def do_tests( **kwargs ):
         for test in tests:
             success,failure = do_cmake_test( test,**kwargs )
             for s in success:
-                echo_string( s,**kwargs )
+                echo_string( f"    {s}",**kwargs,terminal=sys.stdout, )
             for f in failure:
-                echo_string( f,**kwargs )
+                echo_string( f"    {f}",**kwargs,terminal=sys.stdout, )

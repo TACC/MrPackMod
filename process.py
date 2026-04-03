@@ -15,13 +15,16 @@ import traceback
 ##
 
 def echo_string( string,**kwargs ):
-    # echo to terminal unless `terminal=None' has disabled this
-    if  terminal:= kwargs.get( "terminal" ):
-        print( string,file=terminal )
+    # echo to stdout if no terminal
+    # echo to terminal is specified unless suppressed
+    if terminal := nonzero_keyword( "terminal",**kwargs ):
+        if terminal != "suppress": print( string,file=terminal )
+    else:
+        print( f"{string}" )
     # even if no interactive output, we still go to all logfiles
     for logname,loghandle in kwargs.get("logfiles",{}).items():
-        #print( f"log to {logname}: {string}" )
-        print( string,file=loghandle )
+        #print( string,file=loghandle )
+        loghandle.write( f"{string}\n" )
 
 def trace_string( string,**kwargs ):
     if kwargs.get( "tracing" ):
@@ -143,39 +146,35 @@ def process_initiate( **kwargs ):
          text=True,
          bufsize=1)
 
-def process_terminate( process,**kwargs ):
-    process_input = process.stdin
+def process_terminate( finished_process,**kwargs ):
+    process_input = finished_process.stdin
     process_input.flush()
     process_input.close()
-    #echo_string( "Output:",**kwargs )
     lastline = ""
     while True:
-        line = process.stdout.readline()
+        line = finished_process.stdout.readline()
         if not line:
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
         if line != "":
             echo_string( line,**kwargs )
             lastline = line
-    #echo_string( " .. end of output",**kwargs )
-    process.wait()
+    finished_process.wait()
     return lastline
 
 def process_execute( cmdline,**kwargs ):
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
-    logfile         = kwargs.get("logfile",None)
-    if logfile is None:
-        logfile = sys.stdout
     if outside_process is None:
         process = process_initiate()
     else: process = outside_process
+    #print( kwargs.get("terminal","no terminal") )
     echo_string( f"Command line={cmdline}",**kwargs )
     process_input = process.stdin
     process_output = process.stdout
     process_input.write( cmdline+"\n" )
     if immediate:
-        process_input.flush()
+        process_input.flush() # VLE not sure if this works
     if outside_process:
         return ""
     else:
