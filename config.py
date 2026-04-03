@@ -232,7 +232,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
 
 def environment_settings( config_dict,nowarn=False ):
     mods = [ m for m,_ in
-             modulefile.loaded_modules( **config_dict,terminal=None ) 
+             modulefile.loaded_modules( **config_dict,terminal="suppress" ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:

@@ -17,7 +17,7 @@ from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword
 from MrPackMod.process import abort_on_zero_env
 from MrPackMod.process import process_execute
 
-def loaded_modules( **kwargs ):
+def loaded_modules( **kwargs ) -> list[str] :
     name_version_list = process_execute\
         ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
