@@ -18,7 +18,7 @@ from MrPackMod import modulefile
 from MrPackMod import names 
 from process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir,\
-    nonzero_keyword, echo_string,trace_string,error_abort
+    nonnull, nonzero_keyword, echo_string,trace_string,error_abort
 
 #
 # Parse the options with argparse
@@ -33,6 +33,7 @@ def parse_command( test_options,**kwargs ) -> dict:
     # existence
     parser.add_argument( '-l',"--ldd", action='store_true', default=False )
     parser.add_argument( "-d","--dir" )
+    parser.add_argument( "-g","--grep" )
     # universal
     parser.add_argument( '-i','--title',default="some cmake test" )
     parser.add_argument( 'program', nargs=1, help=f"program.c" )
@@ -46,14 +47,15 @@ def parse_command( test_options,**kwargs ) -> dict:
     
     # existence test
     dirtype    = arguments.dir
+    grep       = arguments.grep
     ldd        = arguments.ldd
     # always
     test_title = arguments.title
     program    = arguments.program[0]
-    print( f"Test: {test_title}, program: {program}, run: {do_run}" )
+    print( f"Test: {test_title}, program: {program}, run: {do_run}, grep: {grep}" )
     return { "program":program, "title":test_title,
              "do_run":do_run, # cmake tests
-             "ldd":ldd, "dirtype":dirtype, # existence test
+             "grep":grep, "ldd":ldd, "dirtype":dirtype, # existence test
              }
 
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
@@ -81,15 +83,30 @@ def start_test_stage( name,stage,logdir,chdir=None,**kwargs ):
     load_compiler_and_mpi_and_package( **kwargs,**output )
     return output
 
+def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str]] :
+    success : list[str] = []
+    failure : list[str] = []
+    with open( logoutput,"r" ) as loglines:
+        for line in loglines:
+            if succ := re.match( r'SUCCESS: (.*)$',line ):
+                msg : str = succ.groups()[0]
+                trace_string( msg,**kwargs )
+                success.append( msg )
+            if fail := re.match( r'FAILURE: (.*)$',line ):
+                msg = fail.groups()[0]
+                trace_string( msg,**kwargs )
+                failure.append( msg )
+    return success,failure
+
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
-    failure : list[str] = []; success : list[str] = []
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
         program = parsed_options["program"]
+        grep    = parsed_options["grep"]
         ldd     = parsed_options["ldd"]
         dirtype = parsed_options["dirtype"]
     except KeyError:
-        error_abort( "Did not find program/ldd/dirtype",**kwargs )
+        error_abort( "Did not find program/grep/ldd/dirtype",**kwargs )
 
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
@@ -99,8 +116,8 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     package,_ = names.package_names( **kwargs )
     # in case the program to find is in a subdirectory
-    stage = "exist_"+re.sub( '/','',program )
-    output = start_test_stage( package,stage,logdir,chdir=builddir,**kwargs )
+    prog_condensed = "exist_"+re.sub( '/','',program )
+    output = start_test_stage( package,prog_condensed,logdir,chdir=builddir,**kwargs )
     dir_variable = f"TACC_{package.upper()}_{dirtype.upper()}"
     process_execute\
         ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs,**output )
@@ -112,18 +129,19 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     process_execute\
         ( f"if [ -f \"${dir_variable}/{program}\" ] ; then echo 'SUCCESS: file exists: <<{program}>> ' ; else echo 'FAILURE: file does not exist <<{program}>>' ; fi ",
           **kwargs,**output )
+    if nonnull(grep):
+        grep_output_file : str = f"{prog_condensed}_grep.out"
+        process_execute\
+            ( f"grep \"{grep}\" ${dir_variable}/{program} >{grep_output_file} 2>&1",
+              **kwargs,**output, )
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
-    with open( output["logfile"],"r" ) as logfile:
-        for line in logfile:
-            if succ := re.match( r'SUCCESS: (.*)$',line ):
-                msg : str = succ.groups()[0]
-                trace_string( msg,**kwargs,**output )
-                success.append( msg )
-            if fail := re.match( r'FAILURE: (.*)$',line ):
-                msg = fail.groups()[0]
-                trace_string( msg,**kwargs,**output )
-                failure.append( msg )
+    success,failure = success_failure_in_logfile( output["logfile"],**kwargs,**output )
+    if nonnull(grep):
+        with open( f"{builddir}/{grep_output_file}","r" ) as grep_out:
+            for line in grep_out.readlines():
+                line = line.strip("\n")
+                success.append( f"grep output: {line}" )
     return success,failure
 
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
