@@ -104,7 +104,7 @@ utility_actions : {utility_actions}
         elif action=="pull":
             download.pull_from_url( **configuration )
         # build stuff
-        elif action in [ "install", "configure", "build", "module", ]:
+        elif action in [ "install", "configure", "build", "module", "public", ]:
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )
@@ -119,11 +119,11 @@ utility_actions : {utility_actions}
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
             if action in [ "install", "module", ]:
                 install.write_module_file( **configuration )
+            if action in [ "install", "public", ]:
+                install.public_installation( **configuration )
+                install.public_module( **configuration )
         elif action=="clean":
             os.system( "rm -f *~ *.log" )
-        elif action=="public":
-            install.public_installation( **configuration )
-            install.public_module( **configuration )
         elif action=="regression":
             regression.do_tests( **configuration )
         else:
