@@ -174,6 +174,57 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 
     return success,failure
 
+def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+    failure : list[str] = []; success : list[str] = []
+    parsed_options : dict = parse_command( test_options,**kwargs )
+    try :
+        program = parsed_options["program"]
+        title   = parsed_options["title"]
+        do_run  = parsed_options["do_run"]
+    except KeyError:
+        error_abort( "Did not find program/title/do_run",**kwargs )
+
+    try:
+        name,ext = re.search( r'^(.+)\.(.+)$',program ).groups()
+    except:
+        error_abort( f"program <<{program}>> can not be parsed as name.ext",**kwargs )
+    logdir : str = ensure_dir( "logfiles",**kwargs )
+    builddir : str = create_dir( "build",**kwargs )
+
+    #
+    # compilation
+    #
+    output = start_test_stage( name,"compile",logdir,chdir=builddir,**kwargs )
+    # set up for make
+    compiler_exports = export_compilers( **kwargs,**output )
+    cmakeflags = cmake_options( **kwargs )
+    process_execute\
+        ( f"{compiler_exports} && make -f ../{ext}/Makefile SRCDIR=../{ext} PROJECTNAME={name} {name}",
+          **kwargs,**output )
+    process_execute( f"make", **kwargs,**output )
+    # terminate this stage
+    process_terminate( output["process"],**kwargs,**output )
+    close_logfile( output["logfile"],kwargs )
+    if os.path.exists( f"{builddir}/{name}" ):
+        success.append( f"executable <<{name}>> created" )
+    else:
+        failure.append( f"Failed to create executable <<{name}>>" )
+
+    #
+    # execution
+    #
+    output = start_test_stage( name,"exec",logdir,chdir=builddir,**kwargs )
+    # are library dependencies satisfied
+    process_execute( f"ldd {name}",**kwargs,**output )
+    # run!
+    if do_run:
+        process_execute( f"./{name}",**kwargs,**output )
+    # end of this stage
+    process_terminate( output["process"],**kwargs,**output )
+    close_logfile( output["logfile"],kwargs )
+
+    return success,failure
+
 def do_tests( **kwargs ):
     #
     # existence tests
@@ -191,6 +242,16 @@ def do_tests( **kwargs ):
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
             success,failure = do_cmake_test( test,**kwargs )
+            for s in success:
+                echo_string( f"    {s}",**kwargs, )
+            for f in failure:
+                echo_string( f"    ERROR: {f}",**kwargs, )
+    #
+    # make tests
+    #
+    if tests := kwargs.get( "MAKETEST" ):
+        for test in tests:
+            success,failure = do_make_test( test,**kwargs )
             for s in success:
                 echo_string( f"    {s}",**kwargs, )
             for f in failure:

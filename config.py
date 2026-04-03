@@ -13,7 +13,7 @@ from MrPackMod.process import echo_string,trace_string,error_abort,echo_warning,
     nonnull,nonzero_env,abort_on_zero_keyword
 
 additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", ]
-list_keys = [ "CMAKETEST", "EXISTENCETEST", ]
+list_keys = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
 
 def add_new_dict_item( newkey,assign,newval,config_dict ):
     """ Add a new value under the given key.
