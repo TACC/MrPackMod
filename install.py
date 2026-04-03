@@ -71,6 +71,7 @@ def close_logfile( logname : str,kwargs ) -> None:
     loghandle.close()
     
 def configure_prep( **kwargs ):
+    from  MrPackMod import  modulefile
     modulefile.test_modules( **kwargs )
     #
     # setup directories
