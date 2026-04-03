@@ -87,7 +87,7 @@ def configure_prep( **kwargs ):
     return srcdir,builddir,prefixdir
 
 def cmake_options( **kwargs ):
-    cmakeflags = ""
+    cmakeflags = "-D CMAKE_VERBOSE_MAKEFILE=ON -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if standard := kwargs.get("CPPSTANDARD"):
         cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):

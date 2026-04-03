@@ -150,7 +150,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     process_execute\
         ( f"{compiler_exports} && cmake -D PROJECTNAME={name} {cmakeflags} ../{ext}",
           **kwargs,**output )
-    process_execute( f"make", **kwargs,**output )
+    process_execute( f"make V=1", **kwargs,**output )
     # terminate this stage
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
