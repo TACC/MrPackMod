@@ -98,7 +98,9 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     # existence
     #
     package,_ = names.package_names( **kwargs )
-    output = start_test_stage( package,f"exist_{program}",logdir,chdir=builddir,**kwargs )
+    # in case the program to find is in a subdirectory
+    stage = "exist_"+re.sub( '/','',program )
+    output = start_test_stage( package,stage,logdir,chdir=builddir,**kwargs )
     dir_variable = f"TACC_{package.upper()}_{dirtype.upper()}"
     process_execute\
         ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs,**output )
