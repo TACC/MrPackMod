@@ -110,17 +110,17 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
         ( f"if [ ! -z \"${dir_variable}\" -a -d \"${dir_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dir_variable} does not exist' ; fi ",
           **kwargs,**output )
     process_execute\
-        ( f"if [ -f \"${dir_variable}/{program}\" ] ; then echo 'SUCCESS file exists: <<{program}>> ' ; else echo 'FAILURE: file does not exist <<{program}>>' ; fi ",
+        ( f"if [ -f \"${dir_variable}/{program}\" ] ; then echo 'SUCCESS: file exists: <<{program}>> ' ; else echo 'FAILURE: file does not exist <<{program}>>' ; fi ",
           **kwargs,**output )
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
     with open( output["logfile"],"r" ) as logfile:
         for line in logfile:
-            if succ := re.match( r'SUCCESS (.*)$',line ):
+            if succ := re.match( r'SUCCESS: (.*)$',line ):
                 msg : str = succ.groups()[0]
                 trace_string( msg,**kwargs,**output )
                 success.append( msg )
-            if fail := re.match( r'FAILURE (.*)$',line ):
+            if fail := re.match( r'FAILURE: (.*)$',line ):
                 msg = fail.groups()[0]
                 trace_string( msg,**kwargs,**output )
                 failure.append( msg )
@@ -182,9 +182,9 @@ def do_tests( **kwargs ):
         for test in tests:
             success,failure = do_existence_test( test,**kwargs )
             for s in success:
-                echo_string( f"    {s}",**kwargs,terminal=sys.stdout, )
+                echo_string( f"    {s}",**kwargs, )
             for f in failure:
-                echo_string( f"    {f}",**kwargs,terminal=sys.stdout, )
+                echo_string( f"    ERROR: {f}",**kwargs, )
     #
     # cmake tests
     #
@@ -192,6 +192,6 @@ def do_tests( **kwargs ):
         for test in tests:
             success,failure = do_cmake_test( test,**kwargs )
             for s in success:
-                echo_string( f"    {s}",**kwargs,terminal=sys.stdout, )
+                echo_string( f"    {s}",**kwargs, )
             for f in failure:
-                echo_string( f"    {f}",**kwargs,terminal=sys.stdout, )
+                echo_string( f"    ERROR: {f}",**kwargs, )
