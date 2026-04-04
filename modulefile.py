@@ -13,9 +13,9 @@ import sys
 #
 from  MrPackMod import names 
 from MrPackMod.process import isnull,nonnull,echo_string,error_abort,trace_string
-from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,nonzero_keyword_or_default
-from MrPackMod.process import abort_on_zero_env
-from MrPackMod.process import process_execute
+from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
+    nonzero_keyword_or_default,abort_on_zero_env
+from MrPackMod.process import version_satisfies,process_execute
 
 def loaded_modules( **kwargs ) -> list[str] :
     name_version_list = process_execute\
@@ -49,7 +49,7 @@ def test_module_version( mod,ver,**kwargs ):
         trace_string( " .. module does not declare VERSION parameter",**kwargs )
         return True
     else:
-        if not ( version_match := process.version_satisfies( loadedversion,ver,**kwargs ) ):
+        if not ( version_match := version_satisfies( loadedversion,ver,**kwargs ) ):
             trace_string( f" .. loaded version: {loadedversion} does not match version {ver}",
                      **kwargs )
             return False
