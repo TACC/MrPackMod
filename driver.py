@@ -117,11 +117,12 @@ utility_actions : {utility_actions}
                 elif system == "autotools":
                     install.autotools_build( **configuration )
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
-            if action in [ "install", "module", ]:
+            if action in [ "install", "module", ] and process.zero_keyword( "NOMODULE",**kwargs ):
                 install.write_module_file( **configuration )
             if action in [ "install", "public", ]:
                 install.public_installation( **configuration )
-                install.public_module( **configuration )
+                if process.zero_keyword( "NOMODULE",**kwargs ):
+                    install.public_module( **configuration )
         elif action=="clean":
             os.system( "rm -f *~ *.log" )
         elif action=="regression":

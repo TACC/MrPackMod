@@ -70,7 +70,7 @@ def line_strip_conditionals( line,**config_dict ):
                       **config_dict )
         return line,True
 
-def add_settings_from_config( configfile,config_dict ):
+def add_settings_from_config( configfile,config_dict ) -> None:
     tracing = config_dict.get("tracing",False)
     with open(configfile,"r") as configuration_file:
         trace_string( f"Read configuration: {configfile}",**config_dict )
@@ -87,6 +87,10 @@ def add_settings_from_config( configfile,config_dict ):
             if not accept: continue
             if False:
                 continue
+            elif include := re.search( r'include\s+(.+)$',line ):
+                includefile = include.groups()[0]
+                trace_string( f"Include file: {includefile}",**config_dict )
+                add_settings_from_config( includefile,config_dict )
             elif export := re.search( r'export\s+(.+)$',line ):
                 trace_string( f"Adding export: <<{line}>>",**config_dict )
                 config_dict["exports"].append(line)
