@@ -267,7 +267,7 @@ def dependencies( **kwargs ):
             echo_string( f"depends on current: {curreq}/{version}" )
         for cur in curreq.split(" "):
             version = abort_on_zero_env( f"TACC_{cur.upper()}_VERSION" )
-            depends += f"depends_on( \"{cur}/{version}\". )\n"
+            depends += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         if tracing:
             echo_string( f"belongs to family: {family}" )
