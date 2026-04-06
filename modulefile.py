@@ -260,13 +260,14 @@ def dependencies( **kwargs ):
     if prereq := nonzero_keyword( "DEPENDSON",**kwargs ):
         if tracing:
             echo_string( f"depends on: {prereq}" )
-        for dep in prereq.split(" "):
-            depends += f"depends_on( \"{dep}\" )\n"
+        for pre in prereq.split(" "):
+            depends += f"depends_on( \"{pre}\" )\n"
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
-        version = abort_on_zero_env( f"TACC_{curreq.upper()}_VERSION" )
         if tracing:
             echo_string( f"depends on current: {curreq}/{version}" )
-        depends += f"depends_on( \"{curreq}/{version}\" )\n"
+        for cur in curreq.split(" "):
+            version = abort_on_zero_env( f"TACC_{cur.upper()}_VERSION" )
+            depends += f"depends_on( \"{cur}/{version}\". )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         if tracing:
             echo_string( f"belongs to family: {family}" )
