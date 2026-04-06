@@ -12,7 +12,7 @@ from MrPackMod.install import open_logfile,close_logfile
 from MrPackMod.process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
-additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", ]
+additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
 list_keys = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
 
 def add_new_dict_item( newkey,assign,newval,config_dict ):
