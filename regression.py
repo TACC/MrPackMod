@@ -28,8 +28,10 @@ def parse_command( test_options,**kwargs ) -> dict:
         ( prog="mpm_cmake_tester",
           description="CMake based tester for MrPackMod regression tests",
           add_help=True )
-    # cmake
+    # running
     parser.add_argument( '-r',"--run", action='store_true', default=False )
+    parser.add_argument( '-a',"--run_args" )
+    parser.add_argument( '-p',"--run_prefix" )
     # existence
     parser.add_argument( '-l',"--ldd", action='store_true', default=False )
     parser.add_argument( "-d","--dir" )
@@ -40,23 +42,23 @@ def parse_command( test_options,**kwargs ) -> dict:
 
     argument_list = shlex.split( f"{test_options}" )
     arguments  = parser.parse_args( argument_list )
-    #print(arguments)
+    print( f"Test arguments: {arguments}" )
 
-    # cmake test
-    do_run     = arguments.run
-    
-    # existence test
-    dirtype    = arguments.dir
-    grep       = arguments.grep
-    ldd        = arguments.ldd
-    # always
-    test_title = arguments.title
-    program    = arguments.program[0]
-    print( f"Test: {test_title}, program: {program}, run: {do_run}, grep: {grep}" )
-    return { "program":program, "title":test_title,
-             "do_run":do_run, # cmake tests
-             "grep":grep, "ldd":ldd, "dirtype":dirtype, # existence test
-             }
+    parsed = {
+        # running
+        "do_run"     : arguments.run,
+        "run_args"   : arguments.run_args,
+        "run_prefix" : arguments.run_prefix,
+        # existence test
+        "dirtype"    : arguments.dir,
+        "grep"       : arguments.grep,
+        "ldd"        : arguments.ldd,
+        # always
+        "test_title" : arguments.title,
+        "program"    : arguments.program[0],
+    }
+    print( f"Test: "+parsed["test_title"]+f": {parsed}" )
+    return parsed
 
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     # load the compiler since this is a fresh process
@@ -74,18 +76,45 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     process_execute\
         ( f"module -t list 2>&1 | sort", **kwargs,process=process )
 
-def start_test_stage( name,stage,logdir,chdir=None,**kwargs ):
-    logfile = open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
+def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ): # note dict
+    # Create log file for this test stage, and add it to the stack of logfiles
+    logfile = open_logfile( f"{name}_{stage}",
+                            kwargs,dir=logdir,terminal=None ) # note dict
+    # Create a process for the commands of this test stage
     shell = process_initiate( **kwargs )
     output = { "logfile":logfile,"terminal":"suppress","process":shell, }
+    if title:
+        process_execute( f"echo Test title: {title}",**kwargs,**output )
     if chdir:
         process_execute( f"cd {chdir}",**kwargs,**output )
     load_compiler_and_mpi_and_package( **kwargs,**output )
     return output
 
+def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str]:
+    process = kwargs.get("process")
+    if dirtype in [ "dir","inc","lib","bin", ]:
+        dir_variable = f"TACC_{package.upper()}_{dirtype.upper()}"
+        process_execute\
+            ( f"echo Variable {dir_variable} : ${dir_variable}", **kwargs )
+        process_execute\
+            ( f"if [ ! -z \"${dir_variable}\" -a -d \"${dir_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dir_variable} does not exist' ; fi ",
+              **kwargs )
+        file_to_test   : str = f"${dir_variable}/{program}"
+        file_to_report : str = f"{dir_variable}/{program}"
+    else:
+        pkg_variable = f"TACC_{package.upper()}_DIR"
+        process_execute\
+            ( f"echo Variable {pkg_variable} : ${pkg_variable}", **kwargs )
+        process_execute\
+            ( f"if [ ! -z \"${pkg_variable}\" -a -d \"${pkg_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {pkg_variable} does not exist' ; fi ",
+              **kwargs )
+        file_to_test   = f"${pkg_variable}/{dirtype}/{program}"
+        file_to_report = f"{pkg_variable}/{dirtype}/{program}"
+    return file_to_test,file_to_report
+
 def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str]] :
-    success : list[str] = []
-    failure : list[str] = []
+    success : list[str] = kwargs.get( "success",[] )
+    failure : list[str] = kwargs.get( "failure",[] )
     with open( logoutput,"r" ) as loglines:
         for line in loglines:
             if succ := re.match( r'SUCCESS: (.*)$',line ):
@@ -98,50 +127,88 @@ def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str
                 failure.append( msg )
     return success,failure
 
+def add_grep_lines( grep,grepfile,success : str ) -> str:
+    with open( grepfile,"r" ) as grep_out:
+        for line in grep_out.readlines():
+            line = line.strip("\n")
+            success.append( f"grep output: {line}" )
+    return success
+
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
+    #print( f"Existence test options: {parsed_options}" )
     try :
+        title   = parsed_options["test_title"]
         program = parsed_options["program"]
         grep    = parsed_options["grep"]
         ldd     = parsed_options["ldd"]
+        do_run  = parsed_options["do_run"]
+        run_args   = parsed_options["run_args"]
+        run_prefix = parsed_options["run_prefix"]
         dirtype = parsed_options["dirtype"]
     except KeyError:
-        error_abort( "Did not find program/grep/ldd/dirtype",**kwargs )
+        error_abort( "Did not find program/grep/ldd/dirtype/do_run",**kwargs )
 
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
+    success = []; failure = []
 
     #
     # existence
     #
     package,_ = names.package_names( **kwargs )
-    # in case the program to find is in a subdirectory
-    prog_condensed = "exist_"+re.sub( '/','',program )
-    output = start_test_stage( package,prog_condensed,logdir,chdir=builddir,**kwargs )
-    dir_variable = f"TACC_{package.upper()}_{dirtype.upper()}"
+    # program can contain a path
+    program_clean = re.sub( '/','',program )
+    output = start_test_stage( program_clean,"exists",logdir,
+                               kwargs,title=title,chdir=builddir, ) # note dict
     process_execute\
         ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs,**output )
+    file_to_test,file_to_report = file_to_exist( package,dirtype,program,
+                                                 **kwargs,**output )
+    # with directories in place, does the actual file exist?
     process_execute\
-        ( f"echo Variable {dir_variable} : ${dir_variable}", **kwargs,**output )
-    process_execute\
-        ( f"if [ ! -z \"${dir_variable}\" -a -d \"${dir_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dir_variable} does not exist' ; fi ",
-          **kwargs,**output )
-    process_execute\
-        ( f"if [ -f \"${dir_variable}/{program}\" ] ; then echo 'SUCCESS: file exists: <<{program}>> ' ; else echo 'FAILURE: file does not exist <<{program}>>' ; fi ",
+        ( f"if [ -f \"{file_to_test}\" ] ; then echo 'SUCCESS: file exists: <<{file_to_report}>> ' ; else echo 'FAILURE: file does not exist <<{file_to_report}>>' ; fi ",
           **kwargs,**output )
     if nonnull(grep):
-        grep_output_file : str = f"{prog_condensed}_grep.out"
+        grep_output_file : str = f"{program_clean}_grep.out"
         process_execute\
             ( f"grep \"{grep}\" ${dir_variable}/{program} >{grep_output_file} 2>&1",
               **kwargs,**output, )
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
-    success,failure = success_failure_in_logfile( output["logfile"],**kwargs,**output )
+    success,failure = success_failure_in_logfile\
+                      ( output["logfile"],success=success,failure=failure,
+                        **kwargs,**output )
     if nonnull(grep):
-        with open( f"{builddir}/{grep_output_file}","r" ) as grep_out:
-            for line in grep_out.readlines():
-                line = line.strip("\n")
-                success.append( f"grep output: {line}" )
+        success = add_grep_lines( f"{builddir}/{grep_output_file}",success )
+
+    #
+    # run and ldd
+    #
+    if do_run or ldd:
+        output = start_test_stage( program_clean,"exec",logdir,
+                                   kwargs,title=title,chdir=builddir, ) # dict!
+        if ldd:
+            # are library dependencies satisfied
+            process_execute( f"ldd {program} 2>&1 | tee ldd.out",**kwargs,**output )
+            process_execute( f"notfound=$( grep \"not found\" ldd.out | wc -l )",**kwargs,**output )
+            process_execute( f"if [ $notfound -eq 0 ] ; then echo \"SUCCESS all libraries resolved\" ; else echo \"FAILURE $notfound references not found\" ; fi",**kwargs,**output )
+        # run!
+        if do_run:
+            #print( f"run prefix: <<{run_prefix}>> {type(run_prefix)}" )
+            if nonnull(run_prefix):
+                cmdline : str = f"{run_prefix}{program}"
+            else:
+                cmdline = f"./{program}"
+            if nonnull(run_args):
+                cmdline += run_args
+            print( f"run cmdline: {cmdline}" )
+            process_execute( cmdline,**kwargs,**output )
+        process_terminate( output["process"],**kwargs,**output )
+        close_logfile( output["logfile"],kwargs )
+        success,failure = success_failure_in_logfile\
+                          ( output["logfile"],success=success,failure=failure,
+                            **kwargs,**output )
     return success,failure
 
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
@@ -161,7 +228,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # compilation
     #
-    output = start_test_stage( name,"compile",logdir,chdir=builddir,**kwargs )
+    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
     # set up for cmake/make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -180,7 +247,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # execution
     #
-    output = start_test_stage( name,"exec",logdir,chdir=builddir,**kwargs )
+    output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir, ) # note dict
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!
@@ -212,7 +279,7 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # compilation
     #
-    output = start_test_stage( name,"compile",logdir,chdir=builddir,**kwargs )
+    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir ) # note dict
     # set up for make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -231,7 +298,7 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # execution
     #
-    output = start_test_stage( name,"exec",logdir,chdir=builddir,**kwargs )
+    output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir ) # note dict
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!
