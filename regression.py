@@ -57,7 +57,8 @@ def parse_command( test_options,**kwargs ) -> dict:
         "test_title" : arguments.title,
         "program"    : arguments.program[0],
     }
-    print( f"Test: "+parsed["test_title"] ) ## +f": {parsed}" )
+    print( f"Test: "+parsed["test_title"] )
+    trace_string( f" .. parameters: {parsed}",**kwargs )
     return parsed
 
 def load_compiler_and_mpi_and_package( process=None,**kwargs ):
@@ -89,6 +90,13 @@ def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ): # note d
         process_execute( f"cd {chdir}",**kwargs,**output )
     load_compiler_and_mpi_and_package( **kwargs,**output )
     return output
+
+def end_test_stage( success,failure,kwargs,output ) -> tuple[list[str],list[str]]:
+    process_terminate( output["process"],**kwargs,**output )
+    close_logfile( output["logfile"],kwargs )
+    success,failure = success_failure_in_logfile\
+        ( output["logfile"],success=success,failure=failure,**kwargs )
+    return success,failure
 
 ##
 ## Add process lines for testing file existence
@@ -139,6 +147,24 @@ def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> str:
         return grep_output_file
     return ""
 
+def execute_cmake_script( program,ext,**kwargs ) -> None:
+    compiler_exports = export_compilers( **kwargs )
+    cmakeflags = cmake_options( **kwargs )
+    process_execute\
+        ( f"{compiler_exports} && cmake -D PROJECTNAME={program} {cmakeflags} ../{ext}",
+          **kwargs )
+    process_execute( f"make V=1", **kwargs )
+    process_execute( f"if [ -f \"{program}\" ] ; then echo SUCCESS: program created ; else echo FAILURE: program not created ; fi",**kwargs )
+
+def execute_ldd_script( program,**kwargs ) -> None:
+    process_execute( f"ldd {program} 2>&1 | tee ldd.out",**kwargs )
+    process_execute( f"notfound=$( grep \"not found\" ldd.out | wc -l )",**kwargs )
+    process_execute( f"if [ $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi",**kwargs )
+
+def execute_run_script( program,**kwargs ) -> None:
+    process_execute( f"./{program}",**kwargs )
+    process_execute( f"if [ $? -eq 0 ] ; then echo SUCCESS: program run ; else echo FAILURE: program failed to run; fi",**kwargs )
+
 def dir_variable( package,dirtype ) -> str:
     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
@@ -187,9 +213,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                                    kwargs,title=title,chdir=builddir, ) # dict!
         if ldd:
             # are library dependencies satisfied
-            process_execute( f"ldd {program} 2>&1 | tee ldd.out",**kwargs,**output )
-            process_execute( f"notfound=$( grep \"not found\" ldd.out | wc -l )",**kwargs,**output )
-            process_execute( f"if [ $notfound -eq 0 ] ; then echo \"SUCCESS all libraries resolved\" ; else echo \"FAILURE $notfound references not found\" ; fi",**kwargs,**output )
+            execute_ldd_script( program,**kwargs,**output )
         # run!
         if do_run:
             #print( f"run prefix: <<{run_prefix}>> {type(run_prefix)}" )
@@ -213,7 +237,7 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
         program = parsed_options["program"]
-        title   = parsed_options["title"]
+        title   = parsed_options["test_title"]
         do_run  = parsed_options["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
@@ -222,37 +246,24 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
 
-    #
-    # compilation
-    #
-    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
-    # set up for cmake/make
-    compiler_exports = export_compilers( **kwargs,**output )
-    cmakeflags = cmake_options( **kwargs )
-    process_execute\
-        ( f"{compiler_exports} && cmake -D PROJECTNAME={name} {cmakeflags} ../{ext}",
-          **kwargs,**output )
-    process_execute( f"make V=1", **kwargs,**output )
-    # terminate this stage
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
-    if os.path.exists( f"{builddir}/{name}" ):
-        success.append( f"executable <<{name}>> created" )
-    else:
-        failure.append( f"Failed to create executable <<{name}>>" )
+    success : list[str] = []
+    failure : list[str] = []
 
     #
-    # execution
+    # Cmake & compile
+    #
+    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
+    execute_cmake_script( name,ext,**kwargs,**output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
+
+    #
+    # Check library dependencies satisfied & run
     #
     output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir, ) # note dict
-    # are library dependencies satisfied
-    process_execute( f"ldd {name}",**kwargs,**output )
-    # run!
+    execute_ldd_script( name,**kwargs,**output )
     if do_run:
-        process_execute( f"./{name}",**kwargs,**output )
-    # end of this stage
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
+        execute_run_script( name,**kwargs,**output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
 
