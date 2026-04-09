@@ -14,6 +14,13 @@ from MrPackMod import names
 from MrPackMod import process
 from MrPackMod import regression
 
+def do_config_tests( **kwargs ):
+    srcdir = names.srcdir_name( **kwargs )
+    if not os.path.isdir(srcdir):
+        process.echo_string( f"Warning: source directory {srcdir} does not exist",
+                             **kwargs )
+    modulefile.test_modules( **kwargs )
+
 def mpm( parser,**kwargs ):
     arguments = parser.parse_args()
     configfile   = arguments.configuration
@@ -81,11 +88,7 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
-            srcdir = names.srcdir_name( **configuration )
-            if not os.path.isdir(srcdir):
-                process.echo_string( f"Warning: source directory {srcdir} does not exist",
-                                     **configuration )
-            modulefile.test_modules( **configuration )
+            do_config_tests( **configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
                 print( modulelist )
@@ -109,6 +112,7 @@ utility_actions : {utility_actions}
             download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
+            do_config_tests( **configuration )
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )
@@ -130,6 +134,7 @@ utility_actions : {utility_actions}
         elif action=="clean":
             os.system( "rm -f *~ *.log" )
         elif action=="regression":
+            do_config_tests( **configuration )
             regression.do_tests( **configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
