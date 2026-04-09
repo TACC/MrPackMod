@@ -13,15 +13,19 @@ from MrPackMod.process import process_execute,echo_string,trace_string
 from MrPackMod.process import echo_string,nonzero_keyword,abort_on_zero_keyword
 import MrPackMod.names as names
 
-def cd_download_path( **kwargs ):
+def download_path( **kwargs ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
         trace_string( f"Change dir to downloadpath: {downloadpath}",**kwargs )
-        os.chdir( downloadpath )
+        return downloadpath
     else:
-        homedir = names.create_homedir( **kwargs )
+        homedir :str = names.create_homedir( **kwargs )
         trace_string( f"Use home dir as downloadpath: {homedir}",**kwargs )
-        os.chdir(homedir)
+        return homedir
 
+def cd_download_path( **kwargs ):
+    downloadpath = download_path( **kwargs )
+    os.chdir( downloadpath )
+    
 def download_from_url( **kwargs, ):
     url = abort_on_zero_keyword( "DOWNLOADURL",**kwargs )
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )

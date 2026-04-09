@@ -72,7 +72,7 @@ utility_actions : {utility_actions}
                     ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
                       **configuration )
             else:
-                echo_string( f"WARNING: find_string command needs --args",**configuration )
+                process.echo_string( f"WARNING: find_string command needs --args",**configuration )
         elif action=="list":
             info.list_installations( **configuration )
         elif action=="logfiles":
@@ -81,6 +81,10 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
+            srcdir = names.srcdir_name( **configuration )
+            if not os.path.isdir(srcdir):
+                process.echo_string( f"Warning: source directory {srcdir} does not exist",
+                                     **configuration )
             modulefile.test_modules( **configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
