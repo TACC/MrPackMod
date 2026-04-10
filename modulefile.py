@@ -264,7 +264,7 @@ def dependencies( **kwargs ):
             depends += f"depends_on( \"{pre}\" )\n"
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         if tracing:
-            echo_string( f"depends on current: {curreq}/{version}" )
+            echo_string( f"depends on current versions of: {curreq}" )
         for cur in curreq.split(" "):
             version = abort_on_zero_env( f"TACC_{cur.upper()}_VERSION" )
             depends += f"depends_on( \"{cur}/{version}\" )\n"
