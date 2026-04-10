@@ -19,15 +19,16 @@ from MrPackMod.process import echo_string, trace_string, error_abort, abort_on_z
 from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 
 def export_compilers( **kwargs ):
+    echo_string( "Exporting compilers",**kwargs )
     compilers = compilers_names( **kwargs )
     cmdline = ""; cont = ""
     for key,val in compilers.items():
-        echo_string( f"Setting compiler: {key}={val}",**kwargs )
+        echo_string( f" .. Setting compiler: {key}={val}",**kwargs )
         which = process_execute( f"which {val}",**kwargs, )
-        echo_string( f" .. where {val}={which}",**kwargs )
+        echo_string( f"    where {val}={which}",**kwargs )
         if ( mpi := kwargs.get("MODE") ) == "mpi":
             info = process_execute( f"{which} -show",**kwargs, )
-            echo_string( f" .. which is:\n    {info}",**kwargs )
+            echo_string( f"    which is:\n    {info}",**kwargs )
         cmdline += f"{cont}export {key}={val}"
         cont = " && "
     return cmdline

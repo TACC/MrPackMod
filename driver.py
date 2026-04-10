@@ -97,7 +97,10 @@ utility_actions : {utility_actions}
             if url := configuration.get("CODEURL"): print( url )
             if url := configuration.get("DOCURL"): print( url )
         elif action=="version":
-            print( configuration["PACKAGEVERSION"] )
+            v = configuration["PACKAGEVERSION"]
+            if nonnull(v):
+                print( v )
+            else : print( "default" )
         # download stuff
         elif action=="download":
             download.download_from_url( **configuration )

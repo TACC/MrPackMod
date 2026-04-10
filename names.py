@@ -25,15 +25,21 @@ from MrPackMod.process import error_abort,requirenonzero,nonnull
 # both lowercase
 # in the future we will handle the case of git pulls
 # Result: pair package,version
+# version can be null-string if we are using the default
 #
 def package_names( **kwargs ) -> tuple[str,str]:
     package : str = abort_on_zero_keyword("PACKAGE",**kwargs)
-    version : str = abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
+    version : str = kwargs.get( "PACKAGEVERSION" )
     # if version == "git":
     #     # raise Exception( "gitdate not yet implemented" )
     #     today = re.sub( '-','',str(datetime.date.today()) )
     #     version = f"git{today}"
     return package,version
+
+def package_names_nonnull( **kwargs ):
+    p,v = package_names( **kwargs )
+    abort_on_null( v,"package version is null/unspecified",**kwargs )
+    return p,v
 
 #
 # name of a logfile
@@ -133,7 +139,7 @@ def systemnames():
     return mpicode,mpiversion
 
 def install_extension( **kwargs ):
-    package,packageversion = package_names( **kwargs )
+    package,packageversion = package_names_nonnull( **kwargs )
     envcode = abort_on_null( environment_code( **kwargs ),"environment code for install ext" )
     installext = f"{packageversion}-{envcode}"
     if nonnull( iext := kwargs.get( "INSTALLEXT","" ) ):
@@ -143,7 +149,7 @@ def install_extension( **kwargs ):
     return installext
 
 def srcdir_local_name( **kwargs ):
-    packagebasename,packageversion = package_names( **kwargs )
+    packagebasename,packageversion = package_names_nonnull( **kwargs )
     return f"{packagebasename}-{packageversion}"
 
 def gitdir_local_name( **kwargs ):
@@ -166,13 +172,13 @@ def builddir_name( **kwargs ):
     else:
         homedir = create_homedir( **kwargs )
         builddir = homedir
-    package,packageversion = package_names( **kwargs )
+    package,_ = package_names( **kwargs )
     installext = install_extension( **kwargs )
     builddir += f"/{package}/build-{installext}"
     return builddir
 
 def prefixdir_name( **kwargs ):
-    package,packageversion = package_names( **kwargs )
+    package,_ = package_names( **kwargs )
     if nonnull( pdir:=kwargs.get("installpath","") ):
         echo_string( f"Using external prefixdir: {pdir}" )
         prefixdir = pdir
@@ -232,7 +238,7 @@ def package_dir_names( **kwargs ):
 
 def modulefile_path_and_name( **kwargs ):
     abort_on_nonzero_env( "MODULEDIRSET" )
-    package,packageversion = package_names( **kwargs )
+    package,packageversion = package_names_nonnull( **kwargs )
     modulename,moduleversion = module_names( **kwargs )
     #
     # construct module path
@@ -261,6 +267,7 @@ def module_names( **kwargs):
     modulename = kwargs.get( "MODULENAME",package )
     if alt := nonzero_keyword( "MODULENAMEALT" ):
         modulename = alt
+    # package version can be null, so module version can be null
     moduleversion = packageversion
     if mx := nonzero_keyword( "MODULEVERSIONEXTRA",**kwargs ):
         moduleversion += f"-{mx}"

@@ -178,7 +178,9 @@ def process_execute( cmdline,**kwargs ):
     if outside_process:
         return ""
     else:
-        return process_terminate( process,**kwargs )
+        result = process_terminate( process,**kwargs )
+        trace_string( f" .. process result: {result}",**kwargs )
+        return result
 
 def number_satisfies( loaded,wanted,**kwargs ):
     if wanted=="*":

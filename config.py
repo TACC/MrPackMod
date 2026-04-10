@@ -299,7 +299,7 @@ def read_config(configfile,**kwargs):
     configuration_dict = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
-        'PACKAGE':"all", 'PACKAGEVERSION':"0.0",
+        'PACKAGE':"all", 'PACKAGEVERSION':"",
         'tracing':tracing,
         'exports':[], # vars to set before cmake/configure call
         'logfiles':{}, # name,handle pairs

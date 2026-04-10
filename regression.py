@@ -72,8 +72,10 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
             ( f"module load {mpi}/{mpiversion}",**kwargs,process=process )
     # load the package that we are testing
     package,packageversion =  names.package_names( **kwargs )
+    loadname = package
+    if nonnull(packageversion): loadname = f"{loadname}/{packageversion}"
     process_execute\
-        ( f"module load {package}/{packageversion}",**kwargs,process=process )
+        ( f"module load {loadname}",**kwargs,process=process )
     process_execute\
         ( f"module -t list 2>&1 | sort", **kwargs,process=process )
 

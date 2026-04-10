@@ -107,7 +107,7 @@ def test_modules( **kwargs ):
         error_abort( "Errors during module testing",**kwargs )
 
 def module_help_string( **kwargs ):
-    package,packageversion   = names.package_names( **kwargs )
+    package,packageversion   = names.package_names_nonnull( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
 
     about = kwargs.get( "ABOUT", f"The {package} package" )
