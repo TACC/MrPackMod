@@ -154,12 +154,13 @@ def execute_cmake_script( program,ext,**kwargs ) -> None:
         ( f"{compiler_exports} && cmake -D PROJECTNAME={program} {cmakeflags} ../{ext}",
           **kwargs )
     process_execute( f"make V=1", **kwargs )
-    process_execute( f"if [ -f \"{program}\" ] ; then echo SUCCESS: program created ; else echo FAILURE: program not created ; fi",**kwargs )
+    process_execute( f"if [ -f \"{program}\" ] ; then found=1 && echo SUCCESS: program created ; else found=0 && echo FAILURE: program not created ; fi",**kwargs )
 
 def execute_ldd_script( program,**kwargs ) -> None:
-    process_execute( f"ldd {program} 2>&1 | tee ldd.out",**kwargs )
-    process_execute( f"notfound=$( grep \"not found\" ldd.out | wc -l )",**kwargs )
-    process_execute( f"if [ $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi",**kwargs )
+    ldd_out = "ldd.out"
+    process_execute( f"if [ -f \"{program}\" ] ; then ldd {program} 2>&1 | tee {ldd_out} ; else touch {ldd_out} ; fi",**kwargs )
+    process_execute( f"notfound=$( grep \"not found\" {ldd_out} | wc -l )",**kwargs )
+    process_execute( f"if [ -f \"{program}\" -a $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi",**kwargs )
 
 def execute_run_script( program,**kwargs ) -> None:
     process_execute( f"./{program}",**kwargs )
