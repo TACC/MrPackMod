@@ -30,6 +30,10 @@ def trace_string( string,**kwargs ):
     if kwargs.get( "tracing" ):
         echo_string( string,**kwargs )
 
+def trace_var( var,**kwargs ):
+    varvalue = eval(var)
+    trace_string( f"var={varvalue}",**kwargs )
+
 def echo_warning( string,**kwargs ):
     prefix = kwargs.get("prefix","")
     echo_string( f"{prefix}WARNING {string}",**kwargs )

@@ -18,7 +18,7 @@ from MrPackMod import modulefile
 from MrPackMod import names 
 from process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir,\
-    nonnull, nonzero_keyword, echo_string,trace_string,error_abort,echo_warning
+    nonnull, nonzero_keyword, echo_string,trace_string,trace_var,error_abort,echo_warning
 
 #
 # Parse the options with argparse
@@ -30,6 +30,7 @@ def parse_command( test_options,**kwargs ) -> dict:
           add_help=True )
     # running
     parser.add_argument( '-r',"--run", action='store_true', default=False )
+    parser.add_argument( '--run_in_dir', action='store_true', default=False )
     parser.add_argument( '-a',"--run_args" )
     parser.add_argument( '-k','--keywords',default="" )
     parser.add_argument( '-p',"--run_prefix" )
@@ -47,7 +48,8 @@ def parse_command( test_options,**kwargs ) -> dict:
 
     parsed = {
         # running
-        "do_run"     : arguments.run,
+        "do_run"     : arguments.run or arguments.run_in_dir,
+        "run_in_dir" : arguments.run_in_dir,
         "run_args"   : arguments.run_args,
         "keywords"   : arguments.keywords,
         "run_prefix" : arguments.run_prefix,
@@ -113,8 +115,13 @@ def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) 
         process_execute\
             ( f"echo Variable {dirvariable} : ${dirvariable}", **kwargs )
         process_execute\
-            ( f"if [ ! -z \"${dirvariable}\" -a -d \"${dirvariable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dirvariable} does not exist' ; fi ",
-              **kwargs )
+            ( f"""
+if [ ! -z \"${dirvariable}\" -a -d \"${dirvariable}\" ] ; then 
+    echo ' .. directory exists' ; 
+else 
+    echo 'FAILURE: {dirvariable} does not exist' ; 
+fi
+            """,**kwargs )
         file_to_test   : str = f"${dirvariable}/{program}"
         file_to_report : str = f"${dirvariable}/{program}"
     else:
@@ -122,8 +129,13 @@ def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) 
         process_execute\
             ( f"echo Variable {pkg_variable} : ${pkg_variable}", **kwargs )
         process_execute\
-            ( f"if [ ! -z \"${pkg_variable}\" -a -d \"${pkg_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {pkg_variable} does not exist' ; fi ",
-              **kwargs )
+            ( f"""
+if [ ! -z \"${pkg_variable}\" -a -d \"${pkg_variable}\" ] ; then 
+    echo ' .. directory exists' ; 
+else
+    echo 'FAILURE: {pkg_variable} does not exist' ; 
+fi
+            """,**kwargs )
         file_to_test   = f"${pkg_variable}/{dirtype}/{program}"
         file_to_report = f"${pkg_variable}/{dirtype}/{program}"
     return file_to_test,file_to_report
@@ -139,14 +151,23 @@ def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> tuple[s
         ( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     process_execute\
-        ( f"if [ -f \"{file_to_test}\" ] ; then echo 'SUCCESS: file exists: <<{file_to_report}>> ' ; else echo 'FAILURE: file does not exist <<{file_to_report}>>' ; fi ",
-          **kwargs )
+        ( f"""
+if [ -f \"{file_to_test}\" ] ; then
+    echo 'SUCCESS: file exists: <<{file_to_report}>> ' ; 
+else
+    echo 'FAILURE: file does not exist <<{file_to_report}>>' ; 
+fi
+        """,**kwargs )
     if nonnull(grep):
         program_clean = re.sub( '/','',program )
         grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
         dirvariable = dir_variable(package,dirtype)
         process_execute\
-            ( f"if [ -f \"{file_to_test}\" ] ; then grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; fi",
+            ( f"""
+if [ -f \"{file_to_test}\" ] ; then
+    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; 
+fi
+""",
               **kwargs, )
         return file_to_test,grep_output_file
     return file_to_test,""
@@ -158,13 +179,34 @@ def execute_cmake_script( program,ext,**kwargs ) -> None:
         ( f"{compiler_exports} && cmake -D PROJECTNAME={program} {cmakeflags} ../{ext}",
           **kwargs )
     process_execute( f"make V=1", **kwargs )
-    process_execute( f"if [ -f \"{program}\" ] ; then found=1 && echo SUCCESS: program created ; else found=0 && echo FAILURE: program not created ; fi",**kwargs )
+    process_execute( f"""
+if [ -f \"{program}\" ] ; then
+    found=1 && echo SUCCESS: program created ; 
+else
+    found=0 && echo FAILURE: program not created ; 
+fi
+    """,**kwargs )
 
 def execute_ldd_script( program,**kwargs ) -> None:
     lddout = "ldd.out"
     process_execute( f"rm -f {lddout}",**kwargs )
-    process_execute( f"if [ -f \"{program}\" ] ; then ldd {program} 2>&1 | tee {lddout} ; else touch {lddout} ; fi",**kwargs )
-    process_execute( f"if [ -f \"{program}\" ] ; then notfound=$( grep \"not found\" {lddout} | wc -l ) && if [ $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi; fi",**kwargs )
+    process_execute( f"""
+if [ -f \"{program}\" ] ; then
+    ldd {program} 2>&1 | tee {lddout} ; 
+else
+    touch {lddout} ; 
+fi
+    """,**kwargs )
+    process_execute( f"""
+if [ -f \"{program}\" ] ; then
+    notfound=$( grep \"not found\" {lddout} | wc -l ) && 
+    if [ $notfound -eq 0 ] ; then
+        echo \"SUCCESS: all libraries resolved\" ; 
+    else
+        echo \"FAILURE: $notfound references not found\" ; 
+    fi ; 
+fi
+    """,**kwargs )
 
 def execute_run_script( program,**kwargs ) -> None:
     process_execute( f"./{program}",**kwargs )
@@ -177,14 +219,15 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
     #print( f"Existence test options: {parsed_options}" )
     try :
-        title   = parsed_options["test_title"]
-        program = parsed_options["program"]
-        grep    = parsed_options["grep"]
-        ldd     = parsed_options["ldd"]
-        do_run  = parsed_options["do_run"]
+        title      = parsed_options["test_title"]
+        program    = parsed_options["program"]
+        dirtype    = parsed_options["dirtype"]
+        grep       = parsed_options["grep"]
+        ldd        = parsed_options["ldd"]
+        do_run     = parsed_options["do_run"]
+        run_in_dir = parsed_options["run_in_dir"]
         run_args   = parsed_options["run_args"]
         run_prefix = parsed_options["run_prefix"]
-        dirtype = parsed_options["dirtype"]
     except KeyError:
         error_abort( "Did not find program/grep/ldd/dirtype/do_run",**kwargs )
 
@@ -222,14 +265,26 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
         # run!
         if do_run:
             #print( f"run prefix: <<{run_prefix}>> {type(run_prefix)}" )
-            if nonnull(run_prefix):
-                cmdline : str = f"{run_prefix}{program}"
+            file_directory : str = re.sub( r'(.*)/[^/]+',r'\1',full_file_path )
+            if nonnull(run_in_dir):
+                cmdline : str = f"cd {file_directory} && "
             else:
-                cmdline = f"./{program}"
+                cmdline = ""
+            if nonnull(run_prefix):
+                cmdline += f"{run_prefix}{program}"
+            else:
+                cmdline += f"./{program}"
             if nonnull(run_args):
                 cmdline += run_args
-            print( f"run cmdline: {cmdline}" )
-            process_execute( cmdline,**kwargs,**output )
+            trace_string( f"run cmdline: {cmdline}",**kwargs,**output )
+            process_execute( f"""
+{cmdline} &&
+if [ $? -eq 0 ] ; then 
+    echo SUCCESS: running {program} ;
+else
+    echo FAILURE: running {program} ;
+fi
+            """,**kwargs,**output )
         process_terminate( output["process"],**kwargs,**output )
         close_logfile( output["logfile"],kwargs )
         success,failure = success_failure_in_logfile\
