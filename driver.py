@@ -98,7 +98,7 @@ utility_actions : {utility_actions}
             if url := configuration.get("DOCURL"): print( url )
         elif action=="version":
             v = configuration["PACKAGEVERSION"]
-            if nonnull(v):
+            if process.nonnull(v):
                 print( v )
             else : print( "default" )
         # download stuff

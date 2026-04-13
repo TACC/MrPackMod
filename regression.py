@@ -116,7 +116,7 @@ def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) 
             ( f"if [ ! -z \"${dirvariable}\" -a -d \"${dirvariable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {dirvariable} does not exist' ; fi ",
               **kwargs )
         file_to_test   : str = f"${dirvariable}/{program}"
-        file_to_report : str = f"{dirvariable}/{program}"
+        file_to_report : str = f"${dirvariable}/{program}"
     else:
         pkg_variable = f"TACC_{package.upper()}_DIR"
         process_execute\
@@ -125,14 +125,14 @@ def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) 
             ( f"if [ ! -z \"${pkg_variable}\" -a -d \"${pkg_variable}\" ] ; then echo ' .. directory exists' ; else echo 'FAILURE: {pkg_variable} does not exist' ; fi ",
               **kwargs )
         file_to_test   = f"${pkg_variable}/{dirtype}/{program}"
-        file_to_report = f"{pkg_variable}/{dirtype}/{program}"
+        file_to_report = f"${pkg_variable}/{dirtype}/{program}"
     return file_to_test,file_to_report
 
 ##
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
 ##
-def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> str:
+def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> tuple[str,str]:
     process_execute\
         ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs )
     file_to_test,file_to_report = execute_file_to_exist\
@@ -148,8 +148,8 @@ def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> str:
         process_execute\
             ( f"if [ -f \"{file_to_test}\" ] ; then grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; fi",
               **kwargs, )
-        return grep_output_file
-    return ""
+        return file_to_test,grep_output_file
+    return file_to_test,""
 
 def execute_cmake_script( program,ext,**kwargs ) -> None:
     compiler_exports = export_compilers( **kwargs )
@@ -161,10 +161,10 @@ def execute_cmake_script( program,ext,**kwargs ) -> None:
     process_execute( f"if [ -f \"{program}\" ] ; then found=1 && echo SUCCESS: program created ; else found=0 && echo FAILURE: program not created ; fi",**kwargs )
 
 def execute_ldd_script( program,**kwargs ) -> None:
-    ldd_out = "ldd.out"
-    process_execute( f"if [ -f \"{program}\" ] ; then ldd {program} 2>&1 | tee {ldd_out} ; else touch {ldd_out} ; fi",**kwargs )
-    process_execute( f"notfound=$( grep \"not found\" {ldd_out} | wc -l )",**kwargs )
-    process_execute( f"if [ -f \"{program}\" -a $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi",**kwargs )
+    lddout = "ldd.out"
+    process_execute( f"rm -f {lddout}",**kwargs )
+    process_execute( f"if [ -f \"{program}\" ] ; then ldd {program} 2>&1 | tee {lddout} ; else touch {lddout} ; fi",**kwargs )
+    process_execute( f"if [ -f \"{program}\" ] ; then notfound=$( grep \"not found\" {lddout} | wc -l ) && if [ $notfound -eq 0 ] ; then echo \"SUCCESS: all libraries resolved\" ; else echo \"FAILURE: $notfound references not found\" ; fi; fi",**kwargs )
 
 def execute_run_script( program,**kwargs ) -> None:
     process_execute( f"./{program}",**kwargs )
@@ -200,7 +200,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     program_clean = re.sub( '/','',program )
     output = start_test_stage( program_clean,"exists",logdir,
                                kwargs,title=title,chdir=builddir, ) # note dict
-    grep_output_file : str = \
+    full_file_path,grep_output_file = \
         execute_existence_script( package,dirtype,program,grep,**kwargs,**output )
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
@@ -218,7 +218,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                                    kwargs,title=title,chdir=builddir, ) # dict!
         if ldd:
             # are library dependencies satisfied
-            execute_ldd_script( program,**kwargs,**output )
+            execute_ldd_script( full_file_path,**kwargs,**output )
         # run!
         if do_run:
             #print( f"run prefix: <<{run_prefix}>> {type(run_prefix)}" )
