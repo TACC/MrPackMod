@@ -135,7 +135,7 @@ utility_actions : {utility_actions}
                 if process.zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
-            os.system( "rm -rf *~ *.log logfiles" )
+            os.system( "rm -rf *~ *.log logfiles *.out build*" )
         elif action=="regression":
             do_config_tests( **configuration )
             regression.do_tests( **configuration )

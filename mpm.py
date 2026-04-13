@@ -15,6 +15,7 @@ parser.add_argument( '-t','--trace',action='store_true',default=False )
 parser.add_argument( '-c','--configuration',default="Configuration")
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
+parser.add_argument( '-k','--keywords',default="" )
 parser.add_argument( '-A','--args',default="" )
 file_actions    = "download unpack retar clone pull"
 build_actions = "configure build module public"

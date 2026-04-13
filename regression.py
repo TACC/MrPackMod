@@ -18,7 +18,7 @@ from MrPackMod import modulefile
 from MrPackMod import names 
 from process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir,\
-    nonnull, nonzero_keyword, echo_string,trace_string,error_abort
+    nonnull, nonzero_keyword, echo_string,trace_string,error_abort,echo_warning
 
 #
 # Parse the options with argparse
@@ -31,6 +31,7 @@ def parse_command( test_options,**kwargs ) -> dict:
     # running
     parser.add_argument( '-r',"--run", action='store_true', default=False )
     parser.add_argument( '-a',"--run_args" )
+    parser.add_argument( '-k','--keywords',default="" )
     parser.add_argument( '-p',"--run_prefix" )
     # existence
     parser.add_argument( '-l',"--ldd", action='store_true', default=False )
@@ -48,6 +49,7 @@ def parse_command( test_options,**kwargs ) -> dict:
         # running
         "do_run"     : arguments.run,
         "run_args"   : arguments.run_args,
+        "keywords"   : arguments.keywords,
         "run_prefix" : arguments.run_prefix,
         # existence test
         "dirtype"    : arguments.dir,
@@ -206,7 +208,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                       ( output["logfile"],success=success,failure=failure,
                         **kwargs,**output )
     if nonnull(grep_output_file):
-        success = add_grep_lines( f"{grep_output_file}",success )
+        success = add_grep_lines( f"{grep_output_file}",success,**kwargs,**output )
 
     #
     # run and ldd
@@ -275,7 +277,7 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
         program = parsed_options["program"]
-        title   = parsed_options["title"]
+        title   = parsed_options["test_title"]
         do_run  = parsed_options["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
@@ -377,10 +379,14 @@ def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str
 ## This means it's up to the test to interpret these lines
 ## as containing the right thing or not
 ##
-def add_grep_lines( grepfile,success : str ) -> str:
-    with open( grepfile,"r" ) as grep_out:
-        for line in grep_out.readlines():
-            line = line.strip("\n")
-            success.append( f"grep output: {line}" )
+def add_grep_lines( grepfile,success : str,**kwargs ) -> str:
+    try:
+        with open( grepfile,"r" ) as grep_out:
+            for line in grep_out.readlines():
+                line = line.strip("\n")
+                success.append( f"grep output: {line}" )
+    except:
+        echo_warning( f"Can not find grep file: {grepfile}",**kwargs )
+        pass
     return success
 
