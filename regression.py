@@ -239,7 +239,7 @@ def dir_variable( package,dirtype ) -> str:
 
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
-    print( f"Existence test options: {parsed_options}" )
+    trace_string( f"Existence test options: {parsed_options}",**kwargs )
     try :
         title      = parsed_options["test_title"]
         program    = parsed_options["program"]
