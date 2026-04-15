@@ -6,6 +6,7 @@ import argparse
 import shlex
 import os
 import re
+import pdb
 import shutil
 import sys
 
@@ -85,11 +86,11 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
 
 def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ): # note dict
     # Create log file for this test stage, and add it to the stack of logfiles
-    logfile = open_logfile( f"{name}_{stage}",
-                            kwargs,dir=logdir,terminal=None ) # note dict
+    logfile = \
+        open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
     # Create a process for the commands of this test stage
     shell = process_initiate( **kwargs )
-    output = { "logfile":logfile,"terminal":"suppress","process":shell, }
+    output = { "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell, }
     if title:
         process_execute( f"echo Test title: {title}",**kwargs,**output )
     if chdir:
@@ -105,51 +106,36 @@ def end_test_stage( success,failure,kwargs,output ) -> tuple[list[str],list[str]
     return success,failure
 
 ##
-## Add process lines for testing file existence
-## Return actual file name & name with LMOD variable unexpanded
+## Return directory, actual file name & name with LMOD variable unexpanded
 ##
-def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str]:
-    process = kwargs.get("process")
+def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
     if dirtype in [ "dir","inc","lib","bin", ]:
-        dirvariable = dir_variable(package,dirtype)
-        process_execute\
-            ( f"echo Variable {dirvariable} : ${dirvariable}", **kwargs )
-        process_execute\
-            ( f"""
-if [ ! -z \"${dirvariable}\" -a -d \"${dirvariable}\" ] ; then 
-    echo ' .. directory exists' ; 
-else 
-    echo 'FAILURE: {dirvariable} does not exist' ; 
-fi
-            """,**kwargs )
-        file_to_test   : str = f"${dirvariable}/{program}"
-        file_to_report : str = f"${dirvariable}/{program}"
+        filedir : str = dir_variable(package,dirtype)
+        filedir = f"${filedir}"
+        file_to_test   : str = f"{filedir}/{program}"
+        file_to_report : str = f"{filedir}/{program}"
     else:
-        pkg_variable = f"TACC_{package.upper()}_DIR"
-        process_execute\
-            ( f"echo Variable {pkg_variable} : ${pkg_variable}", **kwargs )
-        process_execute\
-            ( f"""
-if [ ! -z \"${pkg_variable}\" -a -d \"${pkg_variable}\" ] ; then 
-    echo ' .. directory exists' ; 
-else
-    echo 'FAILURE: {pkg_variable} does not exist' ; 
-fi
-            """,**kwargs )
-        file_to_test   = f"${pkg_variable}/{dirtype}/{program}"
-        file_to_report = f"${pkg_variable}/{dirtype}/{program}"
-    return file_to_test,file_to_report
+        filedir = f"$TACC_{package.upper()}_DIR/{dirtype}"
+        file_to_test   : str = f"{filedir}/{program}"
+        file_to_report : str = f"{filedir}/{program}"
+    return filedir,file_to_test,file_to_report
 
 ##
-## Add lines to a process for testing the existence of a file
-## In case we grep something in that file, return the name of the grep file
+## Add process lines for testing file existence
 ##
-def execute_existence_script( package,dirtype,program,grep,**kwargs ) -> tuple[str,str]:
+def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> None:
+    process = kwargs.get("process")
     process_execute\
-        ( f"echo \"Investigate var: {dirtype.upper()}\"",**kwargs )
-    file_to_test,file_to_report = execute_file_to_exist\
-        ( package,dirtype,program,**kwargs )
-    # with directories in place, does the actual file exist?
+        ( f"echo \"Investigate program: {program}, in var: {dirtype}\"",**kwargs )
+    filedir,file_to_test,file_to_report = file_to_exist(package,dirtype,program,**kwargs)
+    process_execute\
+        ( f"""
+if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
+    echo ' .. directory {filedir} exists' ; 
+else 
+    echo 'FAILURE: {filedir} does not exist' ; 
+fi
+        """,**kwargs )
     process_execute\
         ( f"""
 if [ -f \"{file_to_test}\" ] ; then
@@ -158,19 +144,24 @@ else
     echo 'FAILURE: file does not exist <<{file_to_report}>>' ; 
 fi
         """,**kwargs )
-    if nonnull(grep):
-        program_clean = re.sub( '/','',program )
-        grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
-        dirvariable = dir_variable(package,dirtype)
-        process_execute\
-            ( f"""
+
+##
+## Add lines to a process for testing the existence of a file
+## In case we grep something in that file, return the name of the grep file
+##
+def execute_grep( package,dirtype,program,**kwargs ) -> tuple[str,str]:
+    _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
+    # with directories in place, does the actual file exist?
+    program_clean = re.sub( '/','',program )
+    grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
+    process_execute\
+        ( f"""
 if [ -f \"{file_to_test}\" ] ; then
     grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; 
 fi
 """,
-              **kwargs, )
-        return file_to_test,grep_output_file
-    return file_to_test,""
+          **kwargs, )
+    return grep_output_file
 
 def execute_cmake_script( program,ext,**kwargs ) -> None:
     compiler_exports = export_compilers( **kwargs )
@@ -208,16 +199,47 @@ if [ -f \"{program}\" ] ; then
 fi
     """,**kwargs )
 
-def execute_run_script( program,**kwargs ) -> None:
-    process_execute( f"./{program}",**kwargs )
-    process_execute( f"if [ $? -eq 0 ] ; then echo SUCCESS: program run ; else echo FAILURE: program failed to run; fi",**kwargs )
+##
+## Run a program
+##
+def execute_run_script( run_in_dir,filedir,run_prefix,run_args,program,**kwargs ) -> None:
+    tracestring = f"run program={program}"
+    if nonnull(run_in_dir):
+        tracestring += f" in dir {run_in_dir}"
+    if nonnull(run_args):
+        tracestring += f" with args={run_args}"
+    trace_string( tracestring,**kwargs )
+    #breakpoint()
+    if nonnull(run_in_dir):
+        cmdline : str = f"cd {filedir} && "
+    else:
+        cmdline = ""
+    if nonnull(run_prefix):
+        cmdline += f"{run_prefix}{program}"
+    else:
+        cmdline += f"./{program}"
+    if nonnull(run_args):
+        cmdline += run_args
+    trace_string( f"run cmdline: {cmdline}",**kwargs )
+    logdir = kwargs["logdir"]
+    runout = f"{logdir}/run.out"
+    process_execute( f"""
+{cmdline} >{runout} 2>&1 &&
+if [ $? -eq 0 ] ; then 
+    echo SUCCESS: running {program} ;
+else
+    echo FAILURE: running {program} ;
+fi 
+echo "Run output"
+cat {runout}
+    """,**kwargs )
 
 def dir_variable( package,dirtype ) -> str:
     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
-    #print( f"Existence test options: {parsed_options}" )
+    print( f"Existence test options: {parsed_options}" )
     try :
         title      = parsed_options["test_title"]
         program    = parsed_options["program"]
@@ -243,48 +265,32 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     program_clean = re.sub( '/','',program )
     output = start_test_stage( program_clean,"exists",logdir,
                                kwargs,title=title,chdir=builddir, ) # note dict
-    full_file_path,grep_output_file = \
-        execute_existence_script( package,dirtype,program,grep,**kwargs,**output )
+    execute_file_to_exist( package,dirtype,program,**kwargs,**output )
+    if nonnull(grep):
+        grepfile : str = execute_grep( package,dirtype,program,**kwargs,**output )
+    else: grepfile = ""
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
     success,failure = success_failure_in_logfile\
                       ( output["logfile"],success=success,failure=failure,
                         **kwargs,**output )
-    if nonnull(grep_output_file):
+    if nonnull(grepfile):
         success = add_grep_lines( f"{grep_output_file}",success,**kwargs,**output )
 
     #
     # run and ldd
     #
     if do_run or ldd:
+        filedir,file_to_test,file_to_report = \
+            file_to_exist(package,dirtype,program,**kwargs,**output)
         output = start_test_stage( program_clean,"exec",logdir,
                                    kwargs,title=title,chdir=builddir, ) # dict!
         if ldd:
             # are library dependencies satisfied
-            execute_ldd_script( full_file_path,**kwargs,**output )
+            execute_ldd_script( file_to_test,**kwargs,**output )
         # run!
         if do_run:
-            #print( f"run prefix: <<{run_prefix}>> {type(run_prefix)}" )
-            file_directory : str = re.sub( r'(.*)/[^/]+',r'\1',full_file_path )
-            if nonnull(run_in_dir):
-                cmdline : str = f"cd {file_directory} && "
-            else:
-                cmdline = ""
-            if nonnull(run_prefix):
-                cmdline += f"{run_prefix}{program}"
-            else:
-                cmdline += f"./{program}"
-            if nonnull(run_args):
-                cmdline += run_args
-            trace_string( f"run cmdline: {cmdline}",**kwargs,**output )
-            process_execute( f"""
-{cmdline} &&
-if [ $? -eq 0 ] ; then 
-    echo SUCCESS: running {program} ;
-else
-    echo FAILURE: running {program} ;
-fi
-            """,**kwargs,**output )
+            execute_run_script( run_in_dir,filedir,run_prefix,run_args,program,**kwargs,**output )
         process_terminate( output["process"],**kwargs,**output )
         close_logfile( output["logfile"],kwargs )
         success,failure = success_failure_in_logfile\

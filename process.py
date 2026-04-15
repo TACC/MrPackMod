@@ -78,7 +78,9 @@ def nonnull( val ):
     return ( val is not None ) \
         and ( val is not False ) \
         and  ( ( isinstance(val,list) and len(val)>0) \
-               or ( isinstance(val,str) and not re.match( r'^\s*$',val ) ) )
+               or ( isinstance(val,str) and not re.match( r'^\s*$',val ) )
+               or ( isinstance(val,bool) and val==True )
+              )
 
 def isnull( val ):
     return not nonnull( val )
