@@ -154,8 +154,8 @@ def package_info( **kwargs ):
     modulename,moduleversion = names.module_names( **kwargs )
     return \
 f"""\
-whatis( "Name:",   \"{modulename}\" )
-whatis( "Version", \"{moduleversion}\" )
+whatis( "Name: {modulename}" )
+whatis( "Version: {moduleversion}" )
 """.strip()
 
 def path_settings( **kwargs ):
