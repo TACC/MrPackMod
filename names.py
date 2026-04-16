@@ -157,12 +157,19 @@ def gitdir_local_name( **kwargs ):
     packageversion = "git"
     return f"{packagebasename}-{packageversion}"
 
+##
+## Name of source directory,
+## not needed in cases such as regression
+##
 def srcdir_name( **kwargs ):
-    homedir = create_homedir( **kwargs )
-    srcdir_local = srcdir_local_name( **kwargs )
-    if srcdir := nonzero_keyword( "srcpath",**kwargs ):
-        return srcdir
-    else: return  f"{homedir}/{srcdir_local}"
+    if nocreate := kwargs.get( "no_home" ):
+        return "NO_HOME_DIR"
+    else:
+        homedir = create_homedir( **kwargs )
+        srcdir_local = srcdir_local_name( **kwargs )
+        if srcdir := nonzero_keyword( "srcpath",**kwargs ):
+            return srcdir
+        else: return  f"{homedir}/{srcdir_local}"
 
 def builddir_name( **kwargs ):
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):

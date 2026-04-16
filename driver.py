@@ -137,7 +137,7 @@ utility_actions : {utility_actions}
         elif action=="clean":
             os.system( "rm -rf *~ *.log logfiles *.out build*" )
         elif action=="regression":
-            do_config_tests( **configuration )
+            do_config_tests( **configuration,no_home=True )
             regression.do_tests( **configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
