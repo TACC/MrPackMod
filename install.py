@@ -148,6 +148,11 @@ def cmake_configure( **kwargs ):
     process_execute( cmdline,**kwargs,process=shell )
     process_terminate( shell,**kwargs )
     close_logfile( logfilename,kwargs )
+    process_execute( f"""
+if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then
+    echo && echo "Warning: cmake detected unused variables" && echo && echo
+fi
+    """,**kwargs, )
 
 def cmake_build( **kwargs ):
     logfilename = open_logfile( "install",kwargs ) # note dict!
