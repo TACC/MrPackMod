@@ -210,7 +210,7 @@ def execute_run_script( program : str,run_config : dict,**kwargs ) -> None:
         cmdline = f"./{program}"
     if nonnull( dir := run_config["run_in_dir"] ):
         tracestring += f" in dir: {dir}"
-        cmdline = f"cd {filedir} && {cmdline}"
+        cmdline = f"cd {dir} && {cmdline}"
     if nonnull( args:=run_config["run_args"] ):
         tracestring += f" with args={args}"
         cmdline += args
