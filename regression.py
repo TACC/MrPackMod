@@ -149,7 +149,7 @@ fi
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
 ##
-def execute_grep( package,dirtype,program,**kwargs ) -> tuple[str,str]:
+def execute_grep( package,dirtype,program,grep,**kwargs ) -> tuple[str,str]:
     _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     program_clean = re.sub( '/','',program )
@@ -202,26 +202,21 @@ fi
 ##
 ## Run a program
 ##
-def execute_run_script( run_in_dir,filedir,run_prefix,run_args,program,**kwargs ) -> None:
-    tracestring = f"run program={program}"
-    if nonnull(run_in_dir):
-        tracestring += f" in dir {run_in_dir}"
-    if nonnull(run_args):
-        tracestring += f" with args={run_args}"
+def execute_run_script( program : str,run_config : dict,**kwargs ) -> None:
+    tracestring : str = f"run program={program}"
+    if nonnull( prefix := run_config["run_prefix"] ):
+        cmdline :str = f"{prefix}{program}"
+    else:
+        cmdline = f"./{program}"
+    if nonnull( dir := run_config["run_in_dir"] ):
+        tracestring += f" in dir: {dir}"
+        cmdline = f"cd {filedir} && {cmdline}"
+    if nonnull( args:=run_config["run_args"] ):
+        tracestring += f" with args={args}"
+        cmdline += args
     trace_string( tracestring,**kwargs )
-    #breakpoint()
-    if nonnull(run_in_dir):
-        cmdline : str = f"cd {filedir} && "
-    else:
-        cmdline = ""
-    if nonnull(run_prefix):
-        cmdline += f"{run_prefix}{program}"
-    else:
-        cmdline += f"./{program}"
-    if nonnull(run_args):
-        cmdline += run_args
-    trace_string( f"run cmdline: {cmdline}",**kwargs )
-    logdir = kwargs["logdir"]
+    trace_string( f" .. cmdline: {cmdline}",**kwargs )
+    logdir : str = kwargs["logdir"]
     runout = f"{logdir}/run.out"
     process_execute( f"""
 {cmdline} >{runout} 2>&1 &&
@@ -237,19 +232,28 @@ cat {runout}
 def dir_variable( package,dirtype ) -> str:
     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
+def get_run_configuration( parsed_options : dict,**kwargs ) -> dict:
+    run_params : list[str] = [
+        "run_in_dir","run_args","run_prefix","do_run",
+        ]
+    run_config : dict = {}
+    for p in run_params:
+        try:
+            run_config[p] = parsed_options[p]
+        except:
+            error_abort( f"Could not find run option <<{p}>> in parsed option",**kwargs )
+    return run_config
+
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
     trace_string( f"Existence test options: {parsed_options}",**kwargs )
+    run_config = get_run_configuration(parsed_options,**kwargs)
     try :
         title      = parsed_options["test_title"]
         program    = parsed_options["program"]
         dirtype    = parsed_options["dirtype"]
         grep       = parsed_options["grep"]
         ldd        = parsed_options["ldd"]
-        do_run     = parsed_options["do_run"]
-        run_in_dir = parsed_options["run_in_dir"]
-        run_args   = parsed_options["run_args"]
-        run_prefix = parsed_options["run_prefix"]
     except KeyError:
         error_abort( "Did not find program/grep/ldd/dirtype/do_run",**kwargs )
 
@@ -267,7 +271,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                                kwargs,title=title,chdir=builddir, ) # note dict
     execute_file_to_exist( package,dirtype,program,**kwargs,**output )
     if nonnull(grep):
-        grepfile : str = execute_grep( package,dirtype,program,**kwargs,**output )
+        grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
     else: grepfile = ""
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
@@ -275,12 +279,12 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                       ( output["logfile"],success=success,failure=failure,
                         **kwargs,**output )
     if nonnull(grepfile):
-        success = add_grep_lines( f"{grep_output_file}",success,**kwargs,**output )
+        success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
 
     #
     # run and ldd
     #
-    if do_run or ldd:
+    if ( do_run := run_config["do_run"] ) or ldd:
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
         output = start_test_stage( program_clean,"exec",logdir,
@@ -290,7 +294,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
             execute_ldd_script( file_to_test,**kwargs,**output )
         # run!
         if do_run:
-            execute_run_script( run_in_dir,filedir,run_prefix,run_args,program,**kwargs,**output )
+            execute_run_script( program,run_config,**kwargs,**output )
         process_terminate( output["process"],**kwargs,**output )
         close_logfile( output["logfile"],kwargs )
         success,failure = success_failure_in_logfile\
@@ -301,10 +305,10 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     failure : list[str] = []; success : list[str] = []
     parsed_options : dict = parse_command( test_options,**kwargs )
+    run_config : dict = get_run_configuration( parsed_options,**kwargs )
     try :
         program = parsed_options["program"]
         title   = parsed_options["test_title"]
-        do_run  = parsed_options["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -327,8 +331,8 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir, ) # note dict
     execute_ldd_script( name,**kwargs,**output )
-    if do_run:
-        execute_run_script( name,**kwargs,**output )
+    if nonnull( run_config["do_run"] ):
+        execute_run_script( name,run_config,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
