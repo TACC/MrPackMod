@@ -208,7 +208,8 @@ def execute_run_script( program : str,run_config : dict,**kwargs ) -> None:
         cmdline :str = f"{prefix}{program}"
     else:
         cmdline = f"./{program}"
-    if nonnull( dir := run_config["run_in_dir"] ):
+    if nonnull( run_config["run_in_dir"] ):
+        dir = run_config["run_dir"]
         tracestring += f" in dir: {dir}"
         cmdline = f"cd {dir} && {cmdline}"
     if nonnull( args:=run_config["run_args"] ):
@@ -242,6 +243,11 @@ def get_run_configuration( parsed_options : dict,**kwargs ) -> dict:
             run_config[p] = parsed_options[p]
         except:
             error_abort( f"Could not find run option <<{p}>> in parsed option",**kwargs )
+    package,_   = names.package_names( **kwargs )
+    dirtype     = parsed_options["dirtype"]
+    program     = parsed_options["program"]
+    filedir,_,_ = file_to_exist( package,dirtype,program,**kwargs )
+    run_config["run_dir"] = filedir
     return run_config
 
 def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
