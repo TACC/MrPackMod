@@ -138,7 +138,8 @@ utility_actions : {utility_actions}
             os.system( "rm -rf *~ *.log logfiles *.out build*" )
         elif action=="regression":
             do_config_tests( **configuration,no_home=True )
-            regression.do_tests( **configuration )
+            regression.do_tests\
+                ( match=arguments.match,filter=arguments.filter,**configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
                 process.error_abort( f"Action promised in help but not implemented: {action}", **configuration )

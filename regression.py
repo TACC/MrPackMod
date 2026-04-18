@@ -19,7 +19,7 @@ from MrPackMod import modulefile
 from MrPackMod import names 
 from process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir,\
-    nonnull, nonzero_keyword, echo_string,trace_string,trace_var,error_abort,echo_warning
+    isnull,nonnull, nonzero_keyword, echo_string,trace_string,trace_var,error_abort,echo_warning
 
 #
 # Parse the options with argparse
@@ -394,37 +394,62 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 
     return success,failure
 
+#
+# If no filters and no matches, accept.
+# If testname matches a filter, discard.
+# Next, if testname maches a match, accept
+# default case: reject
+# 
+def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool:
+    if isnull(matching) and isnull(filtering):
+        trace_string( f"Test: {testname} accepted by default",**kwargs )
+        return True
+    matches : list[str] = matching.split(",")
+    filters : list[str] = filtering.split(",")
+    for f in filters:
+        if re.search(f,testname):
+            trace_string( f"Test: {testname} rejected by filter: {f}",**kwargs )
+            return False
+    for m in matches:
+        if re.search(m,testname):
+            trace_string( f"Test: {testname} accepted by match: {m}",**kwargs )
+            return True
+    return False
+
 def do_tests( **kwargs ):
     #
     # existence tests
     #
     if tests := kwargs.get( "EXISTENCETEST" ):
         for test in tests:
-            success,failure = do_existence_test( test,**kwargs )
-            for s in success:
-                echo_string( f"    {s}",**kwargs, )
-            for f in failure:
-                echo_string( f"    ERROR: {f}",**kwargs, )
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_existence_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
     #
     # cmake tests
     #
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
-            success,failure = do_cmake_test( test,**kwargs )
-            for s in success:
-                echo_string( f"    {s}",**kwargs, )
-            for f in failure:
-                echo_string( f"    ERROR: {f}",**kwargs, )
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_cmake_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
     #
     # make tests
     #
     if tests := kwargs.get( "MAKETEST" ):
         for test in tests:
-            success,failure = do_make_test( test,**kwargs )
-            for s in success:
-                echo_string( f"    {s}",**kwargs, )
-            for f in failure:
-                echo_string( f"    ERROR: {f}",**kwargs, )
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_make_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
 
 ##
 ## Grep for SUCCESS or FAILURE in a log file;

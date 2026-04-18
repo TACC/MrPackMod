@@ -18,6 +18,9 @@ parser.add_argument( '-f','--find_string',action='store_true',default=False )
 parser.add_argument( '--filter',default="" )
 parser.add_argument( '--match',default="" )
 parser.add_argument( '-A','--args',default="" )
+##
+## what actions do we support?
+##
 file_actions    = "download unpack retar clone pull"
 build_actions = "configure build module public"
 context_actions = "dependencies listmodules test"
