@@ -9,6 +9,7 @@ import re
 import pdb
 import shutil
 import sys
+from typing import Any, Optional, TypedDict
 
 from MrPackMod import config 
 from MrPackMod import download
@@ -84,13 +85,21 @@ def load_compiler_and_mpi_and_package( process=None,**kwargs ):
     process_execute\
         ( f"module -t list 2>&1 | sort", **kwargs,process=process )
 
-def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ): # note dict
+class OutputDict(TypedDict):
+    logfile : str
+    logdir : str
+    terminal : str
+    process : Any
+
+def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ) -> OutputDict: # note dict
     # Create log file for this test stage, and add it to the stack of logfiles
-    logfile = \
+    logfile : str = \
         open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
     # Create a process for the commands of this test stage
     shell = process_initiate( **kwargs )
-    output = { "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell, }
+    output : OutputDict = {
+        "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell,
+    }
     if title:
         process_execute( f"echo Test title: {title}",**kwargs,**output )
     if chdir:

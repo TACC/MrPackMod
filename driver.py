@@ -21,6 +21,15 @@ def do_config_tests( **kwargs ):
                              **kwargs )
     modulefile.test_modules( **kwargs )
 
+def screen_report_action( action,**kwargs ) -> None:
+    print( f"""
+================================================================
+====
+==== Action: {action}
+====
+================================================================
+    """)
+
 def mpm( parser,**kwargs ):
     arguments = parser.parse_args()
     configfile   = arguments.configuration
@@ -137,6 +146,7 @@ utility_actions : {utility_actions}
         elif action=="clean":
             os.system( "rm -rf *~ *.log logfiles *.out build*" )
         elif action=="regression":
+            screen_report_action(action,**configuration)
             do_config_tests( **configuration,no_home=True )
             regression.do_tests\
                 ( match=arguments.match,filter=arguments.filter,**configuration )
