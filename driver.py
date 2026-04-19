@@ -11,13 +11,15 @@ from MrPackMod import info
 from MrPackMod import install
 from MrPackMod import modulefile
 from MrPackMod import names 
-from MrPackMod import process
+from MrPackMod.process import process_execute
+from MrPackMod.process import echo_string, error_abort
+from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod import regression
 
 def do_config_tests( **kwargs ):
     srcdir = names.srcdir_name( **kwargs )
     if not os.path.isdir(srcdir):
-        process.echo_string( f"Warning: source directory {srcdir} does not exist",
+        echo_string( f"Warning: source directory {srcdir} does not exist",
                              **kwargs )
     modulefile.test_modules( **kwargs )
 
@@ -82,13 +84,13 @@ utility_actions : {utility_actions}
         elif action=="dependencies":
             print( configuration['MODULES'] )
         elif action=="find_string":
-            if args := process.nonnull( command_arguments ):
+            if args := nonnull( command_arguments ):
                 srcdir = names.srcdir_name( **configuration )
-                process.process_execute\
+                process_execute\
                     ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
                       **configuration )
             else:
-                process.echo_string( f"WARNING: find_string command needs --args",**configuration )
+                echo_string( f"WARNING: find_string command needs --args",**configuration )
         elif action=="list":
             info.list_installations( **configuration )
         elif action=="logfiles":
@@ -107,7 +109,7 @@ utility_actions : {utility_actions}
             if url := configuration.get("DOCURL"): print( url )
         elif action=="version":
             v = configuration["PACKAGEVERSION"]
-            if process.nonnull(v):
+            if nonnull(v):
                 print( v )
             else : print( "default" )
         # download stuff
@@ -137,11 +139,11 @@ utility_actions : {utility_actions}
                 elif system == "autotools":
                     install.autotools_build( **configuration )
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
-            if action in [ "install", "module", ] and process.zero_keyword( "NOMODULE",**kwargs ):
+            if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
                 install.write_module_file( **configuration )
             if action in [ "install", "public", ]:
                 install.public_installation( **configuration )
-                if process.zero_keyword( "NOMODULE",**kwargs ):
+                if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
             os.system( "rm -rf *~ *.log logfiles *.out build*" )
@@ -152,7 +154,7 @@ utility_actions : {utility_actions}
                 ( match=arguments.match,filter=arguments.filter,**configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
-                process.error_abort( f"Action promised in help but not implemented: {action}", **configuration )
+                error_abort( f"Action promised in help but not implemented: {action}", **configuration )
             else:
-                process.error_abort( f"Unknown action: {action}",**configuration )
+                error_abort( f"Unknown action: {action}",**configuration )
                 

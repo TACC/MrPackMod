@@ -28,8 +28,11 @@ from MrPackMod.process import error_abort,requirenonzero,nonnull
 # version can be null-string if we are using the default
 #
 def package_names( **kwargs ) -> tuple[str,str]:
-    package : str = abort_on_zero_keyword("PACKAGE",**kwargs)
-    version : str = kwargs.get( "PACKAGEVERSION" )
+    package : str = abort_on_zero_keyword( "PACKAGE",**kwargs)
+    # when do we allow null versions
+    version : str = kwargs.get( "PACKAGEVERSION","" )
+    # abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
+
     # if version == "git":
     #     # raise Exception( "gitdate not yet implemented" )
     #     today = re.sub( '-','',str(datetime.date.today()) )

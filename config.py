@@ -288,15 +288,15 @@ def expr_value( expr,**kwargs ):
     else:
         return expr
 
-def read_config(configfile,**kwargs):
-    tracing = kwargs.get("tracing",False)
-    nowarn  = kwargs.get("nowarn",False)
+def read_config( configfile : str,**kwargs ) -> dict:
+    tracing : bool = kwargs.get("tracing",False)
+    nowarn  : bool = kwargs.get("nowarn",False)
     rc_name = ".mrpackmodrc"
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
                                 f"{os.path.expanduser('~')}/{rc_name}" 
                                ] if os.path.exists(rc) ]
     #print( f"found rc files: {rc_files}" )
-    configuration_dict = {
+    configuration_dict : dict = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",

@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import traceback
+from typing import IO
 
 ##
 ## Tracing
@@ -144,7 +145,7 @@ def create_dir( name : str,**kwargs ) -> str:
 ##
 ## Process routines
 ##
-def process_initiate( **kwargs ):
+def process_initiate( **kwargs ) -> subprocess.Popen[str] :
     return subprocess.Popen\
         (['/bin/bash', '-l'], 
          stdin=subprocess.PIPE, 
@@ -153,13 +154,13 @@ def process_initiate( **kwargs ):
          text=True,
          bufsize=1)
 
-def process_terminate( finished_process,**kwargs ):
+def process_terminate( finished_process,**kwargs ) -> str:
     process_input = finished_process.stdin
     process_input.flush()
     process_input.close()
-    lastline = ""
+    lastline : str = ""
     while True:
-        line = finished_process.stdout.readline()
+        line : str = finished_process.stdout.readline()
         if not line:
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
@@ -169,23 +170,27 @@ def process_terminate( finished_process,**kwargs ):
     finished_process.wait()
     return lastline
 
-def process_execute( cmdline,**kwargs ):
+def process_execute( cmdline,**kwargs ) -> str:
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
     if outside_process is None:
-        process = process_initiate()
+        process : subprocess.Popen[str] = process_initiate()
     else: process = outside_process
     #print( kwargs.get("terminal","no terminal") )
     echo_string( f"Command line={cmdline}",**kwargs )
-    process_input = process.stdin
-    process_output = process.stdout
+    if input := process.stdin:
+        process_input  : IO[str] = input
+    else: error_abort( f"Can not get process stdin",**kwargs )
+    if output := process.stdout:
+        process_output : IO[str] = output
+    else: error_abort( f"Can not get process output",**kwargs )
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
     if outside_process:
         return ""
     else:
-        result = process_terminate( process,**kwargs )
+        result : str = process_terminate( process,**kwargs )
         trace_string( f" .. process result: {result}",**kwargs )
         return result
 

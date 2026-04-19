@@ -18,7 +18,7 @@ from MrPackMod.install import export_compilers,cmake_options,\
     open_logfile,close_logfile
 from MrPackMod import modulefile
 from MrPackMod import names 
-from process import process_execute, process_initiate, process_terminate,\
+from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir,\
     isnull,nonnull, nonzero_keyword, echo_string,trace_string,trace_var,error_abort,echo_warning
 
@@ -125,8 +125,8 @@ def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple
         file_to_report : str = f"{filedir}/{program}"
     else:
         filedir = f"$TACC_{package.upper()}_DIR/{dirtype}"
-        file_to_test   : str = f"{filedir}/{program}"
-        file_to_report : str = f"{filedir}/{program}"
+        file_to_test   = f"{filedir}/{program}"
+        file_to_report = f"{filedir}/{program}"
     return filedir,file_to_test,file_to_report
 
 ##
@@ -158,7 +158,7 @@ fi
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
 ##
-def execute_grep( package,dirtype,program,grep,**kwargs ) -> tuple[str,str]:
+def execute_grep( package,dirtype,program,grep,**kwargs ) -> str:
     _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     program_clean = re.sub( '/','',program )
@@ -274,7 +274,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
-    success = []; failure = []
+    success : list[str] = []; failure : list[str] = []
 
     #
     # existence
@@ -282,8 +282,9 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     package,_ = names.package_names( **kwargs )
     # program can contain a path
     program_clean = re.sub( '/','',program )
-    output = start_test_stage( program_clean,"exists",logdir,
-                               kwargs,title=title,chdir=builddir, ) # note dict
+    output : OutputDict = \
+        start_test_stage( program_clean,"exists",logdir,
+                          kwargs,title=title,chdir=builddir, ) # note dict
     execute_file_to_exist( package,dirtype,program,**kwargs,**output )
     if nonnull(grep):
         grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
@@ -302,8 +303,9 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     if ( do_run := run_config["do_run"] ) or ldd:
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
-        output = start_test_stage( program_clean,"exec",logdir,
-                                   kwargs,title=title,chdir=builddir, ) # dict!
+        output = \
+            start_test_stage( program_clean,"exec",logdir,
+                              kwargs,title=title,chdir=builddir, ) # dict!
         if ldd:
             # are library dependencies satisfied
             execute_ldd_script( file_to_test,**kwargs,**output )
@@ -318,7 +320,7 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     return success,failure
 
 def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
-    failure : list[str] = []; success : list[str] = []
+
     parsed_options : dict = parse_command( test_options,**kwargs )
     run_config : dict = get_run_configuration( parsed_options,**kwargs )
     try :
@@ -327,7 +329,10 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
-    name,ext = re.search( r'^(.+)\.(.+)$',program ).groups()
+    if name_ext := re.search( r'^(.+)\.(.+)$',program ):
+        name,ext = name_ext.groups()
+    else:
+        error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
 
@@ -337,7 +342,8 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # Cmake & compile
     #
-    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
+    output : OutputDict = \
+        start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
     execute_cmake_script( name,ext,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
@@ -362,9 +368,9 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
-    try:
-        name,ext = re.search( r'^(.+)\.(.+)$',program ).groups()
-    except:
+    if name_ext := re.search( r'^(.+)\.(.+)$',program ):
+        name,ext = name_ext.groups()
+    else:
         error_abort( f"program <<{program}>> can not be parsed as name.ext",**kwargs )
     logdir : str = ensure_dir( "logfiles",**kwargs )
     builddir : str = create_dir( "build",**kwargs )
@@ -372,7 +378,8 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
     #
     # compilation
     #
-    output = start_test_stage( name,"compile",logdir,kwargs,chdir=builddir ) # note dict
+    output : OutputDict = \
+        start_test_stage( name,"compile",logdir,kwargs,chdir=builddir ) # note dict
     # set up for make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -410,17 +417,18 @@ def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 # default case: reject
 # 
 def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool:
+    #breakpoint()
     if isnull(matching) and isnull(filtering):
         trace_string( f"Test: {testname} accepted by default",**kwargs )
         return True
-    matches : list[str] = matching.split(",")
-    filters : list[str] = filtering.split(",")
+    matches : list[str] = matching.lower().split(",")
+    filters : list[str] = filtering.lower().split(",")
     for f in filters:
-        if re.search(f,testname):
+        if nonnull(f) and re.search(f,testname.lower()):
             trace_string( f"Test: {testname} rejected by filter: {f}",**kwargs )
             return False
     for m in matches:
-        if re.search(m,testname):
+        if nonnull(m) and re.search(m,testname.lower()):
             trace_string( f"Test: {testname} accepted by match: {m}",**kwargs )
             return True
     return False
@@ -484,7 +492,7 @@ def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str
 ## This means it's up to the test to interpret these lines
 ## as containing the right thing or not
 ##
-def add_grep_lines( grepfile,success : str,**kwargs ) -> str:
+def add_grep_lines( grepfile,success : list[str],**kwargs ) -> list[str]:
     try:
         with open( grepfile,"r" ) as grep_out:
             for line in grep_out.readlines():
