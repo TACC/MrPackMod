@@ -5,6 +5,7 @@
 #
 import os
 import re
+from typing import Any
 
 #
 # my own modules
@@ -13,7 +14,7 @@ from MrPackMod.process import process_execute,echo_string,trace_string
 from MrPackMod.process import echo_string,nonzero_keyword,abort_on_zero_keyword
 import MrPackMod.names as names
 
-def download_path( **kwargs ) -> str:
+def download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
         trace_string( f"Change dir to downloadpath: {downloadpath}",**kwargs )
         return downloadpath
@@ -22,11 +23,11 @@ def download_path( **kwargs ) -> str:
         trace_string( f"Use home dir as downloadpath: {homedir}",**kwargs )
         return homedir
 
-def cd_download_path( **kwargs ):
+def cd_download_path( **kwargs: Any ) -> None:
     downloadpath = download_path( **kwargs )
     os.chdir( downloadpath )
     
-def download_from_url( **kwargs, ):
+def download_from_url( **kwargs: Any ) -> None:
     url = abort_on_zero_keyword( "DOWNLOADURL",**kwargs )
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
     cd_download_path( **kwargs,logfile=downloadlog )
@@ -36,8 +37,8 @@ def download_from_url( **kwargs, ):
     cmdline=f"wget {url}"
     process_execute( cmdline,logfile=downloadlog )
 
-def unpack_from_url( **kwargs ):
-    url          = kwargs.get( "DOWNLOADURL" )
+def unpack_from_url( **kwargs: Any ) -> None:
+    url = kwargs.get( "DOWNLOADURL" ) or ""
     srcdir       = kwargs.get("srcdir")
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","a" ) )
     ## downloadpath = ???
@@ -83,7 +84,7 @@ def unpack_from_url( **kwargs ):
         echo_string( f"Bootstrap action: {bootstrap}",**kwargs )
         os.system( f"cd {srcdir} && {bootstrap}" )
         
-def retar_to_standard_name( **kwargs ):
+def retar_to_standard_name( **kwargs: Any ) -> None:
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","a" ) )
     cd_download_path( **kwargs,logfile=downloadlog )
     package = kwargs.get( "PACKAGE" )
@@ -91,7 +92,7 @@ def retar_to_standard_name( **kwargs ):
     unpackdir = f"{package}-{version}"
     process_execute( f"tar fcz {unpackdir}.tgz {unpackdir}",**kwargs )
 
-def clone_from_url( **kwargs ):
+def clone_from_url( **kwargs: Any ) -> None:
     url = abort_on_zero_keyword( "GITREPO",** kwargs )
     gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","w" ) )
     cd_download_path( **kwargs,logfile=gitlog )
@@ -101,7 +102,7 @@ def clone_from_url( **kwargs ):
         process_execute( f"rm -rf {gitdir_local}",**kwargs )
     process_execute( f"git clone {url} {gitdir_local}",**kwargs )
 
-def pull_from_url( **kwargs ):
+def pull_from_url( **kwargs: Any ) -> None:
     gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","a" ) )
     cd_download_path( **kwargs,logfile=gitlog )
     gitdir_local = names.gitdir_local_name( **kwargs )

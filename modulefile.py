@@ -7,6 +7,7 @@ import datetime
 import os
 import re
 import sys
+from typing import Any
 
 #
 # my own modules
@@ -17,18 +18,18 @@ from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword
     nonzero_keyword_or_default,abort_on_zero_env
 from MrPackMod.process import version_satisfies,process_execute
 
-def loaded_modules( **kwargs ) -> list[str] :
+def loaded_modules( **kwargs: Any ) -> list[list[str]]:
     name_version_list : list[str] = process_execute\
         ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
-non_packages = [ "blaslapack", "mpi", ] # mkl","nvpl","
-def mod_ver(m):
+non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
+def mod_ver(m: str) -> tuple[str, str]:
     mod,ver = f"{m}/".split('/',maxsplit=1)
     mod = mod.lower(); ver = ver.strip("/")
     return mod,ver
 
-def test_module_loaded( mod,ver,**kwargs ):
+def test_module_loaded( mod: str, ver: str, **kwargs: Any ) -> bool:
     echo_string( f"Test presence of module={mod} version={ver}" )
     if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
         trace_string( f" .. variable TACC_{mod.upper()}_DIR not set",**kwargs )
@@ -41,7 +42,7 @@ def test_module_loaded( mod,ver,**kwargs ):
         trace_string( f" .. module {mod} is at: {packdir}",**kwargs )
         return True
 
-def test_module_version( mod,ver,**kwargs ):
+def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
     if isnull(ver):
         trace_string( " .. no particular version required",**kwargs )
         return True
@@ -59,7 +60,7 @@ def test_module_version( mod,ver,**kwargs ):
             return True
 
 # are the required modules loaded?
-def test_loaded_modules( **kwargs ):
+def test_loaded_modules( **kwargs: Any ) -> bool:
     if not (modules := nonzero_keyword( "MODULES",**kwargs ) ):
         trace_string( "No prerequisite modules",**kwargs )
         return True
@@ -81,7 +82,7 @@ def test_loaded_modules( **kwargs ):
     return success
 
 # are no nonmodules loaded?
-def test_nonmodules( **kwargs ):
+def test_nonmodules( **kwargs: Any ) -> bool:
     if not (nonmodules := nonzero_keyword( "NONMODULES",**kwargs ) ):
         trace_string( "No nonmodules",**kwargs )
         return True
@@ -95,18 +96,18 @@ def test_nonmodules( **kwargs ):
         else: trace_string( " .. module correctly not loaded",**kwargs )
     return success
 
-def test_modules( **kwargs ):
+def test_modules( **kwargs: Any ) -> None:
     tracing = kwargs.get( "tracing" )
     error = False
     if tracing:
-        modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) )
+        modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) or "" )
         echo_string( f"\nUsing modulepath {modulepath}\n",**kwargs )
     error = error or not test_loaded_modules( **kwargs ) \
         or not test_nonmodules( **kwargs )
     if error:
         error_abort( "Errors during module testing",**kwargs )
 
-def module_help_string( **kwargs ):
+def module_help_string( **kwargs: Any ) -> str:
     package,packageversion   = names.package_names_nonnull( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
 
@@ -149,7 +150,7 @@ The {package} modulefile defines the following variables:
 ]]
 """.strip()
 
-def package_info( **kwargs ):
+def package_info( **kwargs: Any ) -> str:
     package,packageversion   = names.package_names( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
     return \
@@ -158,7 +159,7 @@ whatis( "Name: {modulename}" )
 whatis( "Version: {moduleversion}" )
 """.strip()
 
-def path_settings( **kwargs ):
+def path_settings( **kwargs: Any ) -> str:
     package,packageversion   = names.package_names( **kwargs )
     modulename,moduleversion = names.module_names( **kwargs )
     modulenamealt = kwargs.get("modulenamealt","").lower()
@@ -184,7 +185,7 @@ local prefixdir = \"{prefixdir}\"
 {info}{paths}
 """.strip()
 
-def other_paths( **kwargs ):
+def other_paths( **kwargs: Any ) -> str:
     paths = ""
     libext = nonzero_keyword( "libext",**kwargs )
     for cfg,var in [ ["BINDIR","PATH"],
@@ -224,7 +225,7 @@ def other_paths( **kwargs ):
         paths += f"setenv( \"{k}\", pathJoin( prefixdir,\"{v}\" ) )"
     return paths
 
-def system_paths( **kwargs ):
+def system_paths( **kwargs: Any ) -> str:
     print( f"In system_paths:\n{kwargs}" )
     package    = kwargs.get("PACKAGE")
     modulename = kwargs.get( "MODULENAME",package )
@@ -254,7 +255,7 @@ f"""\
     trace_string( f"System paths:\n{system_path_settings}",**kwargs )
     return system_path_settings
 
-def dependencies( **kwargs ):
+def dependencies( **kwargs: Any ) -> str:
     tracing = kwargs.get( "tracing" )
     depends = ""
     if prereq := nonzero_keyword( "DEPENDSON",**kwargs ):

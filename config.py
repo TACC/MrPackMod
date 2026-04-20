@@ -3,6 +3,7 @@
 ##
 import re
 import os
+from typing import Any, Tuple
 
 #
 # my modules
@@ -12,10 +13,15 @@ from MrPackMod.install import open_logfile,close_logfile
 from MrPackMod.process import echo_string,trace_string,error_abort,echo_warning,\
     nonnull,nonzero_env,abort_on_zero_keyword
 
-additive_keys = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
-list_keys = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
+additive_keys: list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
+list_keys: list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
 
-def add_new_dict_item( newkey,assign,newval,config_dict ):
+def add_new_dict_item(
+    newkey: str,
+    assign: str,
+    newval: str,
+    config_dict: dict[str, Any],
+) -> None:
     """ Add a new value under the given key.
     Any macros in the value are expanded.
     Note: only one expansion pass, but macros can not contains macros anyway.
@@ -43,13 +49,16 @@ def add_new_dict_item( newkey,assign,newval,config_dict ):
         config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} {assign} {newval} from config",**config_dict )
 
-def condition_split( cond,**config_dict ):
+def condition_split(
+    cond: re.Match[str],
+    **config_dict: Any,
+) -> Tuple[Any, str, Any, str]:
     field1,op,field2,line = cond.groups()
     value1 = config_dict.get(field1,field1)
     value2 = config_dict.get(field2,field2)
     return value1,op,value2,line
 
-def line_strip_conditionals( line,**config_dict ):
+def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]:
     """ returns: line,accept """
     trace_string( f"Test line for conditions: {line}",**config_dict )
     if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
@@ -70,15 +79,15 @@ def line_strip_conditionals( line,**config_dict ):
                       **config_dict )
         return line,True
 
-def add_settings_from_config( configfile,config_dict ) -> None:
-    tracing = config_dict.get("tracing",False)
+def add_settings_from_config( configfile: str, config_dict: dict[str, Any] ) -> None:
+    tracing: bool = config_dict.get("tracing", False)
     with open(configfile,"r") as configuration_file:
         trace_string( f"Read configuration: {configfile}",**config_dict )
-        saving = False
+        saving: bool = False
         for line in configuration_file.readlines():
             line = line.strip()
             if re.match( r'let ',line ):
-                raise error_abort( f"obsolete syntax: <<{line}>>",**config_dict )
+                error_abort( f"obsolete syntax: <<{line}>>",**config_dict )
             # ignore comments and blank lines
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
@@ -123,7 +132,13 @@ def add_settings_from_config( configfile,config_dict ) -> None:
                     # use value deduced from file
                     add_new_dict_item( key,assign,val,config_dict )
 
-def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
+def setting_from_env_or_rc(
+    name: str,
+    env: str,
+    default: str,
+    rc_files: list[str],
+    **kwargs: Any,
+) -> str:
     val = ""
     for file in rc_files:
         with open( file,"r" ) as rc:
@@ -131,7 +146,12 @@ def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
                 line = line.strip()
                 if re.match( r"\s*#",line ): continue
                 if re.match( name,line ):
-                    val = re.search( fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",line ).groups()[0]
+                    m = re.search(
+                        fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",
+                        line,
+                    )
+                    assert m is not None
+                    val = m.groups()[0]
                     trace_string(
                         f"file <<{file}>> found setting for {name}: {val}",
                         **kwargs )
@@ -140,7 +160,11 @@ def setting_from_env_or_rc( name,env,default,rc_files,**kwargs ):
     trace_string( f"environment variable {name}: {osval}",**kwargs )
     return osval
 
-def system_settings( config_dict,rc_files,**kwargs ):
+def system_settings(
+    config_dict: dict[str, Any],
+    rc_files: list[str],
+    **kwargs: Any,
+) -> None:
     for k,v in {
             'SYSTEM':setting_from_env_or_rc(
                 "SYSTEM","TACC_SYSTEM","UNKNOWN_SYSTEM",
@@ -191,7 +215,11 @@ def system_settings( config_dict,rc_files,**kwargs ):
             "NO_MKL_LIBS_SETTING",
             rc_files,**kwargs )
 
-def install_settings( config_dict,rc_files,**kwargs ):
+def install_settings(
+    config_dict: dict[str, Any],
+    rc_files: list[str],
+    **kwargs: Any,
+) -> None:
     tracing = kwargs.get("tracing")
     for k,v in {
             'homedir':setting_from_env_or_rc(
@@ -234,7 +262,7 @@ def install_settings( config_dict,rc_files,**kwargs ):
     }.items():
         config_dict[k] = v
 
-def environment_settings( config_dict,nowarn=False ):
+def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
     mods = [ m for m,_ in
              modulefile.loaded_modules( **config_dict,terminal="suppress" ) 
              + [ ["mkl",""], ["nvpl",""] ] ]
@@ -250,7 +278,7 @@ def environment_settings( config_dict,nowarn=False ):
                         prefix=" .. ",**config_dict )
                 config_dict[macro] = val
 
-def config_from_rc_files( config_dict ):
+def config_from_rc_files( config_dict: dict[str, Any] ) -> None:
     system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
     compiler = abort_on_zero_keyword( "COMPILER",**config_dict )
     # assume that we are in the makefiles/package dir
@@ -279,7 +307,7 @@ def config_from_rc_files( config_dict ):
     if has3:
         add_settings_from_config( f"{rc3}",config_dict )
 
-def expr_value( expr,**kwargs ):
+def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
     if osval := os.getenv(expr):
         return osval
@@ -288,7 +316,7 @@ def expr_value( expr,**kwargs ):
     else:
         return expr
 
-def read_config( configfile : str,**kwargs ) -> dict:
+def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
     tracing : bool = kwargs.get("tracing",False)
     nowarn  : bool = kwargs.get("nowarn",False)
     rc_name = ".mrpackmodrc"
@@ -296,7 +324,7 @@ def read_config( configfile : str,**kwargs ) -> dict:
                                 f"{os.path.expanduser('~')}/{rc_name}" 
                                ] if os.path.exists(rc) ]
     #print( f"found rc files: {rc_files}" )
-    configuration_dict : dict = {
+    configuration_dict: dict[str, Any] = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",

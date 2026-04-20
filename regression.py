@@ -25,7 +25,7 @@ from MrPackMod.process import process_execute, process_initiate, process_termina
 #
 # Parse the options with argparse
 #
-def parse_command( test_options,**kwargs ) -> dict:
+def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     parser = argparse.ArgumentParser\
         ( prog="mpm_cmake_tester",
           description="CMake based tester for MrPackMod regression tests",
@@ -67,7 +67,10 @@ def parse_command( test_options,**kwargs ) -> dict:
     trace_string( f" .. parameters: {parsed}",**kwargs )
     return parsed
 
-def load_compiler_and_mpi_and_package( process=None,**kwargs ):
+def load_compiler_and_mpi_and_package(
+    process: Any = None,
+    **kwargs: Any,
+) -> None:
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = names.family_names( **kwargs )
     # disable terminal output unless otherwise specified
@@ -91,7 +94,14 @@ class OutputDict(TypedDict):
     terminal : str
     process : Any
 
-def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ) -> OutputDict: # note dict
+def start_test_stage(
+    name: str,
+    stage: str,
+    logdir: str,
+    kwargs: dict[str, Any],
+    chdir: Optional[str] = None,
+    title: Optional[str] = None,
+) -> OutputDict:
     # Create log file for this test stage, and add it to the stack of logfiles
     logfile : str = \
         open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
@@ -107,7 +117,12 @@ def start_test_stage( name,stage,logdir,kwargs,chdir=None,title=None ) -> Output
     load_compiler_and_mpi_and_package( **kwargs,**output )
     return output
 
-def end_test_stage( success,failure,kwargs,output ) -> tuple[list[str],list[str]]:
+def end_test_stage(
+    success: list[str],
+    failure: list[str],
+    kwargs: dict[str, Any],
+    output: OutputDict,
+) -> tuple[list[str], list[str]]:
     process_terminate( output["process"],**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
     success,failure = success_failure_in_logfile\
@@ -132,7 +147,12 @@ def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple
 ##
 ## Add process lines for testing file existence
 ##
-def execute_file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> None:
+def execute_file_to_exist(
+    package: str,
+    dirtype: str,
+    program: str,
+    **kwargs: Any,
+) -> None:
     process = kwargs.get("process")
     process_execute\
         ( f"echo \"Investigate program: {program}, in var: {dirtype}\"",**kwargs )
@@ -158,7 +178,13 @@ fi
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
 ##
-def execute_grep( package,dirtype,program,grep,**kwargs ) -> str:
+def execute_grep(
+    package: str,
+    dirtype: str,
+    program: str,
+    grep: str,
+    **kwargs: Any,
+) -> str:
     _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     program_clean = re.sub( '/','',program )
@@ -172,7 +198,7 @@ fi
           **kwargs, )
     return grep_output_file
 
-def execute_cmake_script( program,ext,**kwargs ) -> None:
+def execute_cmake_script( program: str, ext: str, **kwargs: Any ) -> None:
     compiler_exports = export_compilers( **kwargs )
     cmakeflags = cmake_options( **kwargs )
     process_execute\
@@ -187,7 +213,7 @@ else
 fi
     """,**kwargs )
 
-def execute_ldd_script( program,**kwargs ) -> None:
+def execute_ldd_script( program: str, **kwargs: Any ) -> None:
     lddout = "ldd.out"
     process_execute( f"rm -f {lddout}",**kwargs )
     process_execute( f"""
@@ -239,10 +265,13 @@ echo "Run output"
 cat {runout}
     """,**kwargs )
 
-def dir_variable( package,dirtype ) -> str:
+def dir_variable( package: str, dirtype: str ) -> str:
     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
-def get_run_configuration( parsed_options : dict,**kwargs ) -> dict:
+def get_run_configuration(
+    parsed_options: dict[str, Any],
+    **kwargs: Any,
+) -> dict[str, Any]:
     run_params : list[str] = [
         "run_in_dir","run_args","run_prefix","do_run",
         ]
@@ -259,7 +288,10 @@ def get_run_configuration( parsed_options : dict,**kwargs ) -> dict:
     run_config["run_dir"] = filedir
     return run_config
 
-def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+def do_existence_test(
+    test_options: str,
+    **kwargs: Any,
+) -> tuple[list[str], list[str]]:
     parsed_options : dict = parse_command( test_options,**kwargs )
     trace_string( f"Existence test options: {parsed_options}",**kwargs )
     run_config = get_run_configuration(parsed_options,**kwargs)
@@ -319,7 +351,10 @@ def do_existence_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
                             **kwargs,**output )
     return success,failure
 
-def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+def do_cmake_test(
+    test_options: str,
+    **kwargs: Any,
+) -> tuple[list[str], list[str]]:
 
     parsed_options : dict = parse_command( test_options,**kwargs )
     run_config : dict = get_run_configuration( parsed_options,**kwargs )
@@ -358,7 +393,10 @@ def do_cmake_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
 
     return success,failure
 
-def do_make_test( test_options,**kwargs ) -> tuple[list[str],list[str]]:
+def do_make_test(
+    test_options: str,
+    **kwargs: Any,
+) -> tuple[list[str], list[str]]:
     failure : list[str] = []; success : list[str] = []
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
@@ -433,7 +471,7 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
             return True
     return False
 
-def do_tests( **kwargs ):
+def do_tests( **kwargs: Any ) -> None:
     #
     # existence tests
     #
@@ -472,7 +510,10 @@ def do_tests( **kwargs ):
 ## Grep for SUCCESS or FAILURE in a log file;
 ## add those messages to two list-of-strings variables
 ##
-def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str]] :
+def success_failure_in_logfile(
+    logoutput: str,
+    **kwargs: Any,
+) -> tuple[list[str], list[str]]:
     success : list[str] = kwargs.get( "success",[] )
     failure : list[str] = kwargs.get( "failure",[] )
     with open( logoutput,"r" ) as loglines:
@@ -492,7 +533,11 @@ def success_failure_in_logfile( logoutput,**kwargs ) -> tuple[list[str],list[str
 ## This means it's up to the test to interpret these lines
 ## as containing the right thing or not
 ##
-def add_grep_lines( grepfile,success : list[str],**kwargs ) -> list[str]:
+def add_grep_lines(
+    grepfile: str,
+    success: list[str],
+    **kwargs: Any,
+) -> list[str]:
     try:
         with open( grepfile,"r" ) as grep_out:
             for line in grep_out.readlines():

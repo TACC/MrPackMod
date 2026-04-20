@@ -7,6 +7,7 @@ import datetime
 import os
 import re
 import sys
+from typing import Any, Optional, Union, cast
 
 #
 # my own modules
@@ -27,7 +28,7 @@ from MrPackMod.process import error_abort,requirenonzero,nonnull
 # Result: pair package,version
 # version can be null-string if we are using the default
 #
-def package_names( **kwargs ) -> tuple[str,str]:
+def package_names( **kwargs: Any ) -> tuple[str, str]:
     package : str = abort_on_zero_keyword( "PACKAGE",**kwargs)
     # when do we allow null versions
     version : str = kwargs.get( "PACKAGEVERSION","" )
@@ -39,7 +40,7 @@ def package_names( **kwargs ) -> tuple[str,str]:
     #     version = f"git{today}"
     return package,version
 
-def package_names_nonnull( **kwargs ):
+def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
     p,v = package_names( **kwargs )
     abort_on_null( v,"package version is null/unspecified",**kwargs )
     return p,v
@@ -47,7 +48,11 @@ def package_names_nonnull( **kwargs ):
 #
 # name of a logfile
 # 
-def logfile_name( logstage : str,dir=None,**kwargs ) -> tuple[str,str]:
+def logfile_name(
+    logstage: str,
+    dir: Optional[str] = None,
+    **kwargs: Any,
+) -> tuple[str, str]:
     if dir :
         logfiledir= dir
     else:
@@ -68,7 +73,7 @@ def logfile_name( logstage : str,dir=None,**kwargs ) -> tuple[str,str]:
 #
 # Create a directory for either building or install
 #
-def create_homedir( **kwargs ):
+def create_homedir( **kwargs: Any ) -> str:
     root     = kwargs.get( "packageroot",None )
     package  = kwargs.get( "package","nullpackage" )
     homedir  = kwargs.get( "homedir",None )
@@ -80,20 +85,26 @@ def create_homedir( **kwargs ):
     else:
         if not nonnull( homedir ): raise Exception( "need either root or homedir" )
         trace_string( f"homedir value based on homedir: {homedir}",**kwargs )
-    trace_string( f"using homedir: {homedir}",**kwargs )
-    if not os.path.isdir(homedir):
-        echo_string( f"creating homedir: {homedir}",**kwargs )
+    homedir_final: str = cast(str, homedir)
+    trace_string( f"using homedir: {homedir_final}",**kwargs )
+    if not os.path.isdir(homedir_final):
+        echo_string( f"creating homedir: {homedir_final}",**kwargs )
         try:
-            os.mkdir(homedir)
+            os.mkdir(homedir_final)
         except PermissionError:
-            error_abort( f"No permission to create homedir: {homedir}",**kwargs )
-    return homedir
+            error_abort( f"No permission to create homedir: {homedir_final}",**kwargs )
+    return homedir_final
 
 ##
 ## Description: compute compiler & mpi name & version
 ## Result: quintuple system,cname,cversion,mname,mversion
 ##
-def family_names( **kwargs ):
+def family_names(
+    **kwargs: Any,
+) -> Union[
+    tuple[str, str, str, str, str, str],
+    tuple[None, None, None, None, None, None],
+]:
     try:
         # in jail we can run without compiler loaded
         system   = nonzero_keyword("SYSTEM",**kwargs)
@@ -108,7 +119,7 @@ def family_names( **kwargs ):
         print( "Deduce running in jail" )
         return None,None,None,None,None,None
 
-def compilers_names( **kwargs ):
+def compilers_names( **kwargs: Any ) -> dict[str, str]:
     compilers = { 'CC':"unknown_cc", 'CXX':"unknown_cxx", 'FC':"unknown_fc", }
     if ( mode := abort_on_zero_keyword( "MODE",**kwargs ) ) in [ "mpi","hybrid", ]:
         compilers["CC"] = "mpicc"; compilers["CXX"] = "mpicxx"; compilers["FC"] = "mpif90"
@@ -124,7 +135,7 @@ def compilers_names( **kwargs ):
 ##
 ## Description: compute single system/compiler/mpi identifier
 ##
-def environment_code( **kwargs ):
+def environment_code( **kwargs: Any ) -> Optional[str]:
     mode = abort_on_zero_keyword( "MODE",**kwargs )
     systemcode,compilercode,compilerversion,compilershortversion,mpicode,mpiversion = \
         family_names( **kwargs )
@@ -137,11 +148,11 @@ def environment_code( **kwargs ):
             envcode = f"{envcode}-{mpicode}{mpiversion}"
         return envcode
 
-def systemnames():
-    compilercode,compilerversion,compilershortversion,mpicode,mpiversion = family_names()
-    return mpicode,mpiversion
+def systemnames() -> tuple[Optional[str], Optional[str]]:
+    _s, _cc, _cv, _csv, mpicode, mpiversion = family_names()
+    return mpicode, mpiversion
 
-def install_extension( **kwargs ):
+def install_extension( **kwargs: Any ) -> str:
     package,packageversion = package_names_nonnull( **kwargs )
     envcode = abort_on_null( environment_code( **kwargs ),"environment code for install ext" )
     installext = f"{packageversion}-{envcode}"
@@ -151,11 +162,11 @@ def install_extension( **kwargs ):
         installext = f"{installext}-{variant}"
     return installext
 
-def srcdir_local_name( **kwargs ):
+def srcdir_local_name( **kwargs: Any ) -> str:
     packagebasename,packageversion = package_names_nonnull( **kwargs )
     return f"{packagebasename}-{packageversion}"
 
-def gitdir_local_name( **kwargs ):
+def gitdir_local_name( **kwargs: Any ) -> str:
     packagebasename,_ = package_names( **kwargs )
     packageversion = "git"
     return f"{packagebasename}-{packageversion}"
@@ -164,7 +175,7 @@ def gitdir_local_name( **kwargs ):
 ## Name of source directory,
 ## not needed in cases such as regression
 ##
-def srcdir_name( **kwargs ):
+def srcdir_name( **kwargs: Any ) -> str:
     if nocreate := kwargs.get( "no_home" ):
         return "NO_HOME_DIR"
     else:
@@ -174,7 +185,7 @@ def srcdir_name( **kwargs ):
             return srcdir
         else: return  f"{homedir}/{srcdir_local}"
 
-def builddir_name( **kwargs ):
+def builddir_name( **kwargs: Any ) -> str:
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):
         builddir = bdir
     elif bdir := nonzero_keyword( "packageroot",**kwargs ):
@@ -187,7 +198,7 @@ def builddir_name( **kwargs ):
     builddir += f"/{package}/build-{installext}"
     return builddir
 
-def prefixdir_name( **kwargs ):
+def prefixdir_name( **kwargs: Any ) -> str:
     package,_ = package_names( **kwargs )
     if nonnull( pdir:=kwargs.get("installpath","") ):
         echo_string( f"Using external prefixdir: {pdir}" )
@@ -219,7 +230,7 @@ def prefixdir_name( **kwargs ):
         prefixdir = f"{prefixdir}/{var}"
     return prefixdir
 
-def package_dir_names( **kwargs ):
+def package_dir_names( **kwargs: Any ) -> tuple[str, str, str, str]:
     prefixdir = prefixdir_name( **kwargs )
     # lib
     if zero_keyword( "NOLIB",**kwargs ):
@@ -246,7 +257,7 @@ def package_dir_names( **kwargs ):
     else: bindir = ""
     return prefixdir,libdir,incdir,bindir
 
-def modulefile_path_and_name( **kwargs ):
+def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str]:
     abort_on_nonzero_env( "MODULEDIRSET" )
     package,packageversion = package_names_nonnull( **kwargs )
     modulename,moduleversion = module_names( **kwargs )
@@ -272,7 +283,7 @@ def modulefile_path_and_name( **kwargs ):
             else: error_abort( f"Unknown mode: {mode}" )
         return f"{modulepath}/{modulename}",f"{moduleversion}.lua"
 
-def module_names( **kwargs):
+def module_names( **kwargs: Any ) -> tuple[str, str]:
     package,packageversion = package_names( **kwargs )
     modulename = kwargs.get( "MODULENAME",package )
     if alt := nonzero_keyword( "MODULENAMEALT" ):
@@ -283,6 +294,6 @@ def module_names( **kwargs):
         moduleversion += f"-{mx}"
     return modulename,moduleversion
 
-def pathjoin( prefix,dir ):
+def pathjoin( prefix: str, dir: str ) -> str:
     ext = re.sub(prefix,"",dir).lstrip('/')
     return f"pathJoin( prefixdir, \"{ext}\" )"

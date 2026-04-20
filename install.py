@@ -7,6 +7,7 @@ import datetime
 import os
 import re
 import shutil
+from typing import Any, Optional
 
 #
 # my own modules
@@ -18,7 +19,7 @@ from MrPackMod.process import process_execute, process_initiate, process_termina
 from MrPackMod.process import echo_string, trace_string, error_abort, abort_on_zero_env
 from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 
-def export_compilers( **kwargs ):
+def export_compilers( **kwargs: Any ) -> str:
     echo_string( "Exporting compilers",**kwargs )
     compilers = compilers_names( **kwargs )
     cmdline = ""; cont = ""
@@ -33,7 +34,7 @@ def export_compilers( **kwargs ):
         cont = " && "
     return cmdline
 
-def compilers_flags( **kwargs ):
+def compilers_flags( **kwargs: Any ) -> dict[str, str]:
     flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
     if cflags := nonzero_keyword( "cflags",**kwargs ):
         flags["CFLAGS"] = cflags
@@ -43,7 +44,7 @@ def compilers_flags( **kwargs ):
         flags["FFLAGS"] = fflags
     return flags
 
-def export_flags( **kwargs ):
+def export_flags( **kwargs: Any ) -> str:
     flags = compilers_flags( **kwargs )
     cmdline = ""; cont = ""
     for lang in [ "CFLAGS", "CXXFLAGS", "FFLAGS", ]:
@@ -52,7 +53,12 @@ def export_flags( **kwargs ):
             cont = " && "
     return cmdline
 
-def open_logfile( logstage,kwargs,dir=None,terminal=None ) -> str:
+def open_logfile(
+    logstage: str,
+    kwargs: dict[str, Any],
+    dir: Optional[str] = None,
+    terminal: Any = None,
+) -> str:
     # get global name, ignore local name
     logname,_ = logfile_name( logstage,dir,**kwargs )
     loghandle = open( logname,"w" )
@@ -63,7 +69,7 @@ Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
     return logname
 
-def close_logfile( logname : str,kwargs ) -> None:
+def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
     try :
         loghandle = kwargs["logfiles"][logname]
     except KeyError:
@@ -71,7 +77,7 @@ def close_logfile( logname : str,kwargs ) -> None:
     kwargs["logfiles"].pop(logname)
     loghandle.close()
     
-def configure_prep( **kwargs ):
+def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
     modulefile.test_modules( **kwargs )
     #
@@ -87,7 +93,7 @@ def configure_prep( **kwargs ):
     os.makedirs(builddir,exist_ok=True)
     return srcdir,builddir,prefixdir
 
-def cmake_options( **kwargs ):
+def cmake_options( **kwargs: Any ) -> str:
     cmakeflags = "-D CMAKE_VERBOSE_MAKEFILE=ON -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if standard := kwargs.get("CPPSTANDARD"):
         cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
@@ -95,7 +101,7 @@ def cmake_options( **kwargs ):
         cmakeflags += f" {flags}"
     return cmakeflags.lstrip(" ")
 
-def cmake_configure( **kwargs ):
+def cmake_configure( **kwargs: Any ) -> None:
     tracing = kwargs.get( "tracing" )
     logfilename = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
@@ -154,7 +160,7 @@ if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then
 fi
     """,**kwargs, )
 
-def cmake_build( **kwargs ):
+def cmake_build( **kwargs: Any ) -> None:
     logfilename = open_logfile( "install",kwargs ) # note dict!
     #
     # setup directories
@@ -188,7 +194,7 @@ def cmake_build( **kwargs ):
         process_execute( cmdline )
     close_logfile( logfilename,kwargs )
 
-def autotools_configure( **kwargs ):
+def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
     #
@@ -259,7 +265,7 @@ def autotools_configure( **kwargs ):
     process_terminate( shell,**kwargs )
     close_logfile( logfilename,kwargs )
     
-def autotools_build( **kwargs ):
+def autotools_build( **kwargs: Any ) -> None:
     logfilename = open_logfile( "install",kwargs ) # note dict!
     #
     # setup directories
@@ -298,7 +304,7 @@ def autotools_build( **kwargs ):
 import os
 import stat
 
-def recursive_rx( path ):
+def recursive_rx( path: str ) -> None:
     perm_dir = stat.S_IRUSR + stat.S_IWUSR + stat.S_IXUSR \
         + stat.S_IRGRP + stat.S_IXGRP \
         + stat.S_IROTH + stat.S_IXOTH
@@ -316,12 +322,12 @@ def recursive_rx( path ):
     for momo in files:
         os.chmod(os.path.join(root, momo), perm_file )
 
-def public_installation( **kwargs ):
+def public_installation( **kwargs: Any ) -> None:
     prefixdir = prefixdir_name( **kwargs )
     echo_string( f"Chmod rx prefixdir={prefixdir}",**kwargs )
     recursive_rx(prefixdir)
 
-def write_module_file( **kwargs ):
+def write_module_file( **kwargs: Any ) -> None:
     from  MrPackMod import  modulefile
     tracing = kwargs.get("tracing")
     logfilename = open_logfile( "module",kwargs ) # note dict!
@@ -346,7 +352,7 @@ def write_module_file( **kwargs ):
         os.makedirs( modulefilepath,exist_ok=True )
         # too limited os.mkdir( modulefilepath )
     echo_string( f"Writing modulefile: {modulefilepath}/{luaversion}" )
-    with open( f"{modulefilepath}/{luaversion}","w" ) as modulefile:
+    with open( f"{modulefilepath}/{luaversion}","w" ) as lua_out:
         modulecontents = f"""\
 {help_string}
 
@@ -358,10 +364,10 @@ def write_module_file( **kwargs ):
 """
         if tracing:
             echo_string( f"Module contents:\n{modulecontents}",**kwargs )
-        modulefile.write( modulecontents )
+        lua_out.write( modulecontents )
     close_logfile( logfilename,kwargs )
 
-def public_module( **kwargs ):
+def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path_and_name( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)

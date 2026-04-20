@@ -2,8 +2,10 @@
 ## Main driver function
 ##
 
+import argparse
 import os
 import sys
+from typing import Any
 
 from MrPackMod import config 
 from MrPackMod import download
@@ -16,14 +18,14 @@ from MrPackMod.process import echo_string, error_abort
 from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod import regression
 
-def do_config_tests( **kwargs ):
+def do_config_tests( **kwargs: Any ) -> None:
     srcdir = names.srcdir_name( **kwargs )
     if not os.path.isdir(srcdir):
         echo_string( f"Warning: source directory {srcdir} does not exist",
                              **kwargs )
     modulefile.test_modules( **kwargs )
 
-def screen_report_action( action,**kwargs ) -> None:
+def screen_report_action( action: str, **kwargs: Any ) -> None:
     print( f"""
 ================================================================
 ====
@@ -32,7 +34,7 @@ def screen_report_action( action,**kwargs ) -> None:
 ================================================================
     """)
 
-def mpm( parser,**kwargs ):
+def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     arguments = parser.parse_args()
     configfile   = arguments.configuration
     dependencies = arguments.dependencies
@@ -41,11 +43,11 @@ def mpm( parser,**kwargs ):
     tracing      = arguments.trace
     command_arguments = arguments.args
 
-    file_actions    = kwargs.get( "file_actions" )
-    build_actions   = kwargs.get( "build_actions" )
-    context_actions = kwargs.get( "context_actions" )
-    package_actions = kwargs.get( "package_actions" )
-    utility_actions = kwargs.get( "utility_actions" )
+    file_actions: str = kwargs.get( "file_actions" ) or ""
+    build_actions: str = kwargs.get( "build_actions" ) or ""
+    context_actions: str = kwargs.get( "context_actions" ) or ""
+    package_actions: str = kwargs.get( "package_actions" ) or ""
+    utility_actions: str = kwargs.get( "utility_actions" ) or ""
     
     ##
     ## what actions are we performing?

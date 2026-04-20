@@ -9,13 +9,13 @@ import shutil
 import subprocess
 import sys
 import traceback
-from typing import IO
+from typing import Any, IO, NoReturn
 
 ##
 ## Tracing
 ##
 
-def echo_string( string,**kwargs ):
+def echo_string( string: str, **kwargs: Any ) -> None:
     # echo to stdout if no terminal
     # echo to terminal is specified unless suppressed
     if terminal := nonzero_keyword( "terminal",**kwargs ):
@@ -27,19 +27,19 @@ def echo_string( string,**kwargs ):
         #print( string,file=loghandle )
         loghandle.write( f"{string}\n" )
 
-def trace_string( string,**kwargs ):
+def trace_string( string: str, **kwargs: Any ) -> None:
     if kwargs.get( "tracing" ):
         echo_string( string,**kwargs )
 
-def trace_var( var,**kwargs ):
+def trace_var( var: str, **kwargs: Any ) -> None:
     varvalue = eval(var)
     trace_string( f"var={varvalue}",**kwargs )
 
-def echo_warning( string,**kwargs ):
+def echo_warning( string: str, **kwargs: Any ) -> None:
     prefix = kwargs.get("prefix","")
     echo_string( f"{prefix}WARNING {string}",**kwargs )
 
-def error_abort( string,**kwargs ):
+def error_abort( string: str, **kwargs: Any ) -> NoReturn:
     echo_string( f"\nERROR {string}\n\ntraceback:" )
     traceback.print_stack()
     sys.exit(1)
@@ -47,23 +47,23 @@ def error_abort( string,**kwargs ):
 ##
 ## Keyword handling
 ##
-def nonzero_env( envvar,**kwargs ):
+def nonzero_env( envvar: str, **kwargs: Any ) -> str:
     return os.getenv( envvar,"" )
 
-def abort_on_null( val,msg,**kwargs ):
+def abort_on_null( val: Any, msg: str, **kwargs: Any ) -> Any:
     if nonnull( val ):
         return val
     else:
         error_abort( f"Can not have null: {msg}",**kwargs )
 
-def abort_on_zero_env( envvar,**kwargs ):
+def abort_on_zero_env( envvar: str, **kwargs: Any ) -> str:
     try:
         val = os.environ[envvar]
         return val
-    except:
+    except Exception:
         error_abort( f"Environment variable can not be null: {envvar}",**kwargs )
 
-def abort_on_nonzero_env( envvar,**kwargs ):
+def abort_on_nonzero_env( envvar: str, **kwargs: Any ) -> None:
     try:
         val = os.environ[envvar]
         if nonnull( val ) :
@@ -71,12 +71,12 @@ def abort_on_nonzero_env( envvar,**kwargs ):
     except:
         pass
 
-def abort_on_zero_keyword( keyword,**kwargs ):
+def abort_on_zero_keyword( keyword: str, **kwargs: Any ) -> Any:
     if not ( val := kwargs.get(keyword) ):
         error_abort( f"must have non-null keyword: {keyword}",**kwargs )
     else: return val
 
-def nonnull( val ):
+def nonnull( val: Any ) -> bool:
     return ( val is not None ) \
         and ( val is not False ) \
         and  ( ( isinstance(val,list) and len(val)>0) \
@@ -84,20 +84,20 @@ def nonnull( val ):
                or ( isinstance(val,bool) and val==True )
               )
 
-def isnull( val ):
+def isnull( val: Any ) -> bool:
     return not nonnull( val )
 
-def zero_keyword( var,**kwargs ):
+def zero_keyword( var: str, **kwargs: Any ) -> bool:
     return not nonzero_keyword( var,**kwargs )
 
 # return value or false
-def nonzero_keyword( var,**kwargs ):
+def nonzero_keyword( var: str, **kwargs: Any ) -> Any:
     #print( f"test {var}: {kwargs.get(var)}" )
     if nonnull( val := kwargs.get(var) ):
         return val
     return False
 
-def nonzero_keyword_or_default( var,**kwargs ):
+def nonzero_keyword_or_default( var: str, **kwargs: Any ) -> Any:
     if nonnull( val := kwargs.get(var) ):
         return val
     elif val := kwargs.get("default"):
@@ -105,7 +105,7 @@ def nonzero_keyword_or_default( var,**kwargs ):
     else:
         raise Exception( f"Keyword not given or defaulted: {var}" )
 
-def requirenonzero( var ):
+def requirenonzero( var: str ) -> None:
     try:
         val = locals()[var]
         if val == "":
@@ -113,7 +113,7 @@ def requirenonzero( var ):
     except:
         pass
 
-def unimplemented( var ):
+def unimplemented( var: str ) -> None:
     try:
         val = locals()[var]
     except:
@@ -126,7 +126,7 @@ def unimplemented( var ):
 #
 # Create directory, or make sure it exists
 #
-def ensure_dir( name : str,**kwargs ) -> str:
+def ensure_dir( name: str, **kwargs: Any ) -> str:
     if re.match( r'/',name):
         dir : str = name
     else:
@@ -136,7 +136,7 @@ def ensure_dir( name : str,**kwargs ) -> str:
     os.makedirs( dir,exist_ok=True)
     return dir
 
-def create_dir( name : str,**kwargs ) -> str:
+def create_dir( name: str, **kwargs: Any ) -> str:
     try:
         shutil.rmtree(name)
     except FileNotFoundError: pass
@@ -145,7 +145,7 @@ def create_dir( name : str,**kwargs ) -> str:
 ##
 ## Process routines
 ##
-def process_initiate( **kwargs ) -> subprocess.Popen[str] :
+def process_initiate( **kwargs: Any ) -> subprocess.Popen[str]:
     return subprocess.Popen\
         (['/bin/bash', '-l'], 
          stdin=subprocess.PIPE, 
@@ -154,13 +154,17 @@ def process_initiate( **kwargs ) -> subprocess.Popen[str] :
          text=True,
          bufsize=1)
 
-def process_terminate( finished_process,**kwargs ) -> str:
+def process_terminate(
+    finished_process: subprocess.Popen[str], **kwargs: Any
+) -> str:
     process_input = finished_process.stdin
+    process_output = finished_process.stdout
+    assert process_input is not None and process_output is not None
     process_input.flush()
     process_input.close()
     lastline : str = ""
     while True:
-        line : str = finished_process.stdout.readline()
+        line : str = process_output.readline()
         if not line:
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
@@ -170,7 +174,7 @@ def process_terminate( finished_process,**kwargs ) -> str:
     finished_process.wait()
     return lastline
 
-def process_execute( cmdline,**kwargs ) -> str:
+def process_execute( cmdline: str, **kwargs: Any ) -> str:
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
     if outside_process is None:
@@ -194,7 +198,7 @@ def process_execute( cmdline,**kwargs ) -> str:
         trace_string( f" .. process result: {result}",**kwargs )
         return result
 
-def number_satisfies( loaded,wanted,**kwargs ):
+def number_satisfies( loaded: str, wanted: str, **kwargs: Any ) -> Any:
     if wanted=="*":
         res = True; op = "~"
     elif re.match( r'<=',wanted ):
@@ -211,7 +215,7 @@ def number_satisfies( loaded,wanted,**kwargs ):
         res = int(loaded)>int(wanted); op = ">"
     elif ext := re.match( r'\*(.*)$',wanted ):
         match = ext.groups()[0].lstrip( "*" ).rstrip( "*" )
-        res = re.search( match,loaded ); op = "*..."
+        res = bool( re.search( match,loaded ) ); op = "*..."
     elif loaded==wanted:
         res = True; op = "=="
     else:
@@ -219,7 +223,9 @@ def number_satisfies( loaded,wanted,**kwargs ):
     trace_string( f" .. tested {loaded} {op} {wanted}: {res}",**kwargs )
     return res
 
-def version_satisfies( loaded,tomatch,**kwargs ):
+def version_satisfies(
+    loaded: Any, tomatch: Any, **kwargs: Any
+) -> bool:
     if isnull(loaded) or isnull(tomatch): return True
     load_mjr,load_mnr,load_mcr = f"{loaded}.0.0".split(".",maxsplit=2)
     load_mnr = load_mnr.strip(".0")
