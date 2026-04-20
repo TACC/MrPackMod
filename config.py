@@ -87,7 +87,7 @@ def add_settings_from_config( configfile,config_dict ) -> None:
             if not accept: continue
             if False:
                 continue
-            elif include := re.search( r'include\s+(.+)$',line ):
+            elif include := re.search( r'^\s*include\s+(.+)$',line ):
                 includefile = include.groups()[0]
                 trace_string( f"Include file: {includefile}",**config_dict )
                 add_settings_from_config( includefile,config_dict )
