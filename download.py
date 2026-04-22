@@ -10,8 +10,9 @@ from typing import Any
 #
 # my own modules
 #
-from MrPackMod.process import process_execute,echo_string,trace_string
-from MrPackMod.process import echo_string,nonzero_keyword,abort_on_zero_keyword
+from MrPackMod.process import process_execute
+from MrPackMod.tracing import echo_string,trace_string
+from MrPackMod.error   import nonzero_keyword,abort_on_zero_keyword
 import MrPackMod.names as names
 
 def download_path( **kwargs: Any ) -> str:

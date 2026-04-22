@@ -12,10 +12,10 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
-from MrPackMod.process import echo_string,trace_string
-from MrPackMod.process import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
-    zero_keyword,nonzero_keyword,abort_on_zero_keyword
-from MrPackMod.process import error_abort,requirenonzero,nonnull
+from MrPackMod.tracing import echo_string,trace_string
+from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
+    zero_keyword,nonzero_keyword,abort_on_zero_keyword,\
+    error_abort,requirenonzero,nonnull
 
 ####
 #### General names

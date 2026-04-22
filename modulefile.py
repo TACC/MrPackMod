@@ -13,9 +13,10 @@ from typing import Any
 # my own modules
 #
 from  MrPackMod import names 
-from MrPackMod.process import isnull,nonnull,echo_string,error_abort,trace_string
-from MrPackMod.process import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
-    nonzero_keyword_or_default,abort_on_zero_env
+from MrPackMod.tracing import echo_string,trace_string
+from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
+    nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
+    isnull,nonnull
 from MrPackMod.process import version_satisfies,process_execute
 
 def loaded_modules( **kwargs: Any ) -> list[list[str]]:
@@ -30,7 +31,7 @@ def mod_ver(m: str) -> tuple[str, str]:
     return mod,ver
 
 def test_module_loaded( mod: str, ver: str, **kwargs: Any ) -> bool:
-    echo_string( f"Test presence of module={mod} version={ver}" )
+    echo_string( f"Test presence of module={mod} version={ver}",**kwargs )
     if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
         trace_string( f" .. variable TACC_{mod.upper()}_DIR not set",**kwargs )
         return False
@@ -77,7 +78,7 @@ def test_loaded_modules( **kwargs: Any ) -> bool:
         if not test_module_version( mod,ver,**kwargs ):
             echo_string( f"\nLoad module version matching {mod}/{ver}\n",**kwargs )
             success = False; continue
-        loc = process_execute( f"module -t show {mod}",**kwargs,terminal=None ) # 2>&1 ??
+        loc = process_execute( f"module -t show {mod}",**kwargs,terminal="suppress" )
         echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
     return success
 

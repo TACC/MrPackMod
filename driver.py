@@ -14,8 +14,9 @@ from MrPackMod import install
 from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod.process import process_execute
-from MrPackMod.process import echo_string, error_abort
-from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
+from MrPackMod.tracing import echo_string
+from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
+    error_abort
 from MrPackMod import regression
 
 def do_config_tests( **kwargs: Any ) -> None:
@@ -148,7 +149,7 @@ utility_actions : {utility_actions}
                 if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
-            os.system( "rm -rf *~ *.log logfiles *.out build*" )
+            os.system( "rm -rf *~ *.log logfiles *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
             screen_report_action(action,**configuration)
             do_config_tests( **configuration,no_home=True )

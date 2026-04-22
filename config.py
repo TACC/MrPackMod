@@ -9,24 +9,20 @@ from typing import Any, Tuple
 # my modules
 #
 import MrPackMod.modulefile as modulefile
-from MrPackMod.install import open_logfile,close_logfile
-from MrPackMod.process import echo_string,trace_string,error_abort,echo_warning,\
-    nonnull,nonzero_env,abort_on_zero_keyword
+from MrPackMod.process import open_logfile,close_logfile
+from MrPackMod.tracing import echo_string,trace_string,echo_warning
+from MrPackMod.error   import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
 
 additive_keys: list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
 list_keys: list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
 
-def add_new_dict_item(
-    newkey: str,
-    assign: str,
-    newval: str,
-    config_dict: dict[str, Any],
-) -> None:
+def add_new_dict_item( newkey: str, assign: str, newval: str, config_dict: dict[str, Any] ) -> None:
     """ Add a new value under the given key.
     Any macros in the value are expanded.
     Note: only one expansion pass, but macros can not contains macros anyway.
     If a key is added more than once, the initial value is silently overwritten,
-    except for keys that are additive such as DEPENDSON"""
+    except for keys that are additive such as DEPENDSON, or if `assign' is `+='
+    """
     newval = newval.strip('\n').strip(' ')
     for key,val in config_dict.items():
         if not type(val) is str: continue
@@ -124,7 +120,7 @@ def add_settings_from_config( configfile: str, config_dict: dict[str, Any] ) -> 
                 saving = True
                 continue
             else:
-                saving = False # time to ship out
+                saving = False # time to add a value to the dict
                 if envval := nonzero_env( key,**config_dict ):
                     # override with environment if specified
                     add_new_dict_item( key,assign,envval,config_dict )
@@ -132,14 +128,8 @@ def add_settings_from_config( configfile: str, config_dict: dict[str, Any] ) -> 
                     # use value deduced from file
                     add_new_dict_item( key,assign,val,config_dict )
 
-def setting_from_env_or_rc(
-    name: str,
-    env: str,
-    default: str,
-    rc_files: list[str],
-    **kwargs: Any,
-) -> str:
-    val = ""
+def setting_from_env_or_rc( name: str, env: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
+    val : str = ""
     for file in rc_files:
         with open( file,"r" ) as rc:
             for line in rc.readlines():
@@ -263,9 +253,10 @@ def install_settings(
         config_dict[k] = v
 
 def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
-    mods = [ m for m,_ in
-             modulefile.loaded_modules( **config_dict,terminal="suppress" ) 
-             + [ ["mkl",""], ["nvpl",""] ] ]
+    mods : list[str] = \
+        [ m for m,_ in
+          modulefile.loaded_modules( **config_dict,terminal="suppress" ) 
+          + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:
         trace_string( f" .. settings from module: {module}",**config_dict )

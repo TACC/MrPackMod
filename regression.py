@@ -14,14 +14,14 @@ from typing import Any, Optional, TypedDict
 from MrPackMod import config 
 from MrPackMod import download
 from MrPackMod import info 
-from MrPackMod.install import export_compilers,cmake_options,\
-    open_logfile,close_logfile
+from MrPackMod.install import export_compilers,cmake_options
+from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    create_dir,ensure_dir,\
-    isnull,nonnull, nonzero_keyword, echo_string,trace_string,trace_var,error_abort,echo_warning
-
+    create_dir,ensure_dir
+from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
+from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
 #
 # Parse the options with argparse
 #

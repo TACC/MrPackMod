@@ -16,8 +16,10 @@ from typing import Any, Optional
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate
-from MrPackMod.process import echo_string, trace_string, error_abort, abort_on_zero_env
-from MrPackMod.process import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword
+from MrPackMod.process import open_logfile,close_logfile
+from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
+    nonzero_keyword, zero_keyword, abort_on_zero_keyword
+from MrPackMod.tracing import echo_string, trace_string
 
 def export_compilers( **kwargs: Any ) -> str:
     echo_string( "Exporting compilers",**kwargs )
@@ -25,10 +27,10 @@ def export_compilers( **kwargs: Any ) -> str:
     cmdline = ""; cont = ""
     for key,val in compilers.items():
         echo_string( f" .. Setting compiler: {key}={val}",**kwargs )
-        which = process_execute( f"which {val}",**kwargs, )
+        which = process_execute( f"which {val}",**kwargs,terminal="suppress" )
         echo_string( f"    where {val}={which}",**kwargs )
         if ( mpi := kwargs.get("MODE") ) == "mpi":
-            info = process_execute( f"{which} -show",**kwargs, )
+            info = process_execute( f"{which} -show",**kwargs,terminal="suppress" )
             echo_string( f"    which is:\n    {info}",**kwargs )
         cmdline += f"{cont}export {key}={val}"
         cont = " && "
@@ -53,30 +55,6 @@ def export_flags( **kwargs: Any ) -> str:
             cont = " && "
     return cmdline
 
-def open_logfile(
-    logstage: str,
-    kwargs: dict[str, Any],
-    dir: Optional[str] = None,
-    terminal: Any = None,
-) -> str:
-    # get global name, ignore local name
-    logname,_ = logfile_name( logstage,dir,**kwargs )
-    loghandle = open( logname,"w" )
-    kwargs["logfiles"][logname] = loghandle
-    trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )
-    loghandle.write( f"""================
-Logstage {logstage} started {datetime.date.today()}
-================\n""" )
-    return logname
-
-def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
-    try :
-        loghandle = kwargs["logfiles"][logname]
-    except KeyError:
-        error_abort( f"Can not file logfile to close: {logname}",**kwargs )
-    kwargs["logfiles"].pop(logname)
-    loghandle.close()
-    
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
     modulefile.test_modules( **kwargs )
@@ -131,14 +109,14 @@ def cmake_configure( **kwargs: Any ) -> None:
     #
     # execute cmake
     #
-    echo_string( f"Cmake configuring in {builddir}" )
+    echo_string( f"Cmake configuring in {builddir}",**kwargs )
     os.chdir( builddir )
     shell = process_initiate( **kwargs )
     compilers_export = export_compilers( **kwargs )
     if exports := nonzero_keyword( "exports",**kwargs ):
-        export_cmdline = " && ".join(exports)
-        process_execute( export_cmdline,**kwargs,process=shell )
-    process_execute( compilers_export,**kwargs,process=shell )
+        export_cmdline : str = " && ".join(exports)
+        process_execute( export_cmdline,**kwargs,process=shell, )
+    process_execute( compilers_export,**kwargs,process=shell, )
     # --no-warn-unused-cli ?
     cmdline = f"TERM=dumb {cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
 -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \

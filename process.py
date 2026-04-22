@@ -3,121 +3,16 @@
 ##
 ## python modules
 ##
+import datetime
 import os
 import re
 import shutil
 import subprocess
 import sys
 import traceback
-from typing import Any, IO, NoReturn
+from typing import Any, IO, NoReturn, Optional
 
-##
-## Tracing
-##
-
-def echo_string( string: str, **kwargs: Any ) -> None:
-    # echo to stdout if no terminal
-    # echo to terminal is specified unless suppressed
-    if terminal := nonzero_keyword( "terminal",**kwargs ):
-        if terminal != "suppress": print( string,file=terminal )
-    else:
-        print( f"{string}" )
-    # even if no interactive output, we still go to all logfiles
-    for logname,loghandle in kwargs.get("logfiles",{}).items():
-        #print( string,file=loghandle )
-        loghandle.write( f"{string}\n" )
-
-def trace_string( string: str, **kwargs: Any ) -> None:
-    if kwargs.get( "tracing" ):
-        echo_string( string,**kwargs )
-
-def trace_var( var: str, **kwargs: Any ) -> None:
-    varvalue = eval(var)
-    trace_string( f"var={varvalue}",**kwargs )
-
-def echo_warning( string: str, **kwargs: Any ) -> None:
-    prefix = kwargs.get("prefix","")
-    echo_string( f"{prefix}WARNING {string}",**kwargs )
-
-def error_abort( string: str, **kwargs: Any ) -> NoReturn:
-    echo_string( f"\nERROR {string}\n\ntraceback:" )
-    traceback.print_stack()
-    sys.exit(1)
-
-##
-## Keyword handling
-##
-def nonzero_env( envvar: str, **kwargs: Any ) -> str:
-    return os.getenv( envvar,"" )
-
-def abort_on_null( val: Any, msg: str, **kwargs: Any ) -> Any:
-    if nonnull( val ):
-        return val
-    else:
-        error_abort( f"Can not have null: {msg}",**kwargs )
-
-def abort_on_zero_env( envvar: str, **kwargs: Any ) -> str:
-    try:
-        val = os.environ[envvar]
-        return val
-    except Exception:
-        error_abort( f"Environment variable can not be null: {envvar}",**kwargs )
-
-def abort_on_nonzero_env( envvar: str, **kwargs: Any ) -> None:
-    try:
-        val = os.environ[envvar]
-        if nonnull( val ) :
-            error_abort( f"Can not handle nonzero environment variable {envvar}={val}" )
-    except:
-        pass
-
-def abort_on_zero_keyword( keyword: str, **kwargs: Any ) -> Any:
-    if not ( val := kwargs.get(keyword) ):
-        error_abort( f"must have non-null keyword: {keyword}",**kwargs )
-    else: return val
-
-def nonnull( val: Any ) -> bool:
-    return ( val is not None ) \
-        and ( val is not False ) \
-        and  ( ( isinstance(val,list) and len(val)>0) \
-               or ( isinstance(val,str) and not re.match( r'^\s*$',val ) )
-               or ( isinstance(val,bool) and val==True )
-              )
-
-def isnull( val: Any ) -> bool:
-    return not nonnull( val )
-
-def zero_keyword( var: str, **kwargs: Any ) -> bool:
-    return not nonzero_keyword( var,**kwargs )
-
-# return value or false
-def nonzero_keyword( var: str, **kwargs: Any ) -> Any:
-    #print( f"test {var}: {kwargs.get(var)}" )
-    if nonnull( val := kwargs.get(var) ):
-        return val
-    return False
-
-def nonzero_keyword_or_default( var: str, **kwargs: Any ) -> Any:
-    if nonnull( val := kwargs.get(var) ):
-        return val
-    elif val := kwargs.get("default"):
-        return val
-    else:
-        raise Exception( f"Keyword not given or defaulted: {var}" )
-
-def requirenonzero( var: str ) -> None:
-    try:
-        val = locals()[var]
-        if val == "":
-            raise Exception( f"variable is zero: {var}" )
-    except:
-        pass
-
-def unimplemented( var: str ) -> None:
-    try:
-        val = locals()[var]
-    except:
-        pass
+from MrPackMod.tracing import trace_string,echo_string,echo_warning
 
 ##
 ## File handling
@@ -141,6 +36,41 @@ def create_dir( name: str, **kwargs: Any ) -> str:
         shutil.rmtree(name)
     except FileNotFoundError: pass
     return ensure_dir( name,**kwargs )
+
+####
+#### Logfiles
+####
+
+from MrPackMod.names import logfile_name
+
+##
+## Open a log file;
+## add name/handle to kwargs["logfiles"]
+##
+def open_logfile(
+    logstage: str,
+    kwargs: dict[str, Any],
+    dir: Optional[str] = None,
+    terminal: Any = None,
+) -> str:
+    # get global name, ignore local name
+    logname,_ = logfile_name( logstage,dir,**kwargs )
+    loghandle = open( logname,"w" )
+    kwargs["logfiles"][logname] = loghandle
+    trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )
+    loghandle.write( f"""================
+Logstage {logstage} started {datetime.date.today()}
+================\n""" )
+    return logname
+
+def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
+    try :
+        loghandle = kwargs["logfiles"][logname]
+    except KeyError:
+        error_abort( f"Can not find logfile to close: {logname}",**kwargs )
+    kwargs["logfiles"].pop(logname)
+    loghandle.close()
+
 
 ##
 ## Process routines
@@ -182,12 +112,14 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     else: process = outside_process
     #print( kwargs.get("terminal","no terminal") )
     echo_string( f"Command line={cmdline}",**kwargs )
+    if re.search( r'\$\{',cmdline ):
+        echo_warning( f"commandline contains unexpanded macros",**kwargs )
     if input := process.stdin:
         process_input  : IO[str] = input
     else: error_abort( f"Can not get process stdin",**kwargs )
-    if output := process.stdout:
-        process_output : IO[str] = output
-    else: error_abort( f"Can not get process output",**kwargs )
+    # if output := process.stdout:
+    #     process_output : IO[str] = output
+    # else: error_abort( f"Can not get process output",**kwargs )
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
