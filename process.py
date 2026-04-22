@@ -48,13 +48,13 @@ from MrPackMod.names import logfile_name
 ## add name/handle to kwargs["logfiles"]
 ##
 def open_logfile(
-    logstage: str,
-    kwargs: dict[str, Any],
-    dir: Optional[str] = None,
-    terminal: Any = None,
-) -> str:
+        logstage : str,
+        kwargs   : dict[str, Any],
+        logdir   : Optional[str] = None,
+        terminal : Any = None,
+        ) -> str:
     # get global name, ignore local name
-    logname,_ = logfile_name( logstage,dir,**kwargs )
+    logname,_ = logfile_name( logstage,dir=logdir,**kwargs )
     loghandle = open( logname,"w" )
     kwargs["logfiles"][logname] = loghandle
     trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )

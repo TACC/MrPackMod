@@ -32,12 +32,6 @@ def package_names( **kwargs: Any ) -> tuple[str, str]:
     package : str = abort_on_zero_keyword( "PACKAGE",**kwargs)
     # when do we allow null versions
     version : str = kwargs.get( "PACKAGEVERSION","" )
-    # abort_on_zero_keyword( "PACKAGEVERSION",**kwargs )
-
-    # if version == "git":
-    #     # raise Exception( "gitdate not yet implemented" )
-    #     today = re.sub( '-','',str(datetime.date.today()) )
-    #     version = f"git{today}"
     return package,version
 
 def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
@@ -45,16 +39,18 @@ def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
     abort_on_null( v,"package version is null/unspecified",**kwargs )
     return p,v
 
+def package_prerequisites( **kwargs : Any ) -> str:
+    return kwargs.get( "DEPENDSON","" ) + " " + kwargs.get( "DEPENDSONCURRENT","" )
+
 #
 # name of a logfile
 # 
 def logfile_name(
-    logstage: str,
-    dir: Optional[str] = None,
-    **kwargs: Any,
-) -> tuple[str, str]:
-    if dir :
-        logfiledir= dir
+        logstage : str,
+        **kwargs : Any,
+        ) -> tuple[str, str]:
+    if dir := nonzero_keyword( "dir",**kwargs ):
+        logfiledir : str = dir
     else:
         logfiledir       = abort_on_zero_keyword( "scriptdir",**kwargs )
     packagename,_   = package_names( **kwargs )

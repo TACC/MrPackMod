@@ -9,19 +9,20 @@ import re
 import pdb
 import shutil
 import sys
-from typing import Any, Optional, TypedDict
+from typing import Any
 
 from MrPackMod import config 
 from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod.install import export_compilers,cmake_options
-from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     create_dir,ensure_dir
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
+from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile
+
 #
 # Parse the options with argparse
 #
@@ -66,68 +67,6 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     print( f"Test: "+parsed["test_title"] )
     trace_string( f" .. parameters: {parsed}",**kwargs )
     return parsed
-
-def load_compiler_and_mpi_and_package(
-    process: Any = None,
-    **kwargs: Any,
-) -> None:
-    # load the compiler since this is a fresh process
-    _,compiler,compilerversion,_,mpi,mpiversion = names.family_names( **kwargs )
-    # disable terminal output unless otherwise specified
-    process_execute\
-        ( f"module load {compiler}/{compilerversion}",**kwargs,process=process )
-    if kwargs.get("MODE")=="mpi":
-        process_execute\
-            ( f"module load {mpi}/{mpiversion}",**kwargs,process=process )
-    # load the package that we are testing
-    package,packageversion =  names.package_names( **kwargs )
-    loadname = package
-    if nonnull(packageversion): loadname = f"{loadname}/{packageversion}"
-    process_execute\
-        ( f"module load {loadname}",**kwargs,process=process )
-    process_execute\
-        ( f"module -t list 2>&1 | sort", **kwargs,process=process )
-
-class OutputDict(TypedDict):
-    logfile : str
-    logdir : str
-    terminal : str
-    process : Any
-
-def start_test_stage(
-    name: str,
-    stage: str,
-    logdir: str,
-    kwargs: dict[str, Any],
-    chdir: Optional[str] = None,
-    title: Optional[str] = None,
-) -> OutputDict:
-    # Create log file for this test stage, and add it to the stack of logfiles
-    logfile : str = \
-        open_logfile( f"{name}_{stage}",kwargs,dir=logdir,terminal=None ) # note dict
-    # Create a process for the commands of this test stage
-    shell = process_initiate( **kwargs )
-    output : OutputDict = {
-        "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell,
-    }
-    if title:
-        process_execute( f"echo Test title: {title}",**kwargs,**output )
-    if chdir:
-        process_execute( f"cd {chdir}",**kwargs,**output )
-    load_compiler_and_mpi_and_package( **kwargs,**output )
-    return output
-
-def end_test_stage(
-    success: list[str],
-    failure: list[str],
-    kwargs: dict[str, Any],
-    output: OutputDict,
-) -> tuple[list[str], list[str]]:
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
-    success,failure = success_failure_in_logfile\
-        ( output["logfile"],success=success,failure=failure,**kwargs )
-    return success,failure
 
 ##
 ## Return directory, actual file name & name with LMOD variable unexpanded
@@ -505,28 +444,6 @@ def do_tests( **kwargs: Any ) -> None:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
                     echo_string( f"    ERROR: {f}",**kwargs, )
-
-##
-## Grep for SUCCESS or FAILURE in a log file;
-## add those messages to two list-of-strings variables
-##
-def success_failure_in_logfile(
-    logoutput: str,
-    **kwargs: Any,
-) -> tuple[list[str], list[str]]:
-    success : list[str] = kwargs.get( "success",[] )
-    failure : list[str] = kwargs.get( "failure",[] )
-    with open( logoutput,"r" ) as loglines:
-        for line in loglines:
-            if succ := re.match( r'SUCCESS: (.*)$',line ):
-                msg : str = succ.groups()[0]
-                trace_string( msg,**kwargs )
-                success.append( msg )
-            if fail := re.match( r'FAILURE: (.*)$',line ):
-                msg = fail.groups()[0]
-                trace_string( msg,**kwargs )
-                failure.append( msg )
-    return success,failure
 
 ##
 ## Lines from the grep file are added to success unconditionally

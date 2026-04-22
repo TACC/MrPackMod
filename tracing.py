@@ -29,4 +29,3 @@ def trace_var( var: str, **kwargs: Any ) -> None:
 def echo_warning( string: str, **kwargs: Any ) -> None:
     prefix = kwargs.get("prefix","")
     echo_string( f"\n{prefix}WARNING {string}\n",**kwargs )
-

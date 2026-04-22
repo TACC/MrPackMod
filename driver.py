@@ -13,18 +13,32 @@ from MrPackMod import info
 from MrPackMod import install
 from MrPackMod import modulefile
 from MrPackMod import names 
-from MrPackMod.process import process_execute
-from MrPackMod.tracing import echo_string
+from MrPackMod.process import process_initiate,process_terminate,process_execute,\
+    open_logfile,close_logfile
+from MrPackMod.tracing import echo_string,echo_warning
 from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
     error_abort
+from MrPackMod.testing import start_test_stage,end_test_stage
 from MrPackMod import regression
 
-def do_config_tests( **kwargs: Any ) -> None:
-    srcdir = names.srcdir_name( **kwargs )
-    if not os.path.isdir(srcdir):
-        echo_string( f"Warning: source directory {srcdir} does not exist",
-                             **kwargs )
-    modulefile.test_modules( **kwargs )
+def do_config_tests( **kwargs ) -> tuple[ list[str],list[str] ]:
+    logdir     : str = kwargs.get("logdir",".")
+    installing : bool = kwargs.get("installing",True )
+    output  = start_test_stage( installing,"global","prelim",logdir,kwargs, )
+    success : list[str] = []
+    failure : list[str] = []
+
+    # test presence of source dir
+    if installing:
+        srcdir = names.srcdir_name( **kwargs,**output )
+        process_execute( f"""
+if [ ! -d "{srcdir}" ] ; then
+    echo FAILURE: Source directory {srcdir} does not exist
+fi 
+        """,**kwargs,**output )
+    modulefile.test_modules( **kwargs,**output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
+    return success,failure
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
     print( f"""
@@ -102,7 +116,7 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
-            do_config_tests( **configuration )
+            do_config_tests( installing=False,**configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
                 print( modulelist )
@@ -129,7 +143,7 @@ utility_actions : {utility_actions}
             download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
-            do_config_tests( **configuration )
+            do_config_tests( installing=True,**configuration )
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )
@@ -152,7 +166,7 @@ utility_actions : {utility_actions}
             os.system( "rm -rf *~ *.log logfiles *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
             screen_report_action(action,**configuration)
-            do_config_tests( **configuration,no_home=True )
+            do_config_tests( installing=False,**configuration,no_home=True )
             regression.do_tests\
                 ( match=arguments.match,filter=arguments.filter,**configuration )
         else:

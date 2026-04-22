@@ -78,7 +78,7 @@ def test_loaded_modules( **kwargs: Any ) -> bool:
         if not test_module_version( mod,ver,**kwargs ):
             echo_string( f"\nLoad module version matching {mod}/{ver}\n",**kwargs )
             success = False; continue
-        loc = process_execute( f"module -t show {mod}",**kwargs,terminal="suppress" )
+        loc = process_execute( f"module -t show {mod}",**kwargs, )
         echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
     return success
 
@@ -98,11 +98,9 @@ def test_nonmodules( **kwargs: Any ) -> bool:
     return success
 
 def test_modules( **kwargs: Any ) -> None:
-    tracing = kwargs.get( "tracing" )
     error = False
-    if tracing:
-        modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) or "" )
-        echo_string( f"\nUsing modulepath {modulepath}\n",**kwargs )
+    modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) or "" )
+    trace_string( f"\nUsing modulepath {modulepath}\n",**kwargs )
     error = error or not test_loaded_modules( **kwargs ) \
         or not test_nonmodules( **kwargs )
     if error:
