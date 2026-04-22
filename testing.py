@@ -1,33 +1,33 @@
 import os
 import re
+import subprocess
 from typing import Any,Optional,TypedDict
 
 from MrPackMod.error   import nonnull
 from MrPackMod.names   import family_names,package_names,package_prerequisites
 from MrPackMod.process import process_execute, process_initiate, process_terminate
 from MrPackMod.process import open_logfile,close_logfile
+from MrPackMod.tracing import echo_string,trace_string
 
-def load_compiler_and_mpi_and_package(
-        installing : bool,
-        process: Any = None,
-        **kwargs: Any,
-        ) -> None:
+def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
+    package,packageversion =  package_names( **kwargs )
+    modules_to_load = package
+    if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
+    modules_to_load : str = package_prerequisites( **kwargs )
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
     # disable terminal output unless otherwise specified
     process_execute\
-        ( f"module load {compiler}/{compilerversion}",**kwargs,process=process )
+        ( f"module load {compiler}/{compilerversion}",**kwargs )
     if kwargs.get("MODE")=="mpi":
         process_execute\
-            ( f"module load {mpi}/{mpiversion}",**kwargs,process=process )
-    if installing:
-        # load package prerequisites
-        modules_to_load : str = package_prerequisites( **kwargs )
-    else:
-        # load the package that we are testing
-        package,packageversion =  package_names( **kwargs )
-        modules_to_load = package
-        if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
+            ( f"module load {mpi}/{mpiversion}",**kwargs )
     process_execute\
         ( f"module load {modules_to_load}",**kwargs )
     process_execute\
@@ -41,7 +41,7 @@ class OutputDict(TypedDict):
 
 def start_test_stage(
         name: str, stage: str, logdir: str, kwargs: dict[str, Any],
-        chdir: Optional[str] = None, title: Optional[str] = None,
+        chdir: Optional[str] = None, title: Optional[str] = None,installing : Optional[bool] = False
         ) -> OutputDict:
     # Create log file for this test stage, and add it to the stack of logfiles
     logfile : str = \
@@ -51,11 +51,15 @@ def start_test_stage(
     output : OutputDict = {
         "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell,
     }
-    if title:
+    if title :
         process_execute( f"echo Test title: {title}",**kwargs,**output )
-    if chdir:
+    if chdir :
         process_execute( f"cd {chdir}",**kwargs,**output )
-    load_compiler_and_mpi_and_package( **kwargs,**output )
+    # this depends on `installing' to load pkg or prereqs
+    if installing:
+        load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
+    else:
+        load_compiler_and_mpi_and_package( **kwargs,**output, )
     return output
 
 def end_test_stage(

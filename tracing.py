@@ -1,7 +1,5 @@
 from typing import Any, IO, NoReturn
 
-from MrPackMod.error import nonzero_keyword
-
 ##
 ## Tracing
 ##
@@ -9,13 +7,12 @@ from MrPackMod.error import nonzero_keyword
 def echo_string( string: str, **kwargs: Any ) -> None:
     # echo to stdout if no terminal
     # echo to terminal is specified unless suppressed
-    if terminal := nonzero_keyword( "terminal",**kwargs ):
+    if terminal := kwargs.get( "terminal" ):
         if terminal != "suppress": print( string,file=terminal )
     else:
         print( f"{string}" )
     # even if no interactive output, we still go to all logfiles
-    for logname,loghandle in kwargs.get("logfiles",{}).items():
-        #print( string,file=loghandle )
+    for _,loghandle in kwargs.get("logfiles",{}).items():
         loghandle.write( f"{string}\n" )
 
 def trace_string( string: str, **kwargs: Any ) -> None:

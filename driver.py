@@ -21,15 +21,15 @@ from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zer
 from MrPackMod.testing import start_test_stage,end_test_stage
 from MrPackMod import regression
 
-def do_config_tests( **kwargs ) -> tuple[ list[str],list[str] ]:
+def do_config_tests( installing,**kwargs ) -> tuple[ list[str],list[str] ]:
     logdir     : str = kwargs.get("logdir",".")
-    installing : bool = kwargs.get("installing",True )
-    output  = start_test_stage( installing,"global","prelim",logdir,kwargs, )
+    # open a log file and load modules; pkg or prereqs depending on installing
+    output  = start_test_stage( "global","prelim",logdir,kwargs,installing=installing )
     success : list[str] = []
     failure : list[str] = []
 
     # test presence of source dir
-    if installing:
+    if  nonzero_keyword("installing",**kwargs ):
         srcdir = names.srcdir_name( **kwargs,**output )
         process_execute( f"""
 if [ ! -d "{srcdir}" ] ; then

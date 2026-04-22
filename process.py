@@ -12,7 +12,8 @@ import sys
 import traceback
 from typing import Any, IO, NoReturn, Optional
 
-from MrPackMod.tracing import trace_string,echo_string,echo_warning
+from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
+from MrPackMod.error   import isnull,error_abort
 
 ##
 ## File handling

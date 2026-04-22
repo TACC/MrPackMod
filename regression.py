@@ -21,7 +21,8 @@ from MrPackMod.process import process_execute, process_initiate, process_termina
     create_dir,ensure_dir
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
-from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile
+from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
+    OutputDict
 
 #
 # Parse the options with argparse
@@ -260,11 +261,7 @@ def do_existence_test(
     if nonnull(grep):
         grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
     else: grepfile = ""
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
-    success,failure = success_failure_in_logfile\
-                      ( output["logfile"],success=success,failure=failure,
-                        **kwargs,**output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
     if nonnull(grepfile):
         success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
 
@@ -283,11 +280,7 @@ def do_existence_test(
         # run!
         if do_run:
             execute_run_script( program,run_config,**kwargs,**output )
-        process_terminate( output["process"],**kwargs,**output )
-        close_logfile( output["logfile"],kwargs )
-        success,failure = success_failure_in_logfile\
-                          ( output["logfile"],success=success,failure=failure,
-                            **kwargs,**output )
+        success,failure = end_test_stage( success,failure,kwargs,output )
     return success,failure
 
 def do_cmake_test(
@@ -364,9 +357,7 @@ def do_make_test(
         ( f"{compiler_exports} && make -f ../{ext}/Makefile SRCDIR=../{ext} PROJECTNAME={name} {name}",
           **kwargs,**output )
     process_execute( f"make", **kwargs,**output )
-    # terminate this stage
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
+    success,failure = end_test_stage( success,failure,kwargs,output )
     if os.path.exists( f"{builddir}/{name}" ):
         success.append( f"executable <<{name}>> created" )
     else:
@@ -381,9 +372,7 @@ def do_make_test(
     # run!
     if do_run:
         process_execute( f"./{name}",**kwargs,**output )
-    # end of this stage
-    process_terminate( output["process"],**kwargs,**output )
-    close_logfile( output["logfile"],kwargs )
+    success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
 
