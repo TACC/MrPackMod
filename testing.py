@@ -14,7 +14,8 @@ from MrPackMod.tracing import echo_string,trace_string,echo_warning
 def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
     logdir     : str = kwargs.get("logdir",".")
     # open a log file and load modules; pkg or prereqs depending on installing
-    output  = start_test_stage( "moduleconfig",logdir,kwargs,installing=installing )
+    output  = start_test_stage( "moduleconfig",logdir,kwargs,
+                                installing=installing,terminal="suppress" )
     success : list[str] = []
     failure : list[str] = []
 
@@ -43,8 +44,11 @@ class OutputDict(TypedDict):
 ##
 def start_test_stage(
         stage: str, logdir: str, kwargs: dict[str, Any],
-        chdir: Optional[str] = None, title: Optional[str] = None,
-        package : Optional[str] = "",installing : Optional[bool] = False
+        chdir      : Optional[str] = None,
+        title      : Optional[str] = None,
+        package    : Optional[str] = "",
+        installing : Optional[bool] = False,
+        terminal    : Optional[str] = "",
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
@@ -59,7 +63,8 @@ def start_test_stage(
     # Create a process for the commands of this test stage
     shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
-        "logfile":logfile, "logdir":logdir, "terminal":"", "process":shell,
+        "logfile":logfile, "logdir":logdir, "process":shell,
+        "terminal":terminal, # option to suppress stdout, such as in do_config_tests
     }
     trace_string( f"Created process {shell.pid}",**kwargs )
     if title :
