@@ -91,7 +91,7 @@ def cmake_options( **kwargs: Any ) -> str:
         cmakeflags += f" {flags}"
     return cmakeflags.lstrip(" ")
 
-def cmake_source_setting( srcdir : str,**kwargs ) -> str:
+def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         cmakesourcesetting : str = f"-S {srcdir}/{source} -B {builddir}"
         settingsfile : str = f"{srcdir}/{source}/CMakeLists.txt"
@@ -123,7 +123,7 @@ def cmake_configure( **kwargs: Any ) -> None:
     cmake = cmake_basic_command( **kwargs )
     cmakeflags = cmake_options( **kwargs )
     buildsettings = cmake_build_settings( **kwargs )
-    listslocation = cmake_source_setting( srcdir,**kwargs )
+    listslocation = cmake_source_setting( srcdir,builddir,**kwargs )
     
     echo_string( f"Cmake configuring in {builddir}",**kwargs,**output )
     #process_execute( f"cd {builddir}",**kwargs,**output )
@@ -139,6 +139,7 @@ def cmake_configure( **kwargs: Any ) -> None:
 {listslocation} \
 "
     process_execute( cmdline,**kwargs,**output )
+    logfilename = output["logfile"]
     success,failure = end_test_stage( [],[],kwargs,output )
     process_execute( f"""
 if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then

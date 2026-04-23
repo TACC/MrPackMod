@@ -12,9 +12,10 @@ from typing import Any
 #
 # my own modules
 #
-from  MrPackMod.names import package_names,package_prerequisites,module_names,family_names,\
+from  MrPackMod.names import package_names,package_names_nonnull,package_prerequisites,\
+    module_names,family_names,\
     package_dir_names,prefixdir_name,pathjoin
-from MrPackMod.tracing import echo_string,trace_string
+from MrPackMod.tracing import echo_string,trace_string,echo_warning
 from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
     nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
     isnull,nonnull
@@ -63,7 +64,7 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
             return True
 
 # are the required modules loaded?
-def test_loaded_modules( modules : str,**kwargs: Any ) -> bool:
+def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
     for m in modules.split(" "):
         if not nonnull(m): continue
         mod,ver = mod_ver(m)

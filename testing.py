@@ -3,10 +3,10 @@ import re
 import subprocess
 from typing import Any,Optional,TypedDict
 
-from MrPackMod.error   import nonnull,nonzero_keyword
+from MrPackMod.error   import nonnull,nonzero_keyword,error_abort
 from MrPackMod.modulefile import test_modules,\
     load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package
-from MrPackMod.names   import family_names,package_names,package_prerequisites
+from MrPackMod.names   import srcdir_name,family_names,package_names,package_prerequisites
 from MrPackMod.process import process_execute, process_initiate, process_terminate
 from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
@@ -20,7 +20,7 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list
 
     # test presence of source dir
     if  nonzero_keyword("installing",**kwargs ):
-        srcdir = names.srcdir_name( **kwargs,**output )
+        srcdir = srcdir_name( **kwargs,**output )
         process_execute( f"""
 if [ ! -d "{srcdir}" ] ; then
     echo FAILURE: Source directory {srcdir} does not exist
