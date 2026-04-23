@@ -30,23 +30,24 @@ def mod_ver(m: str) -> tuple[str, str]:
     mod = mod.lower(); ver = ver.strip("/")
     return mod,ver
 
-def test_module_loaded( mod: str, ver: str, **kwargs: Any ) -> bool:
-    echo_string( f"Test presence of module={mod} version={ver}",**kwargs )
-    if isnull( packdir := os.getenv( f"TACC_{mod.upper()}_DIR","" ) ):
-        trace_string( f" .. variable TACC_{mod.upper()}_DIR not set",**kwargs )
-        return False
-    elif not os.path.isdir(packdir):
-        trace_string( f" .. module {mod} loaded but directory not found: {packdir}",
-                     **kwargs )
-        return False
-    else:
-        trace_string( f" .. module {mod} is at: {packdir}",**kwargs )
-        return True
+def test_module_loaded( mod: str, ver: str, **kwargs: Any ) -> None:
+    process_execute\
+        ( f"echo Test presence of module={mod} version={ver}",**kwargs )
+    modvar : str = f"TACC_{mod.upper()}_DIR"
+    process_execute\
+        ( f"""
+if [ -z \"${modvar}\" ] ; then 
+  echo FAILURE: variable {modvar} not set, load module {mod}
+else
+  if [ ! -d \"${modvar}\" ] ; then
+    echo FAILURE: directory {modvar} not found
+  else
+    echo SUCCESS: package {mod} is at {modvar}
+  fi
+fi
+        """,**kwargs )
 
 def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
-    if isnull(ver):
-        trace_string( " .. no particular version required",**kwargs )
-        return True
     if isnull( loadedversion := os.getenv( "TACC_"+mod.upper()+"_VERSION","" ) ):
         trace_string( " .. module does not declare VERSION parameter",**kwargs )
         return True
@@ -61,26 +62,16 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
             return True
 
 # are the required modules loaded?
-def test_loaded_modules( **kwargs: Any ) -> bool:
-    if not (modules := nonzero_keyword( "MODULES",**kwargs ) ):
-        trace_string( "No prerequisite modules",**kwargs )
-        return True
-    success = True
+def test_loaded_modules( modules : str,**kwargs: Any ) -> bool:
     for m in modules.split(" "):
-        if not nonnull(m):continue
+        if not nonnull(m): continue
         mod,ver = mod_ver(m)
         if mod in non_packages:
             trace_string( f"Skip test for non-package: {mod}",**kwargs )
             continue
-        if not ( loaded := test_module_loaded( mod,ver,**kwargs ) ):
-            echo_string( f"\nPlease load module: {mod}\n",**kwargs )
-            success = False; continue
-        if not test_module_version( mod,ver,**kwargs ):
-            echo_string( f"\nLoad module version matching {mod}/{ver}\n",**kwargs )
-            success = False; continue
-        loc = process_execute( f"module -t show {mod}",**kwargs, )
-        echo_string( f" .. module {mod} loaded from: {loc}",**kwargs )
-    return success
+        test_module_loaded( mod,ver,**kwargs )
+        if nonnull(ver):
+            test_module_version( mod,ver,**kwargs )
 
 # are no nonmodules loaded?
 def test_nonmodules( **kwargs: Any ) -> bool:
@@ -98,13 +89,17 @@ def test_nonmodules( **kwargs: Any ) -> bool:
     return success
 
 def test_modules( **kwargs: Any ) -> None:
-    error = False
-    modulepath = re.sub( ":","\n",os.getenv( "MODULEPATH" ) or "" )
-    trace_string( f"\nUsing modulepath {modulepath}\n",**kwargs )
-    error = error or not test_loaded_modules( **kwargs ) \
-        or not test_nonmodules( **kwargs )
-    if error:
-        error_abort( "Errors during module testing",**kwargs )
+    installing : bool = kwargs.get( "installing",False )
+    process_execute\
+        ( f"echo Using modulepath:",**kwargs )
+    process_execute\
+        ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
+    if installing and  nonnull( modules := names.package_prerequisites(**kwargs) ):
+        modules_to_test : str = modules
+    else:
+        modules_to_test,_ = names.package_names( **kwargs )
+    test_loaded_modules( modules,**kwargs )
+    #test_nonmodules( **kwargs )
 
 def module_help_string( **kwargs: Any ) -> str:
     package,packageversion   = names.package_names_nonnull( **kwargs )

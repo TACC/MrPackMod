@@ -58,7 +58,7 @@ def open_logfile(
     logname,_ = logfile_name( logstage,dir=logdir,**kwargs )
     loghandle = open( logname,"w" )
     kwargs["logfiles"][logname] = loghandle
-    trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )
+    #trace_string( f"Open logfile {logname}",**kwargs,terminal=terminal )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )

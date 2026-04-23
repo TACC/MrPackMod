@@ -40,7 +40,7 @@ def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
     return p,v
 
 def package_prerequisites( **kwargs : Any ) -> str:
-    return kwargs.get( "DEPENDSON","" ) + " " + kwargs.get( "DEPENDSONCURRENT","" )
+    return kwargs.get( "MODULES","" )
 
 #
 # name of a logfile

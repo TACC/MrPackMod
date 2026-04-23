@@ -4,6 +4,7 @@
 
 import argparse
 import os
+import pdb
 import sys
 from typing import Any
 
@@ -11,34 +12,15 @@ from MrPackMod import config
 from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod import install
-from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod.process import process_initiate,process_terminate,process_execute,\
     open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,echo_warning
 from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
     error_abort
-from MrPackMod.testing import start_test_stage,end_test_stage
+from MrPackMod.testing import start_test_stage,end_test_stage,\
+    do_config_tests,report_success_failure
 from MrPackMod import regression
-
-def do_config_tests( installing,**kwargs ) -> tuple[ list[str],list[str] ]:
-    logdir     : str = kwargs.get("logdir",".")
-    # open a log file and load modules; pkg or prereqs depending on installing
-    output  = start_test_stage( "global","prelim",logdir,kwargs,installing=installing )
-    success : list[str] = []
-    failure : list[str] = []
-
-    # test presence of source dir
-    if  nonzero_keyword("installing",**kwargs ):
-        srcdir = names.srcdir_name( **kwargs,**output )
-        process_execute( f"""
-if [ ! -d "{srcdir}" ] ; then
-    echo FAILURE: Source directory {srcdir} does not exist
-fi 
-        """,**kwargs,**output )
-    modulefile.test_modules( **kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
-    return success,failure
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
     print( f"""
@@ -116,7 +98,8 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
-            do_config_tests( installing=False,**configuration )
+            success,failure = do_config_tests( installing=True,**configuration )
+            report_success_failure( success,failure,**configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
                 print( modulelist )
