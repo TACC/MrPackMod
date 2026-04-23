@@ -255,8 +255,10 @@ def do_existence_test(
     # program can contain a path
     program_clean = re.sub( '/','',program )
     output : OutputDict = \
-        start_test_stage( program_clean,"exists",logdir,
-                          kwargs,title=title,chdir=builddir, ) # note dict
+        start_test_stage( "exists",logdir,
+                          kwargs, # note dict
+                          title=title,chdir=builddir,
+                          package=program_clean ) 
     execute_file_to_exist( package,dirtype,program,**kwargs,**output )
     if nonnull(grep):
         grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
@@ -272,8 +274,8 @@ def do_existence_test(
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
         output = \
-            start_test_stage( program_clean,"exec",logdir,
-                              kwargs,title=title,chdir=builddir, ) # dict!
+            start_test_stage( "exec",logdir,kwargs, # dict!
+                              package=program_clean, title=title,chdir=builddir, ) 
         if ldd:
             # are library dependencies satisfied
             execute_ldd_script( file_to_test,**kwargs,**output )
@@ -310,14 +312,14 @@ def do_cmake_test(
     # Cmake & compile
     #
     output : OutputDict = \
-        start_test_stage( name,"compile",logdir,kwargs,chdir=builddir, ) # note dict
+        start_test_stage( "compile",logdir,kwargs,chdir=builddir,package=name, ) # note dict
     execute_cmake_script( name,ext,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
     #
     # Check library dependencies satisfied & run
     #
-    output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir, ) # note dict
+    output = start_test_stage( "exec",logdir,kwargs,chdir=builddir,package=name, ) # note dict
     execute_ldd_script( name,**kwargs,**output )
     if nonnull( run_config["do_run"] ):
         execute_run_script( name,run_config,**kwargs,**output )
@@ -349,7 +351,7 @@ def do_make_test(
     # compilation
     #
     output : OutputDict = \
-        start_test_stage( name,"compile",logdir,kwargs,chdir=builddir ) # note dict
+        start_test_stage( "compile",logdir,kwargs,chdir=builddir,package=name, ) # note dict
     # set up for make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -366,7 +368,7 @@ def do_make_test(
     #
     # execution
     #
-    output = start_test_stage( name,"exec",logdir,kwargs,chdir=builddir ) # note dict
+    output = start_test_stage( "exec",logdir,kwargs,chdir=builddir,package=name, ) # note dict
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!

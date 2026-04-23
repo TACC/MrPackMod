@@ -293,16 +293,16 @@ def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulereport = " && if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort ; fi"
+    modulereport = "if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort ; fi"
     process_execute\
-        ( f"echo Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null {modulereport}",
+        ( f"echo Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null && {modulereport}",
           **kwargs )
     process_execute\
-        ( f"echo Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null {modulereport}",
+        ( f"echo Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null && {modulereport}",
           **kwargs )
     if kwargs.get("MODE")=="mpi":
         process_execute\
-            ( f"echo Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null {modulereport}",
+            ( f"echo Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null && {modulereport}",
               **kwargs )
     if nonnull( modules_to_load ):
         process_execute( f"echo Load packages \"{modules_to_load}\"",**kwargs )

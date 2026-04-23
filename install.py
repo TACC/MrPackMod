@@ -91,6 +91,16 @@ def cmake_options( **kwargs: Any ) -> str:
         cmakeflags += f" {flags}"
     return cmakeflags.lstrip(" ")
 
+def cmake_build_settings( **kwargs ) -> str:
+    if kwargs.get("CMAKEBUILDDEBUG"):
+        defaultbuild = "Debug"
+    else: defaultbuild = "RelWithDebInfo"
+    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
+    if static := kwargs.get("buildstaticlibs"):
+        buildsharedlibs = "OFF"
+    else: buildsharedlibs = "ON"
+    return f"-D BUILD_SHARED_LIBS={buildsharedlibs} -D CMAKE_BUILD_TYPE={cmakebuildtype}"
+
 def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         cmakesourcesetting : str = f"-S {srcdir}/{source} -B {builddir}"
@@ -102,21 +112,11 @@ def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
         error_abort( f"Can not find file: {settingsfile}",**kwargs )
     return cmakesourcesetting
 
-def cmake_build_settings( **kwargs ) -> str:
-    if kwargs.get("CMAKEBUILDDEBUG"):
-        defaultbuild = "Debug"
-    else: defaultbuild = "RelWithDebInfo"
-    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
-    if static := kwargs.get("buildstaticlibs"):
-        buildsharedlibs = "OFF"
-    else: buildsharedlibs = "ON"
-    return f"-D BUILD_SHARED_LIBS={buildsharedlibs} -D CMAKE_BUILD_TYPE={cmakebuildtype}"
-
 def cmake_configure( **kwargs: Any ) -> None:
     logdir     : str = kwargs.get("logdir",".")
     # create directories for source, build, install
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
-    output = start_test_stage( "package","configure",logdir,kwargs,chdir=builddir,installing=True)
+    output = start_test_stage( "configure",logdir,kwargs,chdir=builddir,installing=True)
     # load prereqs and test their installation
     load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
 

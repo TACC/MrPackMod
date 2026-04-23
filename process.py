@@ -103,7 +103,7 @@ def process_terminate(
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
         if line != "":
-            #echo_string( line,**kwargs )
+            echo_string( line,**kwargs )
             lastline = line
     tofinish.wait()
     trace_string( f" .. process {tofinish.pid} terminated with result=\"{lastline}\"",**kwargs )

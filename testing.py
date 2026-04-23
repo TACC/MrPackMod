@@ -14,7 +14,7 @@ from MrPackMod.tracing import echo_string,trace_string,echo_warning
 def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
     logdir     : str = kwargs.get("logdir",".")
     # open a log file and load modules; pkg or prereqs depending on installing
-    output  = start_test_stage( "global","moduleconfig",logdir,kwargs,installing=installing )
+    output  = start_test_stage( "moduleconfig",logdir,kwargs,installing=installing )
     success : list[str] = []
     failure : list[str] = []
 
@@ -42,15 +42,20 @@ class OutputDict(TypedDict):
 ## open logfile, start process, load modules
 ##
 def start_test_stage(
-        name: str, stage: str, logdir: str, kwargs: dict[str, Any],
+        stage: str, logdir: str, kwargs: dict[str, Any],
         chdir: Optional[str] = None, title: Optional[str] = None,
-        installing : Optional[bool] = False
+        package : Optional[str] = "",installing : Optional[bool] = False
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
     # Create log file for this test stage, and add it to the stack of logfiles, write header
+    if nonnull(package):
+        logname : str = f"{package}_{stage}"
+    else:
+        packagename,_  = package_names( **kwargs )
+        logname = f"{packagename}_{stage}"
     logfile : str = \
-        open_logfile( f"{name}_{stage}",kwargs,logdir=logdir,terminal="suppress" ) # note dict
+        open_logfile( logname,kwargs,logdir=logdir,terminal="" ) # note dict
     # Create a process for the commands of this test stage
     shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {

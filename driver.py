@@ -18,8 +18,7 @@ from MrPackMod.process import process_initiate,process_terminate,process_execute
 from MrPackMod.tracing import echo_string,echo_warning
 from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
     error_abort
-from MrPackMod.testing import start_test_stage,end_test_stage,\
-    do_config_tests,report_success_failure
+from MrPackMod.testing import do_config_tests,report_success_failure
 from MrPackMod import regression
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
