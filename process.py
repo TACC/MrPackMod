@@ -76,7 +76,7 @@ def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
 ##
 ## Process routines
 ##
-def process_initiate( **kwargs: Any ) -> subprocess.Popen[str]:
+def process_initiate() -> subprocess.Popen[str]:
     return subprocess.Popen\
         (['/bin/bash', '-l'], 
          stdin=subprocess.PIPE, 
@@ -86,10 +86,13 @@ def process_initiate( **kwargs: Any ) -> subprocess.Popen[str]:
          bufsize=1)
 
 def process_terminate(
-    finished_process: subprocess.Popen[str], **kwargs: Any
-) -> str:
-    process_input = finished_process.stdin
-    process_output = finished_process.stdout
+        tofinish: subprocess.Popen[str], **kwargs: Any
+        ) -> str:
+    if tofinish.poll() is not None:
+        error_abort( "Process {tofinish.pid} to terminate has already finished",**kwargs )
+    process_input = tofinish.stdin
+    process_output = tofinish.stdout
+    trace_string( f" .. finishing process",**kwargs )
     assert process_input is not None and process_output is not None
     process_input.flush()
     process_input.close()
@@ -100,9 +103,10 @@ def process_terminate(
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
         if line != "":
-            echo_string( line,**kwargs )
+            #echo_string( line,**kwargs )
             lastline = line
-    finished_process.wait()
+    tofinish.wait()
+    trace_string( f" .. process {tofinish.pid} terminated with result=\"{lastline}\"",**kwargs )
     return lastline
 
 def process_execute( cmdline: str, **kwargs: Any ) -> str:
@@ -110,17 +114,22 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     immediate       = kwargs.get("immediate",None)
     if outside_process is None:
         process : subprocess.Popen[str] = process_initiate()
-    else: process = outside_process
-    #print( kwargs.get("terminal","no terminal") )
-    echo_string( f"Command line={cmdline}",**kwargs )
-    if re.search( r'\$\{',cmdline ):
-        echo_warning( f"commandline contains unexpanded macros",**kwargs )
-    if input := process.stdin:
+        trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
+    else:
+        trace_string( f"Execute cmdline=\"{cmdline}\" on existing process {outside_process.pid}",
+                      **kwargs )
+        process = outside_process
+    # Get stdin
+    if process.poll() is not None:
+        error_abort( f"Process {process.pid} has ended, can not execute cmdline",**kwargs )
+    elif input := process.stdin:
         process_input  : IO[str] = input
-    else: error_abort( f"Can not get process stdin",**kwargs )
-    # if output := process.stdout:
-    #     process_output : IO[str] = output
-    # else: error_abort( f"Can not get process output",**kwargs )
+    else:
+        error_abort( f"Can not get process stdin",**kwargs )
+    # Is this commandline proper?
+    if re.search( r'\$\{',cmdline ):
+        echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
+    # All set: execute!
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
@@ -128,7 +137,6 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
         return ""
     else:
         result : str = process_terminate( process,**kwargs )
-        trace_string( f" .. process result: {result}",**kwargs )
         return result
 
 def number_satisfies( loaded: str, wanted: str, **kwargs: Any ) -> Any:

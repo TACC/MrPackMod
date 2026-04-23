@@ -12,7 +12,8 @@ from typing import Any
 #
 # my own modules
 #
-from  MrPackMod import names 
+from  MrPackMod.names import package_names,package_prerequisites,module_names,family_names,\
+    package_dir_names,prefixdir_name,pathjoin
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
     nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
@@ -94,16 +95,18 @@ def test_modules( **kwargs: Any ) -> None:
         ( f"echo Using modulepath:",**kwargs )
     process_execute\
         ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
-    if installing and  nonnull( modules := names.package_prerequisites(**kwargs) ):
+    if installing and  nonnull( modules := package_prerequisites(**kwargs) ):
         modules_to_test : str = modules
+        echo_string( f"Test for prereq modules {modules_to_test}",**kwargs )
     else:
-        modules_to_test,_ = names.package_names( **kwargs )
-    test_loaded_modules( modules,**kwargs )
+        modules_to_test,_ = package_names( **kwargs )
+        echo_string( f"Test for test module {modules_to_test}",**kwargs )
+    test_loaded_modules( modules_to_test,**kwargs )
     #test_nonmodules( **kwargs )
 
 def module_help_string( **kwargs: Any ) -> str:
-    package,packageversion   = names.package_names_nonnull( **kwargs )
-    modulename,moduleversion = names.module_names( **kwargs )
+    package,packageversion   = package_names_nonnull( **kwargs )
+    modulename,moduleversion = module_names( **kwargs )
 
     about = kwargs.get( "ABOUT", f"The {package} package" )
     about += "\n"
@@ -115,7 +118,7 @@ def module_help_string( **kwargs: Any ) -> str:
         about += f"Software: {software}\n"
 
     vars = f"TACC_{modulename.upper()}_DIR"
-    _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
+    _,libdir,incdir,bindir = package_dir_names( **kwargs )
     if nonnull( libdir ):
             vars += f", TACC_{modulename.upper()}_LIB"
     if nonnull( incdir ):
@@ -145,8 +148,8 @@ The {package} modulefile defines the following variables:
 """.strip()
 
 def package_info( **kwargs: Any ) -> str:
-    package,packageversion   = names.package_names( **kwargs )
-    modulename,moduleversion = names.module_names( **kwargs )
+    package,packageversion   = package_names( **kwargs )
+    modulename,moduleversion = module_names( **kwargs )
     return \
 f"""\
 whatis( "Name: {modulename}" )
@@ -154,13 +157,13 @@ whatis( "Version: {moduleversion}" )
 """.strip()
 
 def path_settings( **kwargs: Any ) -> str:
-    package,packageversion   = names.package_names( **kwargs )
-    modulename,moduleversion = names.module_names( **kwargs )
+    package,packageversion   = package_names( **kwargs )
+    modulename,moduleversion = module_names( **kwargs )
     modulenamealt = kwargs.get("modulenamealt","").lower()
 
     paths = ""
     info  = ""
-    prefixdir,libdir,incdir,bindir = names.package_dir_names( **kwargs )
+    prefixdir,libdir,incdir,bindir = package_dir_names( **kwargs )
     for name in [ modulename, modulenamealt, ]:
         if name=="": continue
         for sub,val in [ ["VERSION",f"\"{moduleversion}\""], ["DIR","prefixdir"], ]:
@@ -223,21 +226,21 @@ def system_paths( **kwargs: Any ) -> str:
     print( f"In system_paths:\n{kwargs}" )
     package    = kwargs.get("PACKAGE")
     modulename = kwargs.get( "MODULENAME",package )
-    prefixdir  = names.prefixdir_name( **kwargs )
+    prefixdir  = prefixdir_name( **kwargs )
 
     envs = ""
-    _,libdir,incdir,bindir = names.package_dir_names( **kwargs )
+    _,libdir,incdir,bindir = package_dir_names( **kwargs )
     ## print( f"dirs: {libdir} {incdir} {bindir}" )
     libext = "lib"
     if nonnull(incdir):
-        path = names.pathjoin(prefixdir,incdir)
+        path = pathjoin(prefixdir,incdir)
         envs += f"prepend_path( \"INCLUDE\", {path} )\n"
     if nonnull(libdir):
-        path = names.pathjoin(prefixdir,libdir)
+        path = pathjoin(prefixdir,libdir)
         envs += f"prepend_path( \"LD_LIBRARY_PATH\", {path} )\n"
         libext = re.sub( f"{prefixdir}/","",libdir ).lstrip("/")
     if nonnull(bindir):
-        path = names.pathjoin(prefixdir,bindir)
+        path = pathjoin(prefixdir,bindir)
         envs += f"prepend_path( \"PATH\", {path} )\n"
     envs += other_paths( **kwargs,libext=libext )
         
@@ -273,3 +276,41 @@ f"""\
 """.strip()
     trace_string( f"Dependency settings:\n{dependency_settings}",**kwargs )
     return dependency_settings
+
+def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
+    package,packageversion =  package_names( **kwargs )
+    modules_to_load : str = package
+    if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
+    trace_string( f"Load base modules and package: <<{modules_to_load}>>",**kwargs )
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
+    modules_to_load : str = package_prerequisites( **kwargs )
+    trace_string( f"Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
+    # load the compiler since this is a fresh process
+    _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
+    modulereport = " && if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort ; fi"
+    process_execute\
+        ( f"echo Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null {modulereport}",
+          **kwargs )
+    process_execute\
+        ( f"echo Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null {modulereport}",
+          **kwargs )
+    if kwargs.get("MODE")=="mpi":
+        process_execute\
+            ( f"echo Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null {modulereport}",
+              **kwargs )
+    if nonnull( modules_to_load ):
+        process_execute( f"echo Load packages \"{modules_to_load}\"",**kwargs )
+        for mod in modules_to_load.split(" "):
+            process_execute( f"module -t load {mod} 2>/dev/null",**kwargs )
+            test_module_loaded( mod,"",**kwargs )
+        process_execute( f"{modulereport}",**kwargs )
+    else:
+        echo_warning( "not loading any modules",**kwargs )
+    process_execute\
+        ( f"echo Listing && module -t list 2>&1 | sort", **kwargs )
+

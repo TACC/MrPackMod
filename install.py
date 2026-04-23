@@ -5,6 +5,7 @@
 #
 import datetime
 import os
+import pdb
 import re
 import shutil
 from typing import Any, Optional
@@ -13,6 +14,7 @@ from typing import Any, Optional
 # my own modules
 #
 #import module_help_string,package_info,path_settings,system_paths,dependencies
+from MrPackMod.modulefile import load_compiler_and_mpi_and_prereqs
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate
@@ -20,6 +22,7 @@ from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
     nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod.tracing import echo_string, trace_string
+from MrPackMod.testing import start_test_stage,end_test_stage
 
 def export_compilers( **kwargs: Any ) -> str:
     echo_string( "Exporting compilers",**kwargs )
@@ -57,19 +60,28 @@ def export_flags( **kwargs: Any ) -> str:
 
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
-    modulefile.test_modules( **kwargs )
     #
     # setup directories
     #
     srcdir    = srcdir_name( **kwargs )
     builddir  = builddir_name( **kwargs )
     prefixdir = prefixdir_name( **kwargs )
-    #print(srcdir,builddir,prefixdir)
     try:
         shutil.rmtree(builddir)
     except FileNotFoundError: pass
     os.makedirs(builddir,exist_ok=True)
     return srcdir,builddir,prefixdir
+
+def cmake_basic_command( **kwargs : Any ) -> str:
+    cmake : str = kwargs.get( "CMAKENAME","cmake" )
+    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
+        cmake = f"{cmake} -G Ninja"
+    return f"TERM=dumb {cmake} \
+-D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+-D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
+-D CMAKE_VERBOSE_MAKEFILE=ON \
+-D CMAKE_COLOR_MAKEFILE=OFF \
+-D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
 def cmake_options( **kwargs: Any ) -> str:
     cmakeflags = "-D CMAKE_VERBOSE_MAKEFILE=ON -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
@@ -79,17 +91,18 @@ def cmake_options( **kwargs: Any ) -> str:
         cmakeflags += f" {flags}"
     return cmakeflags.lstrip(" ")
 
-def cmake_configure( **kwargs: Any ) -> None:
-    tracing = kwargs.get( "tracing" )
-    logfilename = open_logfile( "configure",kwargs ) # note dict!
-    srcdir,builddir,prefixdir = configure_prep( **kwargs )
-    #
-    # flags
-    #
-    cmakeflags = cmake_options( **kwargs )
-    cmake = kwargs.get( "CMAKENAME","cmake" )
-    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
-        cmake = f"{cmake} -G Ninja"
+def cmake_source_setting( srcdir : str,**kwargs ) -> str:
+    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
+        cmakesourcesetting : str = f"-S {srcdir}/{source} -B {builddir}"
+        settingsfile : str = f"{srcdir}/{source}/CMakeLists.txt"
+    else:
+        cmakesourcesetting = f"{srcdir}"
+        settingsfile = f"{cmakesourcesetting}/CMakeLists.txt"
+    if not os.path.exists( f"{settingsfile}" ):
+        error_abort( f"Can not find file: {settingsfile}",**kwargs )
+    return cmakesourcesetting
+
+def cmake_build_settings( **kwargs ) -> str:
     if kwargs.get("CMAKEBUILDDEBUG"):
         defaultbuild = "Debug"
     else: defaultbuild = "RelWithDebInfo"
@@ -97,41 +110,36 @@ def cmake_configure( **kwargs: Any ) -> None:
     if static := kwargs.get("buildstaticlibs"):
         buildsharedlibs = "OFF"
     else: buildsharedlibs = "ON"
-    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
-        cmakesourcesetting = f"-S {srcdir}/{source} -B {builddir}"
-        settingsfile = f"{srcdir}/{source}/CMakeLists.txt"
-    else:
-        cmakesourcesetting = f"{srcdir}"
-        settingsfile = f"{cmakesourcesetting}/CMakeLists.txt"
-    if not os.path.exists( f"{settingsfile}" ):
-        error_abort( f"Can not find file: {settingsfile}",**kwargs )
+    return f"-D BUILD_SHARED_LIBS={buildsharedlibs} -D CMAKE_BUILD_TYPE={cmakebuildtype}"
+
+def cmake_configure( **kwargs: Any ) -> None:
+    logdir     : str = kwargs.get("logdir",".")
+    # create directories for source, build, install
+    srcdir,builddir,prefixdir = configure_prep( **kwargs )
+    output = start_test_stage( "package","configure",logdir,kwargs,chdir=builddir,installing=True)
+    # load prereqs and test their installation
+    load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
+
+    cmake = cmake_basic_command( **kwargs )
+    cmakeflags = cmake_options( **kwargs )
+    buildsettings = cmake_build_settings( **kwargs )
+    listslocation = cmake_source_setting( srcdir,**kwargs )
     
-    #
-    # execute cmake
-    #
-    echo_string( f"Cmake configuring in {builddir}",**kwargs )
-    os.chdir( builddir )
-    shell = process_initiate( **kwargs )
-    compilers_export = export_compilers( **kwargs )
+    echo_string( f"Cmake configuring in {builddir}",**kwargs,**output )
+    #process_execute( f"cd {builddir}",**kwargs,**output )
     if exports := nonzero_keyword( "exports",**kwargs ):
         export_cmdline : str = " && ".join(exports)
-        process_execute( export_cmdline,**kwargs,process=shell, )
-    process_execute( compilers_export,**kwargs,process=shell, )
-    # --no-warn-unused-cli ?
-    cmdline = f"TERM=dumb {cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
--D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
--D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
--D CMAKE_VERBOSE_MAKEFILE=ON \
--D CMAKE_COLOR_MAKEFILE=OFF \
--D CMAKE_TERM_SUPPORTS_ANSI=OFF \
--D BUILD_SHARED_LIBS={buildsharedlibs} \
--D CMAKE_BUILD_TYPE={cmakebuildtype} \
+        process_execute( export_cmdline,**kwargs,**output, )
+    compilers_export = export_compilers( **kwargs )
+    echo_string( f"Using compilers: {compilers_export}",**kwargs,**output )
+    process_execute( compilers_export,**kwargs,**output )
+    cmdline = f"{cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
+{buildsettings} \
 {cmakeflags} \
-{cmakesourcesetting} \
+{listslocation} \
 "
-    process_execute( cmdline,**kwargs,process=shell )
-    process_terminate( shell,**kwargs )
-    close_logfile( logfilename,kwargs )
+    process_execute( cmdline,**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
     process_execute( f"""
 if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then
     echo && echo "Warning: cmake detected unused variables" && echo && echo

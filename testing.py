@@ -4,48 +4,14 @@ import subprocess
 from typing import Any,Optional,TypedDict
 
 from MrPackMod.error   import nonnull,nonzero_keyword
-from MrPackMod import modulefile
+from MrPackMod.modulefile import test_modules,\
+    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package
 from MrPackMod.names   import family_names,package_names,package_prerequisites
 from MrPackMod.process import process_execute, process_initiate, process_terminate
 from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
 
-def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
-    package,packageversion =  package_names( **kwargs )
-    modules_to_load : str = package
-    if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
-    trace_string( f"Load base modules and package: <<{modules_to_load}>>",**kwargs )
-    load_compiler_and_mpi_and( modules_to_load,**kwargs )
-
-def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
-    modules_to_load : str = package_prerequisites( **kwargs )
-    trace_string( f"Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
-    load_compiler_and_mpi_and( modules_to_load,**kwargs )
-
-def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
-    # load the compiler since this is a fresh process
-    _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulereport = " && if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort ; fi"
-    process_execute\
-        ( f"echo Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null {modulereport}",
-          **kwargs )
-    process_execute\
-        ( f"echo Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null {modulereport}",
-          **kwargs )
-    if kwargs.get("MODE")=="mpi":
-        process_execute\
-            ( f"echo Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null {modulereport}",
-              **kwargs )
-    if nonnull( modules_to_load ):
-        process_execute\
-            ( f"echo Load packages \"{modules_to_load}\" && module -t load {modules_to_load} 2>/dev/null {modulereport}",
-              **kwargs )
-    else:
-        echo_warning( "not loading any modules",**kwargs )
-    process_execute\
-        ( f"echo Listing && module -t list 2>&1 | sort", **kwargs )
-
-def do_config_tests( installing,**kwargs ) -> tuple[ list[str],list[str] ]:
+def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
     logdir     : str = kwargs.get("logdir",".")
     # open a log file and load modules; pkg or prereqs depending on installing
     output  = start_test_stage( "global","moduleconfig",logdir,kwargs,installing=installing )
@@ -61,7 +27,7 @@ if [ ! -d "{srcdir}" ] ; then
 fi 
         """,**kwargs,**output )
     # test depends on whether we are installing
-    modulefile.test_modules( **kwargs,**output,installing=installing )
+    test_modules( **kwargs,**output,installing=installing )
     success,failure = end_test_stage( success,failure,kwargs,output )
     return success,failure
 
@@ -86,19 +52,16 @@ def start_test_stage(
     logfile : str = \
         open_logfile( f"{name}_{stage}",kwargs,logdir=logdir,terminal="suppress" ) # note dict
     # Create a process for the commands of this test stage
-    shell  : subprocess.Popen[str] = process_initiate( **kwargs )
+    shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
         "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell,
     }
+    trace_string( f"Created process {shell.pid}",**kwargs )
     if title :
         process_execute( f"echo Test title: {title}",**kwargs,**output )
-    trace_string( f"see logfile: {logfile}",**kwargs,**output )
+    echo_string( f"see logfile: {logfile}",**kwargs,**output )
     if chdir :
         process_execute( f"cd {chdir}",**kwargs,**output )
-    # this depends on `installing' to load pkg or prereqs
-    # process_execute\
-    #     ( f"function modulelist () { module -t list 2>&1 | sort }",
-    #       **kwargs,**output )
     if installing:
         load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
     else:
@@ -108,7 +71,8 @@ def start_test_stage(
 def end_test_stage(
         success: list[str], failure: list[str], kwargs: dict[str, Any], output: OutputDict,
         ) -> tuple[list[str], list[str]]:
-    process_terminate( output["process"],**kwargs,**output )
+    process = output["process"]
+    process_terminate( process,**kwargs,**output )
     close_logfile( output["logfile"],kwargs )
     success,failure = success_failure_in_logfile\
         ( output["logfile"],success=success,failure=failure,**kwargs )
