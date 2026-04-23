@@ -255,7 +255,7 @@ def install_settings(
 def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
     mods : list[str] = \
         [ m for m,_ in
-          modulefile.loaded_modules( **config_dict,terminal="suppress" ) 
+          modulefile.loaded_modules( **config_dict, ) 
           + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:

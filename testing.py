@@ -59,7 +59,7 @@ def start_test_stage(
     # Create a process for the commands of this test stage
     shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
-        "logfile":logfile, "logdir":logdir, "terminal":"suppress", "process":shell,
+        "logfile":logfile, "logdir":logdir, "terminal":"", "process":shell,
     }
     trace_string( f"Created process {shell.pid}",**kwargs )
     if title :

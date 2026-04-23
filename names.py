@@ -12,10 +12,10 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
+from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
-    zero_keyword,nonzero_keyword,abort_on_zero_keyword,\
-    error_abort,requirenonzero,nonnull
+    abort_on_zero_keyword,error_abort
 
 ####
 #### General names
@@ -73,7 +73,6 @@ def create_homedir( **kwargs: Any ) -> str:
     root     = kwargs.get( "packageroot",None )
     package  = kwargs.get( "package","nullpackage" )
     homedir  = kwargs.get( "homedir",None )
-    terminal = kwargs.get( "terminal",None )
     package,_ = package_names( **kwargs )
     if root:
         trace_string( f"homedir value based on root: {root}",**kwargs )

@@ -1,5 +1,7 @@
 from typing import Any, IO, NoReturn
 
+from MrPackMod.basics  import nonzero_keyword
+
 ##
 ## Tracing
 ##
@@ -21,7 +23,7 @@ def log_string( string : str,**kwargs : Any ) -> None:
 def terminal_string( string : str,**kwargs ) -> None:
     # echo to stdout if no terminal
     # echo to terminal is specified unless suppressed
-    if terminal := kwargs.get( "terminal" ):
+    if terminal := nonzero_keyword( "terminal",**kwargs ):
         if terminal != "suppress": print( string,file=terminal )
     else:
         print( f"{string}" )
