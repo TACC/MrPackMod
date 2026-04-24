@@ -50,7 +50,10 @@ fi
         """,**kwargs )
 
 def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
-    if isnull( loadedversion := os.getenv( "TACC_"+mod.upper()+"_VERSION","" ) ):
+    loadedversion :str = os.getenv( "TACC_"+mod.upper()+"_VERSION","" )
+    if not loadedversion:
+        loadedversion = os.getenv( "TACC_"+mod.upper()+"_VER","" )
+    if not loadedversion:
         trace_string( " .. module does not declare VERSION parameter",**kwargs )
         return True
     else:
@@ -266,7 +269,11 @@ def dependencies( **kwargs: Any ) -> str:
         if tracing:
             echo_string( f"depends on current versions of: {curreq}" )
         for cur in curreq.split(" "):
-            version = abort_on_zero_env( f"TACC_{cur.upper()}_VERSION" )
+            version = os.getenv(f"TACC_{cur.upper()}_VERSION" )
+            if not version:
+                version = os.getenv(f"TACC_{cur.upper()}_VER" )
+            if not version:
+                error_abort( f"Need VERSION or VER macro {cur.upper()}",**kwargs )
             depends += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         if tracing:
