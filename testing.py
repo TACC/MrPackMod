@@ -44,11 +44,12 @@ class OutputDict(TypedDict):
 ##
 def start_test_stage(
         stage: str, logdir: str, kwargs: dict[str, Any],
-        chdir      : Optional[str] = None,
-        title      : Optional[str] = None,
-        package    : Optional[str] = "",
-        installing : Optional[bool] = False,
+        chdir       : Optional[str] = None,
+        title       : Optional[str] = None,
+        package     : Optional[str] = "",
+        installing  : Optional[bool] = False,
         terminal    : Optional[str] = "",
+        skipmodules : Optional[bool] = False,
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
@@ -70,12 +71,14 @@ def start_test_stage(
     if title :
         process_execute( f"echo Test title: {title}",**kwargs,**output )
     echo_string( f"see logfile: {logfile}",**kwargs,**output )
-    if chdir :
-        process_execute( f"cd {chdir}",**kwargs,**output )
-    if installing:
-        load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
-    else:
-        load_compiler_and_mpi_and_package( **kwargs,**output, )
+    if not skipmodules:
+        # we skip modules in `config.read_config'
+        if chdir :
+            process_execute( f"cd {chdir}",**kwargs,**output )
+        if installing:
+            load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
+        else:
+            load_compiler_and_mpi_and_package( **kwargs,**output, )
     return output
 
 def end_test_stage(

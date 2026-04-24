@@ -66,17 +66,18 @@ def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     srcdir    = srcdir_name( **kwargs )
     builddir  = builddir_name( **kwargs )
     prefixdir = prefixdir_name( **kwargs )
-    try:
-        shutil.rmtree(builddir)
-    except FileNotFoundError: pass
-    os.makedirs(builddir,exist_ok=True)
+    if nonzero_keyword( "scratch",**kwargs ):
+        try:
+            shutil.rmtree(builddir)
+        except FileNotFoundError: pass
+        os.makedirs(builddir,exist_ok=True)
     return srcdir,builddir,prefixdir
 
 def cmake_basic_command( **kwargs : Any ) -> str:
     cmake : str = kwargs.get( "CMAKENAME","cmake" )
     if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
         cmake = f"{cmake} -G Ninja"
-    return f"TERM=dumb {cmake} \
+    return f"TERM=dumb {cmake} -Wno-dev \
 -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
 -D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
 -D CMAKE_VERBOSE_MAKEFILE=ON \
@@ -113,10 +114,14 @@ def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
     return cmakesourcesetting
 
 def cmake_configure( **kwargs: Any ) -> None:
-    logdir     : str = kwargs.get("logdir",".")
+
     # create directories for source, build, install
-    srcdir,builddir,prefixdir = configure_prep( **kwargs )
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+
+    # create process and start logging
+    logdir : str = kwargs.get("logdir",".")
     output = start_test_stage( "configure",logdir,kwargs,chdir=builddir,installing=True)
+
     # load prereqs and test their installation
     load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
 
@@ -148,38 +153,37 @@ fi
     """,**kwargs, )
 
 def cmake_build( **kwargs: Any ) -> None:
-    logfilename = open_logfile( "install",kwargs ) # note dict!
-    #
+    if nonzero_keyword("noinstall",**kwargs):
+        return
+
     # setup directories
-    #
-    srcdir    = srcdir_name( **kwargs )
-    builddir  = builddir_name( **kwargs )
-    prefixdir = prefixdir_name( **kwargs )
-    #
+    srcdir,builddir,prefixdir = configure_prep( **kwargs )
+
+    # create process and start logging
+    logdir : str = kwargs.get("logdir",".")
+    output = start_test_stage( "configure",logdir,kwargs,chdir=builddir,installing=True)
+
+    # load prereqs and test their installation
+    load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
+
     # flags and options
-    #
     makebuildtarget = kwargs.get("makebuildtarget","")
     jcount          = kwargs.get("jcount","6")
-    #
+
     # execute make & make install
     make = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
-    if nonzero_keyword("noinstall"):
-        return
-    echo_string( f"Making in builddir: {builddir}",**kwargs )
-    if not os.path.isdir(builddir):
-        raise Exception( f"Invalid builddir: {builddir}",**kwargs )
-    os.chdir( builddir )
+    echo_string( f"Making in builddir: {builddir}",**kwargs,**output )
     cmdline = f"{make} {makebuildtarget}"
-    process_execute( cmdline,**kwargs )
+    process_execute( cmdline,**kwargs,**output )
     if extra_targets := nonzero_keyword( "extrabuildtargets" ):
         cmdline = f"{make} {extra_targets}"
-        process_execute( cmdline )
+        process_execute( cmdline,**kwargs,**output )
     cmdline = f"{make} install"
-    process_execute( cmdline,**kwargs )
+    process_execute( cmdline,**kwargs,**output )
     if extra_targets := nonzero_keyword( "extrainstalltargets" ):
         cmdline = f"{make} {extra_targets}"
-        process_execute( cmdline )
-    close_logfile( logfilename,kwargs )
+        process_execute( cmdline,**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
 
 def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!

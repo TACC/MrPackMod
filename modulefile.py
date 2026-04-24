@@ -66,8 +66,9 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
 # are the required modules loaded?
 def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
     for m in modules.split(" "):
-        if not nonnull(m): continue
+        if isnull(m): continue
         mod,ver = mod_ver(m)
+        if isnull(mod): continue
         if mod in non_packages:
             trace_string( f"Skip test for non-package: {mod}",**kwargs )
             continue

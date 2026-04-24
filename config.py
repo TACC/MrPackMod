@@ -8,10 +8,11 @@ from typing import Any, Tuple
 #
 # my modules
 #
-import MrPackMod.modulefile as modulefile
+from MrPackMod.modulefile import loaded_modules
+from MrPackMod.error   import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
 from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
-from MrPackMod.error   import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
+from MrPackMod.testing import start_test_stage,end_test_stage
 
 additive_keys: list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
 list_keys: list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
@@ -255,7 +256,7 @@ def install_settings(
 def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
     mods : list[str] = \
         [ m for m,_ in
-          modulefile.loaded_modules( **config_dict, ) 
+          loaded_modules( **config_dict, ) 
           + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
     for module in mods:
@@ -308,13 +309,7 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
         return expr
 
 def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
-    tracing : bool = kwargs.get("tracing",False)
-    nowarn  : bool = kwargs.get("nowarn",False)
-    rc_name = ".mrpackmodrc"
-    rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
-                                f"{os.path.expanduser('~')}/{rc_name}" 
-                               ] if os.path.exists(rc) ]
-    #print( f"found rc files: {rc_files}" )
+    tracing : bool = False
     configuration_dict: dict[str, Any] = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
@@ -324,18 +319,30 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }
+
+    logdir : str = kwargs.get("logdir",".")
+    # create test process, open logfile;
+    # note that we are not interested in modules here
+    output = start_test_stage( "configure",logdir,configuration_dict,skipmodules=True,)
+
+    rc_name = ".mrpackmodrc"
+    rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
+                                f"{os.path.expanduser('~')}/{rc_name}" 
+                               ] if os.path.exists(rc) ]
     system_settings      ( configuration_dict,rc_files,tracing=tracing )
     logname : str = open_logfile( "setup",configuration_dict )
-    trace_string( f"system settings:\n{configuration_dict}",**configuration_dict )
+    trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
     # install paths
-    install_settings     ( configuration_dict,rc_files,tracing=tracing )
+    install_settings     ( configuration_dict,rc_files,**output )
     # variables from installed modules
+    nowarn  : bool = kwargs.get("nowarn",False)
     environment_settings ( configuration_dict,nowarn=nowarn )
     config_from_rc_files ( configuration_dict )
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict )
     trace_string( f"Configuration dict:\n{configuration_dict}",
-                  **configuration_dict )
-    close_logfile( logname,configuration_dict )
+                  **configuration_dict,**output )
+    # close log file and test success/failure
+    success,failure = end_test_stage( [],[],configuration_dict,output )
     return configuration_dict
