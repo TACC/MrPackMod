@@ -40,6 +40,6 @@ def abort_on_zero_keyword( keyword: str, **kwargs: Any ) -> Any:
     else: return val
 
 def error_abort( string: str, **kwargs: Any ) -> NoReturn:
-    echo_string( f"\nERROR {string}\n\ntraceback:" )
+    echo_string( f"\nERROR {string}\n\ntraceback:",**kwargs )
     traceback.print_stack()
     sys.exit(1)

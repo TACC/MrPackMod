@@ -12,9 +12,8 @@ from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
 
 def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
-    logdir     : str = kwargs.get("logdir",".")
     # open a log file and load modules; pkg or prereqs depending on installing
-    output  = start_test_stage( "moduleconfig",logdir,kwargs,
+    output  = start_test_stage( "moduleconfig",kwargs,
                                 installing=installing,terminal="suppress" )
     success : list[str] = []
     failure : list[str] = []
@@ -43,7 +42,8 @@ class OutputDict(TypedDict):
 ## open logfile, start process, load modules
 ##
 def start_test_stage(
-        stage: str, logdir: str, kwargs: dict[str, Any],
+        stage: str,
+        kwargs: dict[str, Any],
         chdir       : Optional[str] = None,
         title       : Optional[str] = None,
         package     : Optional[str] = "",
@@ -53,6 +53,7 @@ def start_test_stage(
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
+    logdir : str = kwargs.get("logdir",".")
     # Create log file for this test stage, and add it to the stack of logfiles, write header
     if nonnull(package):
         logname : str = f"{package}_{stage}"
@@ -64,12 +65,15 @@ def start_test_stage(
     # Create a process for the commands of this test stage
     shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
-        "logfile":logfile, "logdir":logdir, "process":shell,
+        "logfile":logfile, # full path, so we don't need logdir separately
+        "process":shell,
         "terminal":terminal, # option to suppress stdout, such as in do_config_tests
     }
     trace_string( f"Created process {shell.pid}",**kwargs )
     if title :
-        process_execute( f"echo Test title: {title}",**kwargs,**output )
+        process_execute\
+        ( f"echo ================ && echo Test title: {title} && echo ================",
+          **kwargs,**output )
     echo_string( f"see logfile: {logfile}",**kwargs,**output )
     if not skipmodules:
         # we skip modules in `config.read_config'

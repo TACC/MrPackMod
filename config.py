@@ -320,10 +320,9 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
         'scriptdir':os.getcwd(),
     }
 
-    logdir : str = kwargs.get("logdir",".")
     # create test process, open logfile;
     # note that we are not interested in modules here
-    output = start_test_stage( "configure",logdir,configuration_dict,skipmodules=True,)
+    output = start_test_stage( "configure",configuration_dict,skipmodules=True,)
 
     rc_name = ".mrpackmodrc"
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",

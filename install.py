@@ -119,8 +119,7 @@ def cmake_configure( **kwargs: Any ) -> None:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
 
     # create process and start logging
-    logdir : str = kwargs.get("logdir",".")
-    output = start_test_stage( "configure",logdir,kwargs,chdir=builddir,installing=True)
+    output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
 
     # load prereqs and test their installation
     load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
@@ -160,8 +159,7 @@ def cmake_build( **kwargs: Any ) -> None:
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
 
     # create process and start logging
-    logdir : str = kwargs.get("logdir",".")
-    output = start_test_stage( "configure",logdir,kwargs,chdir=builddir,installing=True)
+    output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
 
     # load prereqs and test their installation
     load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
@@ -318,19 +316,20 @@ def public_installation( **kwargs: Any ) -> None:
     echo_string( f"Chmod rx prefixdir={prefixdir}",**kwargs )
     recursive_rx(prefixdir)
 
-def write_module_file( **kwargs: Any ) -> None:
+def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     from  MrPackMod import  modulefile
-    tracing = kwargs.get("tracing")
-    logfilename = open_logfile( "module",kwargs ) # note dict!
+    # we don't actually use the process that's created here;
+    # module versions are found in a separate process_execute 
+    output = start_test_stage( "module",kwargs )
 
     #
     # module contents
     #
-    help_string   = modulefile.module_help_string ( **kwargs )
-    pkg_info      = modulefile.package_info       ( **kwargs )
-    path_settings = modulefile.path_settings      ( **kwargs )
-    system_paths  = modulefile.system_paths       ( **kwargs )
-    if nonnull( depends := modulefile.dependencies( **kwargs ) ):
+    help_string   = modulefile.module_help_string ( **kwargs,**output )
+    pkg_info      = modulefile.package_info       ( **kwargs,**output )
+    path_settings = modulefile.path_settings      ( **kwargs,**output )
+    system_paths  = modulefile.system_paths       ( **kwargs,**output )
+    if nonnull( depends := modulefile.dependency_clauses( **kwargs,**output ) ):
         depends = f"\n{depends}"
 
     #
@@ -356,7 +355,8 @@ def write_module_file( **kwargs: Any ) -> None:
         if tracing:
             echo_string( f"Module contents:\n{modulecontents}",**kwargs )
         lua_out.write( modulecontents )
-    close_logfile( logfilename,kwargs )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return success,failure
 
 def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path_and_name( **kwargs )

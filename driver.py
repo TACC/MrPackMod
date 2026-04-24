@@ -125,6 +125,8 @@ utility_actions : {utility_actions}
             download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
+            success : list[str] = []
+            failure : list[str] = []
             do_config_tests( installing=True,**configuration )
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
@@ -139,7 +141,8 @@ utility_actions : {utility_actions}
                     install.autotools_build( **configuration )
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
             if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
-                install.write_module_file( **configuration )
+                success,failure = install.write_module_file( **configuration )
+                report_success_failure( success,failure )
             if action in [ "install", "public", ]:
                 install.public_installation( **configuration )
                 if zero_keyword( "NOMODULE",**kwargs ):
@@ -150,7 +153,8 @@ utility_actions : {utility_actions}
             screen_report_action(action,**configuration)
             do_config_tests( installing=False,**configuration,no_home=True )
             regression.do_tests\
-                ( match=arguments.match,filter=arguments.filter,**configuration )
+                ( match=arguments.match,filter=arguments.filter,logdir="./logfiles",
+                  **configuration )
         else:
             if action in build_actions+context_actions+package_actions+utility_actions:
                 error_abort( f"Action promised in help but not implemented: {action}", **configuration )

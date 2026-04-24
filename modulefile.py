@@ -29,12 +29,18 @@ def loaded_modules( **kwargs: Any ) -> list[list[str]]:
 non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
 def mod_ver(m: str) -> tuple[str, str]:
     mod,ver = f"{m}/".split('/',maxsplit=1)
+    if re.search( r'/',mod ):
+        error_abort( f"module <<{m}={mod}/{ver}>> should have been split as mod/ver",**kwargs )
     mod = mod.lower(); ver = ver.strip("/")
     return mod,ver
 
-def test_module_loaded( mod: str, ver: str, **kwargs: Any ) -> None:
+def test_module_loaded( modver : str, **kwargs: Any ) -> None:
     process_execute\
-        ( f"echo Test presence of module={mod} version={ver}",**kwargs )
+        ( f"echo Test presence of module={modver}",**kwargs )
+    if hasver := re.search( r'(.*)/(.*)',modver):
+        mod,ver = hasver.groups()
+    else:
+        mod = modver; ver = ""
     modvar : str = f"TACC_{mod.upper()}_DIR"
     process_execute\
         ( f"""
@@ -44,7 +50,7 @@ else
   if [ ! -d \"${modvar}\" ] ; then
     echo FAILURE: directory {modvar} not found
   else
-    echo SUCCESS: package {mod} is at {modvar}
+    echo SUCCESS: package {mod}/{ver} is at {modvar}
   fi
 fi
         """,**kwargs )
@@ -68,16 +74,14 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
 
 # are the required modules loaded?
 def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
-    for m in modules.split(" "):
-        if isnull(m): continue
-        mod,ver = mod_ver(m)
+    for mod in modules.split(" "):
         if isnull(mod): continue
         if mod in non_packages:
             trace_string( f"Skip test for non-package: {mod}",**kwargs )
             continue
-        test_module_loaded( mod,ver,**kwargs )
-        if nonnull(ver):
-            test_module_version( mod,ver,**kwargs )
+        test_module_loaded( mod,**kwargs )
+        # if nonnull(ver):
+        #     test_module_version( mod,ver,**kwargs )
 
 # are no nonmodules loaded?
 def test_nonmodules( **kwargs: Any ) -> bool:
@@ -85,10 +89,8 @@ def test_nonmodules( **kwargs: Any ) -> bool:
         trace_string( "No nonmodules",**kwargs )
         return True
     success = True
-    for m in nonmodules.split(" "):
-        if not nonnull(m):continue
-        mod,ver = mod_ver(m)
-        if loaded := test_module_loaded( mod,ver,**kwargs ):
+    for mod in nonmodules.split(" "):
+        if loaded := test_module_loaded( mod,**kwargs ):
             echo_string( f"Please unload module: {mod}",**kwargs )
             success = False
         else: trace_string( " .. module correctly not loaded",**kwargs )
@@ -248,7 +250,6 @@ def system_paths( **kwargs: Any ) -> str:
         path = pathjoin(prefixdir,bindir)
         envs += f"prepend_path( \"PATH\", {path} )\n"
     envs += other_paths( **kwargs,libext=libext )
-        
 
     system_path_settings = \
 f"""\
@@ -257,14 +258,14 @@ f"""\
     trace_string( f"System paths:\n{system_path_settings}",**kwargs )
     return system_path_settings
 
-def dependencies( **kwargs: Any ) -> str:
+def dependency_clauses( **kwargs: Any ) -> str:
     tracing = kwargs.get( "tracing" )
-    depends = ""
+    clauses = ""
     if prereq := nonzero_keyword( "DEPENDSON",**kwargs ):
         if tracing:
             echo_string( f"depends on: {prereq}" )
         for pre in prereq.split(" "):
-            depends += f"depends_on( \"{pre}\" )\n"
+            clauses += f"depends_on( \"{pre}\" )\n"
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         if tracing:
             echo_string( f"depends on current versions of: {curreq}" )
@@ -274,52 +275,52 @@ def dependencies( **kwargs: Any ) -> str:
                 version = os.getenv(f"TACC_{cur.upper()}_VER" )
             if not version:
                 error_abort( f"Need VERSION or VER macro {cur.upper()}",**kwargs )
-            depends += f"depends_on( \"{cur}/{version}\" )\n"
+            clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         if tracing:
             echo_string( f"belongs to family: {family}" )
-        depends += f"family( \"{family}\" )\n"
-    dependency_settings = \
-f"""\
-{depends}
-""".strip()
-    trace_string( f"Dependency settings:\n{dependency_settings}",**kwargs )
-    return dependency_settings
+        clauses += f"family( \"{family}\" )\n"
+#     clauses = \
+# f"""\
+# {clauses}
+# """.strip()
+    trace_string( f"Dependency settings:\n{clauses}",**kwargs )
+    return clauses
 
 def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
     package,packageversion =  package_names( **kwargs )
     modules_to_load : str = package
     if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
-    trace_string( f"Load base modules and package: <<{modules_to_load}>>",**kwargs )
+    trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
     load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
 def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
     modules_to_load : str = package_prerequisites( **kwargs )
-    trace_string( f"Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
+    trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
     load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulereport = "if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort ; fi"
+    modulereport = "if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort | tr '\n' ' ' && echo ; fi"
     process_execute\
-        ( f"echo Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null && {modulereport}",
+        ( f"echo .... Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null && {modulereport}",
           **kwargs )
     process_execute\
-        ( f"echo Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null && {modulereport}",
+        ( f"echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null && {modulereport}",
           **kwargs )
     if kwargs.get("MODE")=="mpi":
         process_execute\
-            ( f"echo Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null && {modulereport}",
+            ( f"echo .... Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null && {modulereport}",
               **kwargs )
     if nonnull( modules_to_load ):
-        process_execute( f"echo Load packages \"{modules_to_load}\"",**kwargs )
+        process_execute( f"echo .... Load packages \"{modules_to_load}\"",**kwargs )
         for mod in modules_to_load.split(" "):
             process_execute( f"module -t load {mod} 2>/dev/null",**kwargs )
-            test_module_loaded( mod,"",**kwargs )
+            test_module_loaded( mod,**kwargs )
         process_execute( f"{modulereport}",**kwargs )
     else:
         echo_warning( "not loading any modules",**kwargs )
     process_execute\
-        ( f"echo Listing && module -t list 2>&1 | sort", **kwargs )
+        ( f"echo Final listing && {modulereport}", **kwargs )
 

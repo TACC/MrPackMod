@@ -244,9 +244,10 @@ def do_existence_test(
     except KeyError:
         error_abort( "Did not find program/grep/ldd/dirtype/do_run",**kwargs )
 
-    logdir : str = ensure_dir( "logfiles",**kwargs )
-    builddir : str = create_dir( "build",**kwargs )
-    success : list[str] = []; failure : list[str] = []
+    logdir   : str       = ensure_dir( os.getcwd()+"/"+kwargs.get("logdir","logfiles") )
+    builddir : str       = create_dir( "build",**kwargs )
+    success  : list[str] = []
+    failure  : list[str] = []
 
     #
     # existence
@@ -255,7 +256,7 @@ def do_existence_test(
     # program can contain a path
     program_clean = re.sub( '/','',program )
     output : OutputDict = \
-        start_test_stage( "exists",logdir,
+        start_test_stage( "exists",
                           kwargs, # note dict
                           title=title,chdir=builddir,
                           package=program_clean ) 
@@ -274,7 +275,7 @@ def do_existence_test(
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
         output = \
-            start_test_stage( "exec",logdir,kwargs, # dict!
+            start_test_stage( "exec",kwargs, # dict!
                               package=program_clean, title=title,chdir=builddir, ) 
         if ldd:
             # are library dependencies satisfied
@@ -312,14 +313,14 @@ def do_cmake_test(
     # Cmake & compile
     #
     output : OutputDict = \
-        start_test_stage( "compile",logdir,kwargs,chdir=builddir,package=name, ) # note dict
+        start_test_stage( "compile",kwargs,logdir=logdir,chdir=builddir,package=name, ) # note dict
     execute_cmake_script( name,ext,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
     #
     # Check library dependencies satisfied & run
     #
-    output = start_test_stage( "exec",logdir,kwargs,chdir=builddir,package=name, ) # note dict
+    output = start_test_stage( "exec",kwargs,logdir=logdir,chdir=builddir,package=name, )
     execute_ldd_script( name,**kwargs,**output )
     if nonnull( run_config["do_run"] ):
         execute_run_script( name,run_config,**kwargs,**output )
@@ -351,7 +352,7 @@ def do_make_test(
     # compilation
     #
     output : OutputDict = \
-        start_test_stage( "compile",logdir,kwargs,chdir=builddir,package=name, ) # note dict
+        start_test_stage( "compile",kwargs,logdir=logdir,chdir=builddir,package=name, ) # note dict
     # set up for make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -368,7 +369,7 @@ def do_make_test(
     #
     # execution
     #
-    output = start_test_stage( "exec",logdir,kwargs,chdir=builddir,package=name, ) # note dict
+    output = start_test_stage( "exec",kwargs,logdir=logdir,chdir=builddir,package=name, ) # note dict
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!
