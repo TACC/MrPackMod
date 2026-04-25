@@ -30,10 +30,10 @@ def export_compilers( **kwargs: Any ) -> str:
     cmdline = ""; cont = ""
     for key,val in compilers.items():
         echo_string( f" .. Setting compiler: {key}={val}",**kwargs )
-        which = process_execute( f"which {val}",**kwargs,terminal="suppress" )
+        which = process_execute( f"which {val}",**kwargs, )
         echo_string( f"    where {val}={which}",**kwargs )
         if ( mpi := kwargs.get("MODE") ) == "mpi":
-            info = process_execute( f"{which} -show",**kwargs,terminal="suppress" )
+            info = process_execute( f"{which} -show",**kwargs )
             echo_string( f"    which is:\n    {info}",**kwargs )
         cmdline += f"{cont}export {key}={val}"
         cont = " && "
