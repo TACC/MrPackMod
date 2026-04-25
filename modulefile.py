@@ -299,6 +299,8 @@ def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
     trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
     load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
+# this routine is called through the above two wrappers
+# from `start_test_stage'
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
     # load the compiler since this is a fresh process
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )

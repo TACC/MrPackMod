@@ -322,7 +322,8 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
 
     # create test process, open logfile;
     # note that we are not interested in modules here
-    output = start_test_stage( "configure",configuration_dict,skipmodules=True,)
+    output = start_test_stage\
+        ( "configure",configuration_dict,skipmodules=True,linedisplay=trace_string,)
 
     rc_name = ".mrpackmodrc"
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",

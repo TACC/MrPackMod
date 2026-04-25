@@ -36,6 +36,7 @@ class OutputDict(TypedDict):
     logdir : str
     terminal : Optional[str]
     process : Any
+    linedisplay : Any
 
 ##
 ## Start test stage:
@@ -50,6 +51,7 @@ def start_test_stage(
         installing  : Optional[bool] = False,
         terminal    : Optional[str] = "",
         skipmodules : Optional[bool] = False,
+        linedisplay : Optional[Any]  = echo_string,
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
@@ -68,13 +70,14 @@ def start_test_stage(
         "logfile":logfile, # full path, so we don't need logdir separately
         "process":shell,
         "terminal":terminal, # option to suppress stdout, such as in do_config_tests
+        "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
     }
     trace_string( f"Created process {shell.pid}",**kwargs )
     if title :
         process_execute\
         ( f"echo ================ && echo Test title: {title} && echo ================",
           **kwargs,**output )
-    echo_string( f"see logfile: {logfile}",**kwargs,**output )
+    linedisplay( f"see logfile: {logfile}",**kwargs,**output )
     if not skipmodules:
         # we skip modules in `config.read_config'
         if chdir :
@@ -86,10 +89,12 @@ def start_test_stage(
     return output
 
 def end_test_stage(
-        success: list[str], failure: list[str], kwargs: dict[str, Any], output: OutputDict,
+        success : list[str], failure : list[str],
+        kwargs : dict[str, Any], output : OutputDict,
         ) -> tuple[list[str], list[str]]:
     process = output["process"]
     process_terminate( process,**kwargs,**output )
+    # close log file and pop from the list of active logs
     close_logfile( output["logfile"],kwargs )
     success,failure = success_failure_in_logfile\
         ( output["logfile"],success=success,failure=failure,**kwargs )

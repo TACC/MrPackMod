@@ -89,8 +89,9 @@ def process_terminate(
         ) -> str:
     if tofinish.poll() is not None:
         error_abort( "Process {tofinish.pid} to terminate has already finished",**kwargs )
-    process_input = tofinish.stdin
+    process_input  = tofinish.stdin
     process_output = tofinish.stdout
+    line_display   = kwargs.get("linedisplay",echo_string)
     trace_string( f" .. finishing process",**kwargs )
     assert process_input is not None and process_output is not None
     process_input.flush()
@@ -102,7 +103,7 @@ def process_terminate(
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
         if line != "":
-            echo_string( line,**kwargs )
+            line_display( line,**kwargs )
             lastline = line
     tofinish.wait()
     trace_string( f" .. process {tofinish.pid} terminated with result=\"{lastline}\"",**kwargs )
@@ -111,6 +112,8 @@ def process_terminate(
 def process_execute( cmdline: str, **kwargs: Any ) -> str:
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
+
+    # create a new process, if this call is not in context of another process
     if outside_process is None:
         process : subprocess.Popen[str] = process_initiate()
         trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
@@ -118,6 +121,7 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
         trace_string( f"Execute cmdline=\"{cmdline}\" on existing process {outside_process.pid}",
                       **kwargs )
         process = outside_process
+
     # Get stdin
     if process.poll() is not None:
         error_abort( f"Process {process.pid} has ended, can not execute cmdline",**kwargs )
@@ -125,13 +129,17 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
         process_input  : IO[str] = input
     else:
         error_abort( f"Can not get process stdin",**kwargs )
+
     # Is this commandline proper?
     if re.search( r'\$\{',cmdline ):
         echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
-    # All set: execute!
+
+    # All set: add the commandline to process intput
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
+
+    # close process if opened earlier in this routine
     if outside_process:
         return ""
     else:

@@ -17,7 +17,7 @@ from MrPackMod import info
 from MrPackMod.install import export_compilers,cmake_options
 from MrPackMod import modulefile
 from MrPackMod import names 
-from MrPackMod.process import process_execute, process_initiate, process_terminate,\
+from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
@@ -259,7 +259,8 @@ def do_existence_test(
         start_test_stage( "exists",
                           kwargs, # note dict
                           title=title,chdir=builddir,
-                          package=program_clean ) 
+                          package=program_clean,
+                          linedisplay=trace_string ) 
     execute_file_to_exist( package,dirtype,program,**kwargs,**output )
     if nonnull(grep):
         grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
@@ -276,7 +277,9 @@ def do_existence_test(
             file_to_exist(package,dirtype,program,**kwargs,**output)
         output = \
             start_test_stage( "exec",kwargs, # dict!
-                              package=program_clean, title=title,chdir=builddir, ) 
+                              package=program_clean,
+                              title=title,chdir=builddir,
+                              linedisplay=trace_string ) 
         if ldd:
             # are library dependencies satisfied
             execute_ldd_script( file_to_test,**kwargs,**output )
