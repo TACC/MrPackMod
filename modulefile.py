@@ -262,13 +262,11 @@ def dependency_clauses( **kwargs: Any ) -> str:
     tracing = kwargs.get( "tracing" )
     clauses = ""
     if prereq := nonzero_keyword( "DEPENDSON",**kwargs ):
-        if tracing:
-            echo_string( f"depends on: {prereq}" )
+        trace_string( f"depends on: {prereq}" )
         for pre in prereq.split(" "):
             clauses += f"depends_on( \"{pre}\" )\n"
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
-        if tracing:
-            echo_string( f"depends on current versions of: {curreq}" )
+        trace_string( f"depends on current versions of: {curreq}" )
         for cur in curreq.split(" "):
             version = os.getenv(f"TACC_{cur.upper()}_VERSION" )
             if not version:
@@ -277,8 +275,7 @@ def dependency_clauses( **kwargs: Any ) -> str:
                 error_abort( f"Need VERSION or VER macro {cur.upper()}",**kwargs )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
-        if tracing:
-            echo_string( f"belongs to family: {family}" )
+        trace_string( f"belongs to family: {family}" )
         clauses += f"family( \"{family}\" )\n"
 #     clauses = \
 # f"""\

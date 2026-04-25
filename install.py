@@ -352,8 +352,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
 
 {system_paths}{depends}
 """
-        if tracing:
-            echo_string( f"Module contents:\n{modulecontents}",**kwargs )
+        trace_string( f"Module contents:\n{modulecontents}",**kwargs )
         lua_out.write( modulecontents )
     success,failure = end_test_stage( [],[],kwargs,output )
     return success,failure
