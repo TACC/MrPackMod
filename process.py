@@ -12,8 +12,9 @@ import sys
 import traceback
 from typing import Any, IO, NoReturn, Optional
 
+from MrPackMod.error   import isnull,nonnull,error_abort
+from MrPackMod.names   import package_names
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
-from MrPackMod.error   import isnull,error_abort
 
 ##
 ## File handling
@@ -50,18 +51,24 @@ from MrPackMod.names import logfile_name
 ##
 def open_logfile(
         logstage : str,
-        kwargs   : dict[str, Any],
         logdir   : Optional[str] = None,
-        terminal : Any = None,
-        ) -> str:
+        terminal : str = "",
+        **kwargs   : Any,
+        ) -> tuple[str,str]:
+    logdir : str = kwargs.get("logdir",".")
+    if nonnull( package := kwargs.get("program") ):
+        logname : str = f"{package}_{logstage}"
+    else:
+        packagename,_  = package_names( **kwargs )
+        logname = f"{packagename}_{logstage}"
+
     # get global name, ignore local name
     logname,_ = logfile_name( logstage,dir=logdir,**kwargs )
     loghandle = open( logname,"w" )
-    kwargs["logfiles"][logname] = loghandle
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
-    return logname
+    return logname,loghandle
 
 def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
     try :

@@ -6,7 +6,7 @@ from typing import Any,Optional,TypedDict
 from MrPackMod.error   import nonnull,nonzero_keyword,error_abort
 from MrPackMod.modulefile import test_modules,\
     load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package
-from MrPackMod.names   import srcdir_name,family_names,package_names,package_prerequisites
+from MrPackMod.names   import srcdir_name,family_names,package_prerequisites
 from MrPackMod.process import process_execute, process_initiate, process_terminate
 from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
@@ -55,19 +55,17 @@ def start_test_stage(
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
-    logdir : str = kwargs.get("logdir",".")
+
     # Create log file for this test stage, and add it to the stack of logfiles, write header
-    if nonnull(package):
-        logname : str = f"{package}_{stage}"
-    else:
-        packagename,_  = package_names( **kwargs )
-        logname = f"{packagename}_{stage}"
-    logfile : str = \
-        open_logfile( logname,kwargs,logdir=logdir,terminal="" ) # note dict
+    logdir : str = kwargs.get("logdir",".")
+    logname,loghandle = \
+        open_logfile( stage,logdir=logdir,**kwargs ) 
+    kwargs["logfiles"][logname] = loghandle
+
     # Create a process for the commands of this test stage
     shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
-        "logfile":logfile, # full path, so we don't need logdir separately
+        "logfile":logname, # full path, so we don't need logdir separately
         "process":shell,
         "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
@@ -80,7 +78,7 @@ def start_test_stage(
         trace_string( f"Created process {shell.pid} for: {title}",**kwargs )
     else:
         trace_string( f"Created process {shell.pid}",**kwargs )
-    linedisplay( f"see logfile: {logfile}",**kwargs,**output )
+    linedisplay( f"see logfile: {logname}",**kwargs,**output )
     if not test_options.get("skipmodules"):
         # we skip modules in `config.read_config'
         if nonnull( chdir := test_options.get("chdir") ):
@@ -96,11 +94,13 @@ def end_test_stage(
         kwargs : dict[str, Any], output : OutputDict,
         ) -> tuple[list[str], list[str]]:
     process = output["process"]
-    process_terminate( process,**kwargs,**output )
+    # terminate process and parse output; result is ignored here
+    result_line : str = process_terminate( process,**kwargs,**output ) 
     # close log file and pop from the list of active logs
-    close_logfile( output["logfile"],kwargs )
+    logfile = output["logfile"]
+    close_logfile( logfile,kwargs )
     success,failure = success_failure_in_logfile\
-        ( output["logfile"],success=success,failure=failure,**kwargs )
+        ( logfile,success=success,failure=failure,**kwargs )
     return success,failure
 
 ##

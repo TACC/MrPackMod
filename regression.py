@@ -238,6 +238,7 @@ def do_existence_test(
     #
     # run and ldd
     #
+    do_run,ldd = options_dict["do_run"],options_dict["ldd"]
     if do_run or ldd:
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
