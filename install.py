@@ -320,7 +320,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     from  MrPackMod import  modulefile
     # we don't actually use the process that's created here;
     # module versions are found in a separate process_execute 
-    output = start_test_stage( "module",kwargs,linedisplay=trace_string, )
+    output = start_test_stage( "module",kwargs,linedisplay=trace_string,installing=True )
 
     #
     # module contents

@@ -48,26 +48,16 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
 
     argument_list = shlex.split( f"{test_options}" )
     arguments  = parser.parse_args( argument_list )
-    #print( f"Test arguments: {arguments}" )
+    # convert argparse namespace to dictionary
+    arguments_dict : dict = vars(arguments)
+    #print( arguments_dict )
+    arguments_dict["do_run"]  = arguments.run or arguments.run_in_dir
+    arguments_dict["dirtype"] = arguments.dir
+    arguments_dict["program"] = arguments.program[0]
 
-    parsed = {
-        # running
-        "do_run"     : arguments.run or arguments.run_in_dir,
-        "run_in_dir" : arguments.run_in_dir,
-        "run_args"   : arguments.run_args,
-        "keywords"   : arguments.keywords,
-        "run_prefix" : arguments.run_prefix,
-        # existence test
-        "dirtype"    : arguments.dir,
-        "grep"       : arguments.grep,
-        "ldd"        : arguments.ldd,
-        # always
-        "test_title" : arguments.title,
-        "program"    : arguments.program[0],
-    }
-    print( f"Test: "+parsed["test_title"] )
-    trace_string( f" .. parameters: {parsed}",**kwargs )
-    return parsed
+    print( f"Test: "+arguments_dict["title"] )
+    trace_string( f" .. parameters: {arguments_dict}",**kwargs )
+    return arguments_dict
 
 ##
 ## Return directory, actual file name & name with LMOD variable unexpanded
@@ -205,66 +195,42 @@ echo "Run output"
 cat {runout}
     """,**kwargs )
 
-def dir_variable( package: str, dirtype: str ) -> str:
+def dir_variable( package: str, dirtype: str = "dir" ) -> str:
     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
-def get_run_configuration(
-    parsed_options: dict[str, Any],
-    **kwargs: Any,
-) -> dict[str, Any]:
-    run_params : list[str] = [
-        "run_in_dir","run_args","run_prefix","do_run",
-        ]
-    run_config : dict = {}
-    for p in run_params:
-        try:
-            run_config[p] = parsed_options[p]
-        except:
-            error_abort( f"Could not find run option <<{p}>> in parsed option",**kwargs )
-    package,_   = names.package_names( **kwargs )
-    dirtype     = parsed_options["dirtype"]
-    program     = parsed_options["program"]
-    filedir,_,_ = file_to_exist( package,dirtype,program,**kwargs )
-    run_config["run_dir"] = filedir
-    return run_config
-
 def do_existence_test(
-    test_options: str,
-    **kwargs: Any,
-) -> tuple[list[str], list[str]]:
-    parsed_options : dict = parse_command( test_options,**kwargs )
-    trace_string( f"Existence test options: {parsed_options}",**kwargs )
-    run_config = get_run_configuration(parsed_options,**kwargs)
-    try :
-        title      = parsed_options["test_title"]
-        program    = parsed_options["program"]
-        dirtype    = parsed_options["dirtype"]
-        grep       = parsed_options["grep"]
-        ldd        = parsed_options["ldd"]
-    except KeyError:
-        error_abort( "Did not find program/grep/ldd/dirtype/do_run",**kwargs )
+        test_options: str,
+        **kwargs: Any,
+        ) -> tuple[list[str], list[str]]:
+    package,_ = names.package_names( **kwargs )
+    options_dict : dict = parse_command( test_options,**kwargs )
+    trace_string( f"Existence test options: {options_dict}",**kwargs )
+    program = options_dict["program"]
+    title   = options_dict.pop("title")
+    dirtype = options_dict.get("dirtype")
 
-    logdir   : str       = ensure_dir( os.getcwd()+"/"+kwargs.get("logdir","logfiles") )
-    builddir : str       = create_dir( "build",**kwargs )
+    filedir,_,_ = file_to_exist( package,dirtype,program, **kwargs )
+    options_dict["run_dir"] = filedir
+    options_dict["chdir"]   = create_dir( "build",**kwargs )
+    #logdir   : str       = ensure_dir( os.getcwd()+"/"+kwargs.get("logdir","logfiles") )
+
     success  : list[str] = []
     failure  : list[str] = []
 
     #
     # existence
     #
-    package,_ = names.package_names( **kwargs )
     # program can contain a path
     program_clean = re.sub( '/','',program )
     output : OutputDict = \
-        start_test_stage( "exists",
-                          kwargs, # note dict
-                          title=title,chdir=builddir,
-                          package=program_clean,
-                          linedisplay=trace_string ) 
+        start_test_stage( "exists",kwargs, # note dict
+                          title=f"{title}, existence test",**options_dict,
+                          package=program_clean,linedisplay=trace_string ) 
     execute_file_to_exist( package,dirtype,program,**kwargs,**output )
-    if nonnull(grep):
+    if nonnull( grep := options_dict["grep"] ):
         grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
-    else: grepfile = ""
+    else:
+        grepfile = ""
     success,failure = end_test_stage( success,failure,kwargs,output )
     if nonnull(grepfile):
         success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
@@ -272,14 +238,13 @@ def do_existence_test(
     #
     # run and ldd
     #
-    if ( do_run := run_config["do_run"] ) or ldd:
+    if do_run or ldd:
         filedir,file_to_test,file_to_report = \
             file_to_exist(package,dirtype,program,**kwargs,**output)
         output = \
             start_test_stage( "exec",kwargs, # dict!
-                              package=program_clean,
-                              title=title,chdir=builddir,
-                              linedisplay=trace_string ) 
+                              title=f"{title}, run/ldd test",**options_dict,
+                              package=program_clean,linedisplay=trace_string ) 
         if ldd:
             # are library dependencies satisfied
             execute_ldd_script( file_to_test,**kwargs,**output )
@@ -298,7 +263,7 @@ def do_cmake_test(
     run_config : dict = get_run_configuration( parsed_options,**kwargs )
     try :
         program = parsed_options["program"]
-        title   = parsed_options["test_title"]
+        title   = parsed_options["title"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -316,14 +281,18 @@ def do_cmake_test(
     # Cmake & compile
     #
     output : OutputDict = \
-        start_test_stage( "compile",kwargs,chdir=builddir,package=name, ) # note dict
+        start_test_stage( "compile",kwargs,
+                          title=f"{title}, cmake/make stage",
+                          chdir=builddir,package=name, ) # note dict
     execute_cmake_script( name,ext,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
     #
     # Check library dependencies satisfied & run
     #
-    output = start_test_stage( "exec",kwargs,chdir=builddir,package=name, )
+    output = start_test_stage( "exec",kwargs,
+                               title=f"{title}, ldd/run stage",
+                               chdir=builddir,package=name, )
     execute_ldd_script( name,**kwargs,**output )
     if nonnull( run_config["do_run"] ):
         execute_run_script( name,run_config,**kwargs,**output )
@@ -339,7 +308,7 @@ def do_make_test(
     parsed_options : dict = parse_command( test_options,**kwargs )
     try :
         program = parsed_options["program"]
-        title   = parsed_options["test_title"]
+        title   = parsed_options["title"]
         do_run  = parsed_options["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
@@ -389,18 +358,20 @@ def do_make_test(
 # default case: reject
 # 
 def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool:
-    #breakpoint()
     if isnull(matching) and isnull(filtering):
         trace_string( f"Test: {testname} accepted by default",**kwargs )
         return True
-    matches : list[str] = matching.lower().split(",")
-    filters : list[str] = filtering.lower().split(",")
+    matches  : list[str] = matching.lower().split(",")
+    filters  : list[str] = filtering.lower().split(",")
+    keywords : str       = kwargs.get("keywords","")
     for f in filters:
-        if nonnull(f) and re.search(f,testname.lower()):
+        if nonnull(f) and \
+           ( re.search(f,testname.lower()) or re.search(f,keywords) ):
             trace_string( f"Test: {testname} rejected by filter: {f}",**kwargs )
             return False
     for m in matches:
-        if nonnull(m) and re.search(m,testname.lower()):
+        if nonnull(m) and \
+           ( re.search(m,testname.lower()) or re.search(m,keywords) ):
             trace_string( f"Test: {testname} accepted by match: {m}",**kwargs )
             return True
     return False

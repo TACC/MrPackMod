@@ -45,13 +45,13 @@ class OutputDict(TypedDict):
 def start_test_stage(
         stage: str,
         kwargs: dict[str, Any],
-        chdir       : Optional[str] = None,
         title       : Optional[str] = None,
         package     : Optional[str] = "",
-        installing  : Optional[bool] = False,
-        terminal    : Optional[str] = "",
-        skipmodules : Optional[bool] = False,
         linedisplay : Optional[Any]  = echo_string,
+        # installing  : Optional[bool] = False,
+        # terminal    : Optional[str] = "",
+        # skipmodules : Optional[bool] = False,
+        **test_options    : dict[str,Any],
         ) -> OutputDict:
     if kwargs.get("process"):
         error_abort( f"Trying to create nested process <<{name},{stage}>>",**kwargs )
@@ -69,20 +69,23 @@ def start_test_stage(
     output : OutputDict = {
         "logfile":logfile, # full path, so we don't need logdir separately
         "process":shell,
-        "terminal":terminal, # option to suppress stdout, such as in do_config_tests
+        "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
     }
-    trace_string( f"Created process {shell.pid}",**kwargs )
     if title :
         process_execute\
         ( f"echo ================ && echo Test title: {title} && echo ================",
           **kwargs,**output )
+    if nonnull(title):
+        trace_string( f"Created process {shell.pid} for: {title}",**kwargs )
+    else:
+        trace_string( f"Created process {shell.pid}",**kwargs )
     linedisplay( f"see logfile: {logfile}",**kwargs,**output )
-    if not skipmodules:
+    if not test_options.get("skipmodules"):
         # we skip modules in `config.read_config'
-        if chdir :
+        if nonnull( chdir := test_options.get("chdir") ):
             process_execute( f"cd {chdir}",**kwargs,**output )
-        if installing:
+        if test_options.get("installing"):
             load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
         else:
             load_compiler_and_mpi_and_package( **kwargs,**output, )

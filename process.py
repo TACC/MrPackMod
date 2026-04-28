@@ -96,6 +96,7 @@ def process_terminate(
     assert process_input is not None and process_output is not None
     process_input.flush()
     process_input.close()
+    trace_string( f">>>>>>>> Process {tofinish.pid} output:",**kwargs )
     lastline : str = ""
     while True:
         line : str = process_output.readline()
@@ -103,10 +104,12 @@ def process_terminate(
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
         if line != "":
-            line_display( line,**kwargs )
+            line_display( line,**kwargs ) # maybe stdout, maybe stderr
             lastline = line
     tofinish.wait()
-    trace_string( f" .. process {tofinish.pid} terminated with result=\"{lastline}\"",**kwargs )
+    trace_string( f"<<<<<<<< process output",**kwargs )
+    trace_string( f" .. process {tofinish.pid} terminated with final result=\"{lastline}\"",
+                  **kwargs )
     return lastline
 
 def process_execute( cmdline: str, **kwargs: Any ) -> str:

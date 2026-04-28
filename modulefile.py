@@ -39,8 +39,11 @@ def test_module_loaded( modver : str, **kwargs: Any ) -> None:
         ( f"echo Test presence of module={modver}",**kwargs )
     if hasver := re.search( r'(.*)/(.*)',modver):
         mod,ver = hasver.groups()
-    else:
+    elif nonnull(modver):
         mod = modver; ver = ""
+    else:
+        echo_warning( f"Testing loaded with null modver",**kwargs )
+        return
     modvar : str = f"TACC_{mod.upper()}_DIR"
     process_execute\
         ( f"""
@@ -50,7 +53,7 @@ else
   if [ ! -d \"${modvar}\" ] ; then
     echo FAILURE: directory {modvar} not found
   else
-    echo SUCCESS: package {mod}/{ver} is at {modvar}
+    echo SUCCESS: package={mod} version={ver} is at: {modvar}
   fi
 fi
         """,**kwargs )
@@ -258,6 +261,14 @@ f"""\
     trace_string( f"System paths:\n{system_path_settings}",**kwargs )
     return system_path_settings
 
+def ensure_module_version_loaded( pkg :str ) -> str:
+    if ver := os.getenv(f"TACC_{pkg.upper()}_VERSION" ):
+        return ver
+    elif ver := os.getenv(f"TACC_{pkg.upper()}_VER" ):
+        return ver
+    else:
+        error_abort( f"Need VERSION or VER macro for package: {pkg}",**kwargs )
+
 def dependency_clauses( **kwargs: Any ) -> str:
     tracing = kwargs.get( "tracing" )
     clauses = ""
@@ -268,11 +279,7 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         trace_string( f"depends on current versions of: {curreq}" )
         for cur in curreq.split(" "):
-            version = os.getenv(f"TACC_{cur.upper()}_VERSION" )
-            if not version:
-                version = os.getenv(f"TACC_{cur.upper()}_VER" )
-            if not version:
-                error_abort( f"Need VERSION or VER macro {cur.upper()}",**kwargs )
+            version = ensure_module_version_loaded( cur )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         trace_string( f"belongs to family: {family}" )
