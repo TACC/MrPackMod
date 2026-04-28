@@ -14,10 +14,10 @@ from typing import Any, Optional
 # my own modules
 #
 #import module_help_string,package_info,path_settings,system_paths,dependencies
-from MrPackMod.modulefile import load_compiler_and_mpi_and_prereqs
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
-from MrPackMod.process import process_execute, process_initiate, process_terminate
+from MrPackMod.process import process_execute, process_initiate, process_terminate,\
+    load_compiler_and_mpi_and_prereqs
 from MrPackMod.process import open_logfile,close_logfile
 from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
     nonzero_keyword, zero_keyword, abort_on_zero_keyword

@@ -330,7 +330,6 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
                                 f"{os.path.expanduser('~')}/{rc_name}" 
                                ] if os.path.exists(rc) ]
     system_settings      ( configuration_dict,rc_files,tracing=tracing )
-    logname : str = open_logfile( "setup",configuration_dict )
     trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
     # install paths
     install_settings     ( configuration_dict,rc_files,**output )

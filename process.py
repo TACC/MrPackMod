@@ -13,7 +13,7 @@ import traceback
 from typing import Any, IO, NoReturn, Optional
 
 from MrPackMod.error   import isnull,nonnull,error_abort
-from MrPackMod.names   import package_names
+from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
 ##
@@ -122,6 +122,7 @@ def process_terminate(
 def process_execute( cmdline: str, **kwargs: Any ) -> str:
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
+    load_context    = kwargs.get("load_context",False)
 
     # create a new process, if this call is not in context of another process
     if outside_process is None:
@@ -145,6 +146,8 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
         echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
 
     # All set: add the commandline to process intput
+    if load_context:
+        load_compiler_and_mpi_and_prereqs( **kwargs,process=process )
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
@@ -205,4 +208,92 @@ def version_satisfies(
             trace_string( f" .. module version mismatch load={l} want={w}",**kwargs )
             return False
     return True
+
+def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
+    package,packageversion =  package_names( **kwargs )
+    modules_to_load : str = package
+    if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
+    trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
+    modules_to_load : str = package_prerequisites( **kwargs )
+    trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
+    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+
+# this routine is called through the above two wrappers
+# from `start_test_stage'
+def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
+    # load the compiler since this is a fresh process
+    _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
+    modulereport = "if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort | tr '\n' ' ' && echo ; fi"
+    process_execute\
+        ( f"echo .... Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null && {modulereport}",
+          **kwargs )
+    process_execute\
+        ( f"echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null && {modulereport}",
+          **kwargs )
+    if kwargs.get("MODE")=="mpi":
+        process_execute\
+            ( f"echo .... Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null && {modulereport}",
+              **kwargs )
+    if nonnull( modules_to_load ):
+        process_execute( f"echo .... Load packages \"{modules_to_load}\"",**kwargs )
+        for mod in modules_to_load.split(" "):
+            process_execute( f"""
+module -t load {mod} 2>/dev/null
+if [ $? -gt 0 ] ; then
+    echo FAILURE: module {mod} failed to load 
+fi
+            """,**kwargs )
+            test_module_loaded( mod,**kwargs )
+        process_execute( f"{modulereport}",**kwargs )
+    else:
+        echo_warning( "not loading any modules",**kwargs )
+    process_execute\
+        ( f"echo Final listing && {modulereport}", **kwargs )
+
+##
+## Specific module tests through process_execute
+##
+def test_module_loaded( modver : str, **kwargs: Any ) -> None:
+    process_execute\
+        ( f"echo Test presence of module={modver}",**kwargs )
+    if hasver := re.search( r'(.*)/(.*)',modver):
+        mod,ver = hasver.groups()
+    elif nonnull(modver):
+        mod = modver; ver = ""
+    else:
+        echo_warning( f"Testing loaded with null modver",**kwargs )
+        return
+    modvar : str = f"TACC_{mod.upper()}_DIR"
+    process_execute\
+        ( f"""
+if [ -z \"${modvar}\" ] ; then 
+  echo FAILURE: variable {modvar} not set, load module {mod}
+else
+  if [ ! -d \"${modvar}\" ] ; then
+    echo FAILURE: directory {modvar} not found
+  else
+    echo SUCCESS: package={mod} version={ver} is at: {modvar}
+  fi
+fi
+        """,**kwargs )
+
+def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
+    loadedversion :str = os.getenv( "TACC_"+mod.upper()+"_VERSION","" )
+    if not loadedversion:
+        loadedversion = os.getenv( "TACC_"+mod.upper()+"_VER","" )
+    if not loadedversion:
+        trace_string( " .. module does not declare VERSION parameter",**kwargs )
+        return True
+    else:
+        if not ( version_match := version_satisfies( loadedversion,ver,**kwargs ) ):
+            trace_string( f" .. loaded version: {loadedversion} does not match version {ver}",
+                     **kwargs )
+            return False
+        else:
+            trace_string( f" .. loaded version: {loadedversion} matches version {ver}",
+                          **kwargs )
+            return True
 
