@@ -14,13 +14,13 @@ from typing import Any, Optional
 # my own modules
 #
 #import module_help_string,package_info,path_settings,system_paths,dependencies
+from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
+    nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     load_compiler_and_mpi_and_prereqs
-from MrPackMod.process import open_logfile,close_logfile
-from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
-    nonzero_keyword, zero_keyword, abort_on_zero_keyword
+from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
 from MrPackMod.tracing import echo_string, trace_string
 from MrPackMod.testing import start_test_stage,end_test_stage
 
@@ -113,36 +113,39 @@ def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
         error_abort( f"Can not find file: {settingsfile}",**kwargs )
     return cmakesourcesetting
 
-def cmake_configure( **kwargs: Any ) -> None:
+def cmake_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = ""
+    # setup
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline : str = " && ".join(exports)
+        echo_string( f"Using exports: {export_cmdline}",**kwargs )
+        script += f"\n{export_cmdline}"
+    compilers_export : str = export_compilers( **kwargs )
+    echo_string( f"Using compilers: {compilers_export}",**kwargs )
+    script += f"\n{compilers_export}"
+    # cmake
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    cmake = cmake_basic_command( **kwargs )
+    cmakeflags = cmake_options( **kwargs )
+    buildsettings = cmake_build_settings( **kwargs )
+    listslocation = cmake_source_setting( srcdir,builddir,**kwargs )
+    script += f"""
+{cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
+{buildsettings} \
+{cmakeflags} \
+{listslocation} \
+    """
+    return script,"CMake configuring"
+
+def cmake_configure( **kwargs: Any ) -> str:
+    return get_value_from_loaded( cmake_configure_script,[],**kwargs,installing=True )
 
     # create directories for source, build, install
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
 
     # create process and start logging
     output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
-
-    # load prereqs and test their installation
-    load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
-
-    cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( **kwargs )
-    buildsettings = cmake_build_settings( **kwargs )
-    listslocation = cmake_source_setting( srcdir,builddir,**kwargs )
-    
-    echo_string( f"Cmake configuring in {builddir}",**kwargs,**output )
-    #process_execute( f"cd {builddir}",**kwargs,**output )
-    if exports := nonzero_keyword( "exports",**kwargs ):
-        export_cmdline : str = " && ".join(exports)
-        process_execute( export_cmdline,**kwargs,**output, )
-    compilers_export = export_compilers( **kwargs )
-    echo_string( f"Using compilers: {compilers_export}",**kwargs,**output )
-    process_execute( compilers_export,**kwargs,**output )
-    cmdline = f"{cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
-{buildsettings} \
-{cmakeflags} \
-{listslocation} \
-"
-    process_execute( cmdline,**kwargs,**output )
+    # stuff removed
     logfilename = output["logfile"]
     success,failure = end_test_stage( [],[],kwargs,output )
     process_execute( f"""
@@ -151,37 +154,39 @@ if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then
 fi
     """,**kwargs, )
 
-def cmake_build( **kwargs: Any ) -> None:
-    if nonzero_keyword("noinstall",**kwargs):
-        return
-
+def cmake_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = ""
     # setup directories
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
-
-    # create process and start logging
-    output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
-
-    # load prereqs and test their installation
-    load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
-
     # flags and options
     makebuildtarget = kwargs.get("makebuildtarget","")
     jcount          = kwargs.get("jcount","6")
-
     # execute make & make install
     make = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
-    echo_string( f"Making in builddir: {builddir}",**kwargs,**output )
+    echo_string( f"Making in builddir: {builddir}",**kwargs )
     cmdline = f"{make} {makebuildtarget}"
-    process_execute( cmdline,**kwargs,**output )
+    script += f"\n{cmdline}"
     if extra_targets := nonzero_keyword( "extrabuildtargets" ):
-        cmdline = f"{make} {extra_targets}"
-        process_execute( cmdline,**kwargs,**output )
-    cmdline = f"{make} install"
-    process_execute( cmdline,**kwargs,**output )
-    if extra_targets := nonzero_keyword( "extrainstalltargets" ):
-        cmdline = f"{make} {extra_targets}"
-        process_execute( cmdline,**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+        script += f"\n{make} {extra_targets}"
+    script += f"\n{make} install"
+    return script,"CMake make and install"
+
+def cmake_build( **kwargs: Any ) -> str:
+    if nonzero_keyword("noinstall",**kwargs):
+        return "No installation needed"
+    return get_value_from_loaded( cmake_build_script,[],**kwargs,installing=True )
+
+    # # create process and start logging
+    # output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
+
+    # # load prereqs and test their installation
+    # load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
+
+    # process_execute( cmdline,**kwargs,**output )
+    # if extra_targets := nonzero_keyword( "extrainstalltargets" ):
+    #     cmdline = f"{make} {extra_targets}"
+    #     process_execute( cmdline,**kwargs,**output )
+    # success,failure = end_test_stage( [],[],kwargs,output )
 
 def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!

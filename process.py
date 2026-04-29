@@ -10,9 +10,9 @@ import shutil
 import subprocess
 import sys
 import traceback
-from typing import Any, IO, NoReturn, Optional
+from typing import Any, Callable, IO, NoReturn, Optional
 
-from MrPackMod.error   import isnull,nonnull,error_abort
+from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
@@ -125,7 +125,7 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     load_context    = kwargs.get("load_context",False)
 
     # create a new process, if this call is not in context of another process
-    if outside_process is None:
+    if isnull( outside_process ) or nonnull( immediate ):
         process : subprocess.Popen[str] = process_initiate()
         trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
     else:
@@ -145,19 +145,25 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     if re.search( r'\$\{',cmdline ):
         echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
 
+    # Does this execution has a title?
+    if not outside_process and ( title := nonzero_keyword( "title",**kwargs ) ):
+        process_input.write( f"echo {title}" )
+
     # All set: add the commandline to process intput
     if load_context:
-        load_compiler_and_mpi_and_prereqs( **kwargs,process=process )
+        load_string = load_compiler_and_mpi_and_prereqs( **kwargs,only_return=True )
+        process_input.write( load_string )
     process_input.write( cmdline+"\n" )
     if immediate:
         process_input.flush() # VLE not sure if this works
 
     # close process if opened earlier in this routine
-    if outside_process:
-        return ""
-    else:
+    if isnull( outside_process ) or nonnull(immediate):
         result : str = process_terminate( process,**kwargs )
+        #print( f"Process terminate returned:\n{result}" )
         return result
+    else:
+        return ""
 
 def number_satisfies( loaded: str, wanted: str, **kwargs: Any ) -> Any:
     if wanted=="*":
@@ -209,56 +215,91 @@ def version_satisfies(
             return False
     return True
 
-def load_compiler_and_mpi_and_package( **kwargs : Any ) -> None:
+def load_compiler_and_mpi_and_package( **kwargs : Any ) -> str:
     package,packageversion =  package_names( **kwargs )
     modules_to_load : str = package
     if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
     trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
-    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+    return load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
-def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> None:
+def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> str:
     modules_to_load : str = package_prerequisites( **kwargs )
     trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
-    load_compiler_and_mpi_and( modules_to_load,**kwargs )
+    return load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
 # this routine is called through the above two wrappers
 # from `start_test_stage'
-def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> None:
-    # load the compiler since this is a fresh process
+def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
+    title : str = f"Load compiler and mpi and modules: {modules_to_load}"
+    errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulereport = "if [ $? -gt 0 ] ; then echo .. module command failed ; else echo Loaded: && module -t list 2>&1 | sort | tr '\n' ' ' && echo ; fi"
-    process_execute\
-        ( f"echo .... Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null && {modulereport}",
-          **kwargs )
-    process_execute\
-        ( f"echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null && {modulereport}",
-          **kwargs )
+    modulereport = r"""
+if [ $? -gt 0 ] ; then
+    echo .. module command failed 
+else
+    echo Loaded: && modulelist
+fi
+    """
+    load_string : str = """
+function modulelist ()
+{
+    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}/" 2>&1 );
+    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
+    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
+    for m in $compiler $mpi cont $modules;
+    do
+        if [ $m = "cont" ]; then
+            echo "----------------";
+        else
+            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?\$\{WORK\}?' );
+            echo "$m : $loc";
+        fi;
+    done
+}
+    """
+    load_string += f"""
+echo .... Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null
+{modulereport}
+echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null
+{modulereport}
+    """
     if kwargs.get("MODE")=="mpi":
-        process_execute\
-            ( f"echo .... Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null && {modulereport}",
-              **kwargs )
+        load_string += f"""
+echo .... Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null
+{modulereport}
+        """
     if nonnull( modules_to_load ):
-        process_execute( f"echo .... Load packages \"{modules_to_load}\"",**kwargs )
+        load_string += f"""
+echo .... Load packages \"{modules_to_load}\"
+        """
         for mod in modules_to_load.split(" "):
-            process_execute( f"""
+            load_string += f"""
 module -t load {mod} 2>/dev/null
 if [ $? -gt 0 ] ; then
     echo FAILURE: module {mod} failed to load 
 fi
-            """,**kwargs )
-            test_module_loaded( mod,**kwargs )
-        process_execute( f"{modulereport}",**kwargs )
+            """
+        load_string += f"{modulereport}"
     else:
         echo_warning( "not loading any modules",**kwargs )
-    process_execute\
-        ( f"echo Final listing && {modulereport}", **kwargs )
+    load_string += f"""
+echo Final listing && {modulereport}
+    """
+    return load_string
+
+def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
+    load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
+    if not nonzero_keyword( "only_return",**kwargs ):
+        process_execute( load_string,**kwargs )
+    return load_string
+        
 
 ##
 ## Specific module tests through process_execute
 ##
-def test_module_loaded( modver : str, **kwargs: Any ) -> None:
-    process_execute\
-        ( f"echo Test presence of module={modver}",**kwargs )
+def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    modver : str = modverlist[0]
+    title : str = f"Test presence of module: {modver}"
     if hasver := re.search( r'(.*)/(.*)',modver):
         mod,ver = hasver.groups()
     elif nonnull(modver):
@@ -267,8 +308,7 @@ def test_module_loaded( modver : str, **kwargs: Any ) -> None:
         echo_warning( f"Testing loaded with null modver",**kwargs )
         return
     modvar : str = f"TACC_{mod.upper()}_DIR"
-    process_execute\
-        ( f"""
+    script : str = f"""
 if [ -z \"${modvar}\" ] ; then 
   echo FAILURE: variable {modvar} not set, load module {mod}
 else
@@ -278,7 +318,11 @@ else
     echo SUCCESS: package={mod} version={ver} is at: {modvar}
   fi
 fi
-        """,**kwargs )
+        """
+    return script,title
+
+def test_module_loaded( modver : str, **kwargs: Any ) -> str:
+    return get_value_from_loaded( module_loaded_script,[modver],**kwargs )
 
 def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
     loadedversion :str = os.getenv( "TACC_"+mod.upper()+"_VERSION","" )
@@ -297,3 +341,41 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
                           **kwargs )
             return True
 
+def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
+                           args : list[str],**kwargs : Any ) -> str:
+    # setup
+    loadscript : str = ""
+    #breakpoint()
+    if nonzero_keyword("installing",**kwargs):
+        modules_to_load : str = package_prerequisites( **kwargs )
+        loadscript += "\n# Loading environment for prerequisites: {modules_to_laod}"
+    else:
+        package,packageversion =  package_names( **kwargs )
+        if nonnull(packageversion):
+            modules_to_load = f"{package}/{packageversion}"
+            loadscript += f"\n# Loading environment for package: {package}/{packageversion}"
+        else:
+            modules_to_load = package
+            loadscript += "\n#Loading environment for package: {package}"
+    loadscript += "\n"+load_compiler_and_mpi_script( modules_to_load,**kwargs )
+    # actual test
+    script,title = script_function(args,**kwargs)
+    scriptsdir = kwargs.get("scriptdir",".")+"/mpmscripts"
+    # make script
+    ensure_dir(scriptsdir,**kwargs)
+    cleantitle = re.sub("/",'-',re.sub(' ','_',title))
+    scriptfilename : str = f"{scriptsdir}/{cleantitle}.sh"
+    with open(scriptfilename,"w") as scriptfile:
+        scriptfile.write( "#!/bin/bash\n" )
+        scriptfile.write( loadscript )
+        scriptfile.write( f"\n# Now follows script: {title}" )
+        scriptfile.write( script )
+    print( f"script in: {scriptfilename}" )
+    value = process_execute\
+        ( f"source {scriptfilename}" ,**kwargs,title=title, load_context=False,immediate=True )
+    #print( f"result: {value}" )
+    if re.match( 'FAILURE',value ):
+        error_abort( f"Failed: {title}",**kwargs )
+    else:
+        return value
+    

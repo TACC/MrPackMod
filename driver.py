@@ -97,6 +97,8 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
+            success : list[str] = [] # these lines only for typing
+            failure : list[str] = [] 
             success,failure = do_config_tests( installing=True,**configuration )
             report_success_failure( success,failure,**configuration )
         elif action=="listmodules":
@@ -125,8 +127,8 @@ utility_actions : {utility_actions}
             download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
-            success : list[str] = []
-            failure : list[str] = []
+            success = []
+            failure = []
             do_config_tests( installing=True,**configuration )
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
@@ -148,10 +150,10 @@ utility_actions : {utility_actions}
                 if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
-            os.system( "rm -rf *~ *.log logfiles *.out build* __pycache__ .mypy_cache" )
+            os.system( "rm -rf *~ *.log logfiles mpmscripts *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
             screen_report_action(action,**configuration)
-            do_config_tests( installing=False,**configuration,no_home=True )
+            #do_config_tests( installing=False,**configuration,no_home=True )
             regression.do_tests\
                 ( match=arguments.match,filter=arguments.filter,logdir="./logfiles",
                   **configuration )

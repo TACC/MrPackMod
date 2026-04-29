@@ -12,14 +12,15 @@ from typing import Any
 #
 # my own modules
 #
+from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
+    nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
+    isnull,nonnull
 from  MrPackMod.names import package_names,package_names_nonnull,package_prerequisites,\
     module_names,\
     package_dir_names,prefixdir_name,pathjoin
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
-from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
-    nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
-    isnull,nonnull
 from MrPackMod.process import version_satisfies,process_execute,\
+    get_value_from_loaded,\
     test_module_loaded,test_module_version
 
 def loaded_modules( **kwargs: Any ) -> list[list[str]]:
@@ -28,7 +29,7 @@ def loaded_modules( **kwargs: Any ) -> list[list[str]]:
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
 non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
-def mod_ver(m: str) -> tuple[str, str]:
+def mod_ver( m : str,**kwargs : Any ) -> tuple[str, str]:
     mod,ver = f"{m}/".split('/',maxsplit=1)
     if re.search( r'/',mod ):
         error_abort( f"module <<{m}={mod}/{ver}>> should have been split as mod/ver",**kwargs )
@@ -221,26 +222,24 @@ f"""\
     trace_string( f"System paths:\n{system_path_settings}",**kwargs )
     return system_path_settings
 
-def ensure_module_version_loaded( pkg :str,**kwargs : Any ) -> str:
-    #breakpoint()
-    ver = process_execute\
-        ( f"""
-if [ ! -z \"$TACC_{pkg.upper()}_VERSION\" ]  then
+def module_version_script( pkgl : list[str],**kwargs : Any ) -> tuple[str,str]:
+    pkg : str = pkgl[0]
+    return f"""
+if [ ! -z \"$TACC_{pkg.upper()}_VERSION\" ] ; then
     echo $TACC_{pkg.upper()}_VERSION
-elif [ ! -z \"$TACC_{pkg.upper()}_VER\" ]  then
+elif [ ! -z \"$TACC_{pkg.upper()}_VER\" ] ; then
     echo $TACC_{pkg.upper()}_VER
 else
     echo FAILURE No VER or VERSION macro for package {pkg}
 fi
-        """,**kwargs,load_context=True )
-    # if ver := os.getenv(f"TACC_{pkg.upper()}_VERSION" ):
-    #     return ver
-    # elif ver := os.getenv(f"TACC_{pkg.upper()}_VER" ):
-    #     return ver
-    if re.match( 'FAILURE',ver ):
-        error_abort( f"Need VERSION or VER macro for package: {pkg}",**kwargs )
-    else:
-        return ver
+        """,\
+            f"Find VERSION or VER macro for package {pkg}"
+
+def ensure_module_version_loaded( pkg : str,**kwargs : Any ) -> str:
+    return get_value_from_loaded( module_version_script,[pkg],**kwargs )
+
+def get_module_version( pkg : str,**kwargs : Any ) -> str:
+    return get_value_from_loaded( module_version_script,[pkg],**kwargs )
 
 ##
 ## Construct the modulefile string
@@ -256,7 +255,8 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         trace_string( f"depends on current versions of: {curreq}" )
         for cur in [ c for c in curreq.split(" ") if nonnull(c) ]:            
-            version = ensure_module_version_loaded( cur,**kwargs )
+            version = get_module_version( cur,**kwargs,installing=True )
+            #version = ensure_module_version_loaded( cur,**kwargs )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         trace_string( f"belongs to family: {family}" )

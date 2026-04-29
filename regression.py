@@ -18,7 +18,7 @@ from MrPackMod.install import export_compilers,cmake_options
 from MrPackMod import modulefile
 from MrPackMod import names 
 from MrPackMod.process import process_execute, process_initiate, \
-    create_dir,ensure_dir
+    create_dir,ensure_dir,get_value_from_loaded
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
@@ -77,32 +77,27 @@ def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple
 ##
 ## Add process lines for testing file existence
 ##
-def execute_file_to_exist(
-    package: str,
-    dirtype: str,
-    program: str,
-    **kwargs: Any,
-) -> None:
-    process = kwargs.get("process")
-    process_execute\
-        ( f"echo \"Investigate program: {program}, in var: {dirtype}\"",**kwargs )
+def file_to_exist_script( pacdirpro : list[str],**kwargs : Any, ) -> tuple[str,str]:
+    package,dirtype,program = pacdirpro
+    title : str = f"Test existence of {package} in {dirtype}"
     filedir,file_to_test,file_to_report = file_to_exist(package,dirtype,program,**kwargs)
-    process_execute\
-        ( f"""
+    script : str = f"""
 if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
     echo ' .. directory {filedir} exists' ; 
 else 
     echo 'FAILURE: {filedir} does not exist' ; 
 fi
-        """,**kwargs )
-    process_execute\
-        ( f"""
+
 if [ -f \"{file_to_test}\" ] ; then
     echo 'SUCCESS: file exists: <<{file_to_report}>> ' ; 
 else
     echo 'FAILURE: file does not exist <<{file_to_report}>>' ; 
 fi
-        """,**kwargs )
+        """
+    return script,title
+
+def execute_file_to_exist( package : str, dirtype : str, program : str, **kwargs : Any, ) -> str:
+    return get_value_from_loaded( file_to_exist_script,[package,dirtype,program],**kwargs )
 
 ##
 ## Add lines to a process for testing the existence of a file
