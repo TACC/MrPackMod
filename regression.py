@@ -147,26 +147,32 @@ fi
     """
     return script,f"CMake configure and make program {program}"
 
-def execute_ldd_script( program: str, **kwargs: Any ) -> None:
+def execute_ldd_script( program: str, cmakebuilddir : str, **kwargs: Any ) -> str:
+    return get_value_from_loaded( ldd_script,[program,cmakebuilddir],**kwargs )
+
+def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
+    program,cmakebuilddir = args
     lddout = "ldd.out"
-    process_execute( f"rm -f {lddout}",**kwargs )
-    process_execute( f"""
+    script = f"""
+cd {cmakebuilddir}
+rm -f {lddout}
+
 if [ -f \"{program}\" ] ; then
     ldd {program} 2>&1 | tee {lddout} ; 
 else
     touch {lddout} ; 
 fi
-    """,**kwargs )
-    process_execute( f"""
+
 if [ -f \"{program}\" ] ; then
-    notfound=$( grep \"not found\" {lddout} | wc -l ) && 
+    notfound=$( grep \"not found\" {lddout} | wc -l )
     if [ $notfound -eq 0 ] ; then
-        echo \"SUCCESS: all libraries resolved\" ; 
+        echo \"SUCCESS: all libraries resolved\" 
     else
-        echo \"FAILURE: $notfound references not found\" ; 
-    fi ; 
+        echo \"FAILURE: $notfound references not found\"
+    fi
 fi
-    """,**kwargs )
+    """
+    return script,f"ldd test on {program}"
 
 ##
 ## Run a program
@@ -287,20 +293,21 @@ def do_cmake_test(
     # Cmake & compile
     #
 
-    # output : OutputDict = \
-    #     start_test_stage( "compile",kwargs,
-    #                       title=f"{title}, cmake/make stage",
-    #                       chdir=builddir,package=name, ) # note dict
-    execute_cmake_script( name,ext,cmakebuilddir,**kwargs, ) #**output )
-    # success,failure = end_test_stage( success,failure,kwargs,output )
+    output : OutputDict = \
+        start_test_stage( "cmake build",kwargs, # note dict
+                          title=f"{title}, cmake/make stage",
+                          package=name, )
+    execute_cmake_script( name,ext,cmakebuilddir,**kwargs, **output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
 
     #
     # Check library dependencies satisfied & run
     #
+
     output = start_test_stage( "exec",kwargs,
                                title=f"{title}, ldd/run stage",
-                               chdir=builddir,package=name, )
-    execute_ldd_script( name,**kwargs,**output )
+                               package=name, )
+    execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
     if nonnull( run_config["do_run"] ):
         execute_run_script( name,run_config,**kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )

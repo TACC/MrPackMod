@@ -35,7 +35,7 @@ class OutputDict(TypedDict):
     logfile : str
     logdir : str
     terminal : Optional[str]
-    process : Any
+    #process : Any
     linedisplay : Any
 
 ##
@@ -50,8 +50,6 @@ def start_test_stage(
         linedisplay : Optional[Any]  = echo_string,
         **test_options    : dict[str,Any],
         ) -> OutputDict:
-    if kwargs.get("process"):
-        error_abort( f"Trying to create nested process <<{stage}>>",**kwargs )
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
     logname,loghandle = \
@@ -59,39 +57,23 @@ def start_test_stage(
     kwargs["logfiles"][logname] = loghandle
 
     # Create a process for the commands of this test stage
-    shell  : subprocess.Popen[str] = process_initiate()
+    ## shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
         "logfile":logname, # full path, so we don't need logdir separately
-        "process":shell,
         "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
     }
-    if title :
-        process_execute\
-        ( f"echo ================ && echo Test title: {title} && echo ================",
-          **kwargs,**output )
     if nonnull(title):
-        trace_string( f"Created process {shell.pid} for: {title}",**kwargs )
+        trace_string( f"Starting stage for: {title}",**kwargs )
     else:
-        trace_string( f"Created process {shell.pid}",**kwargs )
+        trace_string( f"Starting stage",**kwargs )
     linedisplay( f"see logfile: {logname}",**kwargs,**output )
-    if not test_options.get("skipmodules"):
-        # we skip modules in `config.read_config'
-        if nonnull( chdir := test_options.get("chdir") ):
-            process_execute( f"cd {chdir}",**kwargs,**output )
-        if test_options.get("installing"):
-            load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
-        else:
-            load_compiler_and_mpi_and_package( **kwargs,**output, )
     return output
 
 def end_test_stage(
         success : list[str], failure : list[str],
         kwargs : dict[str, Any], output : OutputDict,
         ) -> tuple[list[str], list[str]]:
-    process = output["process"]
-    # terminate process and parse output; result is ignored here
-    result_line : str = process_terminate( process,**kwargs,**output ) 
     # close log file and pop from the list of active logs
     logfile = output["logfile"]
     close_logfile( logfile,kwargs )
