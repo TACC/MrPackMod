@@ -256,10 +256,12 @@ else
     echo Loaded: && modulelist
 fi
     """
-    load_string : str = """
+    load_string : str = " "
+    if nonzero_keyword( "moduletrace",**kwargs ):
+        load_string += """
 function modulelist ()
 {
-    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}/" 2>&1 );
+    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
     local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
     local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
     for m in $compiler $mpi cont $modules;
@@ -272,7 +274,13 @@ function modulelist ()
         fi;
     done
 }
-    """
+        """
+    else:
+        load_string += """
+function modulelist ()
+{ module -t list 2>&1 
+}
+        """
     load_string += f"""
 echo .... Module reset
 module -t purge 2>/dev/null
@@ -393,7 +401,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         scriptfile.write( loadscript )
         scriptfile.write( f"\n# Now follows script: {title}" )
         scriptfile.write( script )
-    print( f"script in: {scriptfilename}" )
+        trace_string( f"Script in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
         ( f"chmod +x {scriptfilename} && {scriptfilename} 2>&1 | tee {outputfilename}",
           **kwargs,title=title )

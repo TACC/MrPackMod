@@ -11,15 +11,12 @@ import shutil
 import sys
 from typing import Any
 
-from MrPackMod import config 
-from MrPackMod import download
-from MrPackMod import info 
 from MrPackMod.install import export_compilers,cmake_options
-from MrPackMod import modulefile
-from MrPackMod import names 
+from MrPackMod.names   import package_names
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded
-from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort
+from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort,\
+    abort_on_zero_keyword
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
@@ -129,20 +126,26 @@ fi
           **kwargs, )
     return grep_output_file
 
-def execute_cmake_script( program: str, ext: str, **kwargs: Any ) -> None:
+def execute_cmake_script(
+        program: str, ext: str, cmakebuilddir : str,**kwargs: Any ) -> str:
+    return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
+
+def cmake_script( args : list[str],**kwargs ) -> tuple[str,str]:
+    program,ext,cmakebuilddir = args
     compiler_exports = export_compilers( **kwargs )
     cmakeflags = cmake_options( **kwargs )
-    process_execute\
-        ( f"{compiler_exports} && cmake -D PROJECTNAME={program} {cmakeflags} ../{ext}",
-          **kwargs )
-    process_execute( f"make V=1", **kwargs )
-    process_execute( f"""
+    scriptdir : str = abort_on_zero_keyword( "scriptdir",**kwargs )
+    script : str = f"""
+{compiler_exports} && cmake -D PROJECTNAME={program} -B {cmakebuilddir} {cmakeflags} -S {scriptdir}/{ext}
+cd {cmakebuilddir}
+make V=1
 if [ -f \"{program}\" ] ; then
-    found=1 && echo SUCCESS: program created ; 
+    found=1 && echo SUCCESS: program created
 else
-    found=0 && echo FAILURE: program not created ; 
+    found=0 && echo FAILURE: program not created
 fi
-    """,**kwargs )
+    """
+    return script,f"CMake configure and make program {program}"
 
 def execute_ldd_script( program: str, **kwargs: Any ) -> None:
     lddout = "ldd.out"
@@ -203,7 +206,7 @@ def do_existence_test(
         test_options: str,
         **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
-    package,_ = names.package_names( **kwargs )
+    package,_ = package_names( **kwargs )
     options_dict : dict = parse_command( test_options,**kwargs )
     trace_string( f"Existence test options: {options_dict}",**kwargs )
     program = options_dict["program"]
@@ -275,7 +278,7 @@ def do_cmake_test(
     else:
         error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
     logdir : str = ensure_dir( "logfiles",**kwargs )
-    builddir : str = create_dir( "build",**kwargs )
+    cmakebuilddir : str = create_dir( "build",**kwargs )
 
     success : list[str] = []
     failure : list[str] = []
@@ -283,12 +286,13 @@ def do_cmake_test(
     #
     # Cmake & compile
     #
-    output : OutputDict = \
-        start_test_stage( "compile",kwargs,
-                          title=f"{title}, cmake/make stage",
-                          chdir=builddir,package=name, ) # note dict
-    execute_cmake_script( name,ext,**kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+
+    # output : OutputDict = \
+    #     start_test_stage( "compile",kwargs,
+    #                       title=f"{title}, cmake/make stage",
+    #                       chdir=builddir,package=name, ) # note dict
+    execute_cmake_script( name,ext,cmakebuilddir,**kwargs, ) #**output )
+    # success,failure = end_test_stage( success,failure,kwargs,output )
 
     #
     # Check library dependencies satisfied & run

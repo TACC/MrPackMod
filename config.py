@@ -83,6 +83,7 @@ def add_settings_from_config( configfile: str, config_dict: dict[str, Any] ) -> 
         saving: bool = False
         for line in configuration_file.readlines():
             line = line.strip()
+            if re.match( r'exit',line ) or re.match( r'return',line ): break
             if re.match( r'let ',line ):
                 error_abort( f"obsolete syntax: <<{line}>>",**config_dict )
             # ignore comments and blank lines
