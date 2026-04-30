@@ -119,6 +119,21 @@ def process_terminate(
                   **kwargs )
     return lastline
 
+def process_execute_immediate( cmdline : str, **kwargs : Any ) -> str:
+    # create new process
+    process : subprocess.Popen[str] = process_initiate()
+    process_input  : IO[str] = process.stdin
+    trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
+    # Is this commandline proper?
+    if re.search( r'\$\{',cmdline ):
+        echo_warning( f"Commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
+    # execute!
+    process_input.write( cmdline+"\n" )
+    process_input.flush() # VLE not sure if this works
+    # parse result: either first failure, or final result
+    result : str = process_terminate( process,**kwargs )
+    return result
+
 def process_execute( cmdline: str, **kwargs: Any ) -> str:
     outside_process = kwargs.get("process",None)
     immediate       = kwargs.get("immediate",None)
@@ -141,9 +156,9 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     else:
         error_abort( f"Can not get process stdin",**kwargs )
 
-    # Is this commandline proper?
-    if re.search( r'\$\{',cmdline ):
-        echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
+    # # Is this commandline proper?
+    # if re.search( r'\$\{',cmdline ):
+    #     echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
 
     # Does this execution has a title?
     if not outside_process and ( title := nonzero_keyword( "title",**kwargs ) ):
@@ -233,6 +248,7 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     title : str = f"Load compiler and mpi and modules: {modules_to_load}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
+    modulepath = nonzero_keyword( "modulepath",**kwargs )
     modulereport = r"""
 if [ $? -gt 0 ] ; then
     echo .. module command failed 
@@ -258,8 +274,15 @@ function modulelist ()
 }
     """
     load_string += f"""
-echo .... Module reset && module -t purge 2>/dev/null && module -t reset 2>/dev/null
+echo .... Module reset
+module -t purge 2>/dev/null
+
+echo .... Set modulepath 
+export MODULEPATH={modulepath}
+echo $MODULEPATH
+module -t load TACC 2>/dev/null
 {modulereport}
+
 echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null
 {modulereport}
     """
@@ -344,8 +367,7 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str],**kwargs : Any ) -> str:
     # setup
-    loadscript : str = ""
-    #breakpoint()
+    loadscript = ""
     if nonzero_keyword("installing",**kwargs):
         modules_to_load : str = package_prerequisites( **kwargs )
         loadscript += "\n# Loading environment for prerequisites: {modules_to_laod}"
@@ -365,15 +387,16 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     ensure_dir(scriptsdir,**kwargs)
     cleantitle = re.sub("/",'-',re.sub(' ','_',title))
     scriptfilename : str = f"{scriptsdir}/{cleantitle}.sh"
+    outputfilename : str = f"{scriptsdir}/{cleantitle}.out"
     with open(scriptfilename,"w") as scriptfile:
         scriptfile.write( "#!/bin/bash\n" )
         scriptfile.write( loadscript )
         scriptfile.write( f"\n# Now follows script: {title}" )
         scriptfile.write( script )
     print( f"script in: {scriptfilename}" )
-    value = process_execute\
-        ( f"source {scriptfilename}" ,**kwargs,title=title, load_context=False,immediate=True )
-    #print( f"result: {value}" )
+    value = process_execute_immediate\
+        ( f"chmod +x {scriptfilename} && {scriptfilename} 2>&1 | tee {outputfilename}",
+          **kwargs,title=title )
     if re.match( 'FAILURE',value ):
         error_abort( f"Failed: {title}",**kwargs )
     else:

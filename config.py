@@ -207,15 +207,15 @@ def system_settings(
             rc_files,**kwargs )
 
 def install_settings(
-    config_dict: dict[str, Any],
-    rc_files: list[str],
-    **kwargs: Any,
-) -> None:
+        config_dict : dict[str, Any], rc_files : list[str], **kwargs: Any, ) -> None:
     tracing = kwargs.get("tracing")
     for k,v in {
             'homedir':setting_from_env_or_rc(
                 "HOMEDIR", "HOMEDIR", "NO_HOMEDIR_GIVEN",
                 rc_files,**kwargs  ),
+            'modulepath':setting_from_env_or_rc(
+                "MODULEPATH", "MODULEPATH", "NO_MODULEPATH_GIVEN",
+                rc_files,**kwargs ),
             'srcpath':setting_from_env_or_rc(
                 "SRCPATH", "SRCPATH", "",
                 rc_files,**kwargs  ),

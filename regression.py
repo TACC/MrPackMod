@@ -77,39 +77,45 @@ def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple
 ##
 ## Add process lines for testing file existence
 ##
-def file_to_exist_script( pacdirpro : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    package,dirtype,program = pacdirpro
+def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
+    package,dirtype,program,grep = args
     title : str = f"Test existence of {package} in {dirtype}"
     filedir,file_to_test,file_to_report = file_to_exist(package,dirtype,program,**kwargs)
     script : str = f"""
 if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
-    echo ' .. directory {filedir} exists' ; 
+    echo ' .. directory {filedir} exists'
 else 
-    echo 'FAILURE: {filedir} does not exist' ; 
+    echo 'FAILURE: {filedir} does not exist'
 fi
 
 if [ -f \"{file_to_test}\" ] ; then
-    echo 'SUCCESS: file exists: <<{file_to_report}>> ' ; 
+    echo 'SUCCESS: file exists: <<{file_to_report}>> '
 else
-    echo 'FAILURE: file does not exist <<{file_to_report}>>' ; 
+    echo 'FAILURE: file does not exist <<{file_to_report}>>'
+fi
+        """
+    if nonnull( grep ):
+        program_clean = re.sub( '/','',program )
+        grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
+        script += f"""
+if [ -f \"{file_to_test}\" ] ; then
+    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; 
 fi
         """
     return script,title
 
-def execute_file_to_exist( package : str, dirtype : str, program : str, **kwargs : Any, ) -> str:
-    return get_value_from_loaded( file_to_exist_script,[package,dirtype,program],**kwargs )
+def execute_file_to_exist(
+        package : str, dirtype : str, program : str, grep : str,
+        **kwargs : Any, ) -> str:
+    return get_value_from_loaded(
+        file_to_exist_script,[package,dirtype,program,grep],**kwargs )
 
 ##
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
 ##
 def execute_grep(
-    package: str,
-    dirtype: str,
-    program: str,
-    grep: str,
-    **kwargs: Any,
-) -> str:
+        package: str, dirtype: str, program: str, grep: str, **kwargs: Any, ) -> str:
     _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     program_clean = re.sub( '/','',program )
@@ -221,14 +227,14 @@ def do_existence_test(
         start_test_stage( "exists",kwargs, # note dict
                           title=f"{title}, existence test",**options_dict,
                           package=program_clean,linedisplay=trace_string ) 
-    execute_file_to_exist( package,dirtype,program,**kwargs,**output )
-    if nonnull( grep := options_dict["grep"] ):
-        grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
-    else:
-        grepfile = ""
+    execute_file_to_exist( package,dirtype,program,options_dict["grep"],**kwargs,**output )
+    # if nonnull( grep := options_dict["grep"] ):
+    #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
+    # else:
+    #     grepfile = ""
     success,failure = end_test_stage( success,failure,kwargs,output )
-    if nonnull(grepfile):
-        success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
+    # if nonnull(grepfile):
+    #     success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
 
     #
     # run and ldd
@@ -255,11 +261,12 @@ def do_cmake_test(
     **kwargs: Any,
 ) -> tuple[list[str], list[str]]:
 
-    parsed_options : dict = parse_command( test_options,**kwargs )
-    run_config : dict = get_run_configuration( parsed_options,**kwargs )
+    #parsed_options
+    run_config : dict = parse_command( test_options,**kwargs )
+    ## ???? run_config : dict = get_run_configuration( parsed_options,**kwargs )
     try :
-        program = parsed_options["program"]
-        title   = parsed_options["title"]
+        program = run_config["program"]
+        title   = run_config["title"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -301,11 +308,11 @@ def do_make_test(
     **kwargs: Any,
 ) -> tuple[list[str], list[str]]:
     failure : list[str] = []; success : list[str] = []
-    parsed_options : dict = parse_command( test_options,**kwargs )
+    run_config : dict = parse_command( test_options,**kwargs )
     try :
-        program = parsed_options["program"]
-        title   = parsed_options["title"]
-        do_run  = parsed_options["do_run"]
+        program = run_config["program"]
+        title   = run_config["title"]
+        do_run  = run_config["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -354,10 +361,7 @@ def do_make_test(
 # default case: reject
 # 
 def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool:
-    if isnull(matching) and isnull(filtering):
-        trace_string( f"Test: {testname} accepted by default",**kwargs )
-        return True
-    matches  : list[str] = matching.lower().split(",")
+    # first the reject tests
     filters  : list[str] = filtering.lower().split(",")
     keywords : str       = kwargs.get("keywords","")
     for f in filters:
@@ -365,6 +369,12 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
            ( re.search(f,testname.lower()) or re.search(f,keywords) ):
             trace_string( f"Test: {testname} rejected by filter: {f}",**kwargs )
             return False
+    if isnull(matching):
+        trace_string( f"Test: {testname} accepted by default",**kwargs )
+        return True
+    # accept if there are no matches
+    matches  : list[str] = matching.lower().split(",")
+    # otherwise only accept if satisfies specific match
     for m in matches:
         if nonnull(m) and \
            ( re.search(m,testname.lower()) or re.search(m,keywords) ):
@@ -384,6 +394,7 @@ def do_tests( **kwargs: Any ) -> None:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
                     echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
     #
     # cmake tests
     #
@@ -395,6 +406,7 @@ def do_tests( **kwargs: Any ) -> None:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
                     echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
     #
     # make tests
     #
@@ -406,6 +418,12 @@ def do_tests( **kwargs: Any ) -> None:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
                     echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
+
+def report_skipped_test( test_options : str,**kwargs : Any ) -> None:
+    options_dict : dict = parse_command( test_options,**kwargs )
+    title : str   = options_dict.pop("title")
+    echo_string( f"Skipping test: {title}",**kwargs )
 
 ##
 ## Lines from the grep file are added to success unconditionally
