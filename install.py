@@ -150,7 +150,7 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
 def cmake_configure( **kwargs: Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     return get_value_from_loaded(
-        cmake_configure_script,[srcdir,builddir,prefixdir],**kwargs,installing=True )
+        cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
 
 def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
@@ -169,15 +169,17 @@ cd {builddir}
         script += f"""
 {make} {extra_targets}
         """
-    script += f"""
+    if nonnull(prefixdir):
+        script += f"""
 {make} install
-    """
+        """
     return script,"CMake make and install"
 
 def cmake_build( **kwargs: Any ) -> str:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
-    return get_value_from_loaded( cmake_build_script,[],**kwargs,installing=True )
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+    return get_value_from_loaded( cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
 
 def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!
