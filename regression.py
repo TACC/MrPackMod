@@ -97,7 +97,8 @@ fi
         grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
         script += f"""
 if [ -f \"{file_to_test}\" ] ; then
-    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1 ; 
+    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1
+    echo INFORMATION: grep result is $( head -n 1 {grep_output_file} )
 fi
         """
     return script,title
@@ -149,10 +150,11 @@ def execute_cmake_script(
     return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
-    program,cmakebuilddir = args
+    program,_,cmakebuilddir,cmakeprefixdir = args
     lddout = "ldd.out"
+    where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
     script = f"""
-cd {cmakebuilddir}
+cd {where}
 rm -f {lddout}
 
 if [ -f \"{program}\" ] ; then
@@ -168,6 +170,8 @@ if [ -f \"{program}\" ] ; then
     else
         echo \"FAILURE: $notfound references not found\"
     fi
+else
+    echo FAILURE: could not find program={program} to run ldd on
 fi
     """
     return script,f"ldd test on {program}"
@@ -219,6 +223,7 @@ def do_existence_test(
     program = options_dict["program"]
     title   = options_dict.pop("title")
     dirtype = options_dict.get("dirtype")
+    grep    = options_dict.get("grep","")
 
     filedir,_,_ = file_to_exist( package,dirtype,program, **kwargs )
     options_dict["run_dir"] = filedir
@@ -236,7 +241,10 @@ def do_existence_test(
         start_test_stage( "exists",kwargs, # note dict
                           title=f"{title}, existence test",**options_dict,
                           package=program_clean,linedisplay=trace_string ) 
-    execute_file_to_exist( package,dirtype,program,options_dict["grep"],**kwargs,**output )
+    res : str = get_value_from_loaded(
+        file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
+    #execute_file_to_exist( package,dirtype,program,options_dict["grep"],**kwargs,**output )
+
     # if nonnull( grep := options_dict["grep"] ):
     #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
     # else:
@@ -272,10 +280,10 @@ def do_cmake_test(
 
     #parsed_options
     run_config : dict = parse_command( test_options,**kwargs )
-    ## ???? run_config : dict = get_run_configuration( parsed_options,**kwargs )
     try :
         program = run_config["program"]
         title   = run_config["title"]
+        do_run  = run_config["do_run"]
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -287,6 +295,7 @@ def do_cmake_test(
     cmakesrcdir    : str = os.getcwd()+"/"+ext
     cmakebuilddir  : str = create_dir( "build",**kwargs )
     cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
+    prog_and_dirs : list[str] = [name,cmakesrcdir,cmakebuilddir,cmakeprefixdir]
 
     success : list[str] = []
     failure : list[str] = []
@@ -294,34 +303,33 @@ def do_cmake_test(
     #
     # Cmake & compile
     #
-
     output : OutputDict = \
         start_test_stage(
             "cmake build",kwargs, # note dict
             title=f"{title}, cmake/make stage",package=name,terminal="suppress", )
-    #execute_cmake_script( name,ext,cmakebuilddir,**kwargs, **output )
     res : str = get_value_from_loaded(
-        cmake_configure_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],
-        **kwargs,**output )
-    if not re.match( 'FAILURE',res ):
+        cmake_configure_script,prog_and_dirs,**kwargs,**output )
+    failed : bool = re.match( 'FAILURE',res )
+    if not failed:
         res = get_value_from_loaded(
-            cmake_build_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],
-            **kwargs,**output )
+            cmake_build_script,prog_and_dirs,**kwargs,**output )
+        failed = re.match( 'FAILURE',res )
     success,failure = end_test_stage( success,failure,kwargs,output )
-
-    return success,failure
 
     #
     # Check library dependencies satisfied & run
     #
-
-    output = start_test_stage(
-        "exec",kwargs,
-        title=f"{title}, ldd/run stage",package=name,terminal="suppress", )
-    execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
-    if nonnull( run_config["do_run"] ):
-        execute_run_script( name,run_config,**kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+    if not failed:
+        output = start_test_stage(
+            "exec",kwargs,
+            title=f"{title}, ldd/run stage",package=name,terminal="suppress", )
+        #execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
+        res = get_value_from_loaded(
+            ldd_script,prog_and_dirs,**kwargs,**output )
+        if nonnull( do_run ):
+            execute_run_script( name,run_config,**kwargs,**output )
+        failed = re.match( 'FAILURE',res )
+        success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
 
