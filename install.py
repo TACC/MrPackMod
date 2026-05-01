@@ -155,18 +155,23 @@ def cmake_configure( **kwargs: Any ) -> str:
 def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir,builddir,prefixdir = cmakedirs
-    script : str = ""
     # flags and options
-    makebuildtarget = kwargs.get("makebuildtarget",program)
-    jcount          = kwargs.get("jcount","6")
+    jcount          : str = kwargs.get("jcount","6")
+    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
+    makebuildtarget : str = kwargs.get("makebuildtarget","")
     # execute make & make install
-    make = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
     echo_string( f"Making in builddir: {builddir}",**kwargs )
-    cmdline = f"{make} {makebuildtarget}"
-    script += f"\n{cmdline}"
+    script : str = f"""
+cd {builddir}
+{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}
+    """
     if extra_targets := nonzero_keyword( "extrabuildtargets" ):
-        script += f"\n{make} {extra_targets}"
-    script += f"\n{make} install"
+        script += f"""
+{make} {extra_targets}
+        """
+    script += f"""
+{make} install
+    """
     return script,"CMake make and install"
 
 def cmake_build( **kwargs: Any ) -> str:
