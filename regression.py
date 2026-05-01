@@ -223,7 +223,6 @@ def do_existence_test(
     filedir,_,_ = file_to_exist( package,dirtype,program, **kwargs )
     options_dict["run_dir"] = filedir
     options_dict["chdir"]   = create_dir( "build",**kwargs )
-    #logdir   : str       = ensure_dir( os.getcwd()+"/"+kwargs.get("logdir","logfiles") )
 
     success  : list[str] = []
     failure  : list[str] = []

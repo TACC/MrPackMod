@@ -144,8 +144,10 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
 {buildsettings} \
 {cmakeflags} \
 {pathsettings}
-if [ $? -gt 0 ] ; then
-    echo FAILURE: cmake failed for program={program}
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: configure succeeded
+else
+    echo FAILURE: cmake failed
 fi
     """
     return script,"CMake configuring"
@@ -167,6 +169,11 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
     script : str = f"""
 cd {builddir}
 {make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: compilation succeeded
+else
+    echo FAILURE: compilation failed
+fi
     """
     if extra_targets := nonzero_keyword( "extrabuildtargets" ):
         script += f"""
@@ -175,6 +182,11 @@ cd {builddir}
     if nonnull(prefixdir):
         script += f"""
 {make} install
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: installation succeeded
+else
+    echo FAILURE: installation failed
+fi
         """
     return script,"CMake make and install"
 
