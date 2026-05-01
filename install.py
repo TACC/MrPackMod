@@ -102,18 +102,26 @@ def cmake_build_settings( **kwargs ) -> str:
     else: buildsharedlibs = "ON"
     return f"-D BUILD_SHARED_LIBS={buildsharedlibs} -D CMAKE_BUILD_TYPE={cmakebuildtype}"
 
-def cmake_source_setting( srcdir : str,builddir : str,**kwargs ) -> str:
+def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
+    srcdir,builddir,prefixdir = cmakedirs
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
-        cmakesourcesetting : str = f"-S {srcdir}/{source} -B {builddir}"
-        settingsfile : str = f"{srcdir}/{source}/CMakeLists.txt"
-    else:
-        cmakesourcesetting = f"{srcdir}"
-        settingsfile = f"{cmakesourcesetting}/CMakeLists.txt"
+        effsrcdir : str = f"{srcdir}/{source}"
+    else: effsrcdir = srcdir
+    settingsfile : str = f"{effsrcdir}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
-        error_abort( f"Can not find file: {settingsfile}",**kwargs )
-    return cmakesourcesetting
+        error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
+    cmakepathsetting : str = f"-S {effsrcdir} -B {builddir}"
+    if nonnull(prefixdir):
+        cmakepathsetting += " -D CMAKE_INSTALL_PREFIX={prefixdir}"
+    return cmakepathsetting
 
-def cmake_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+##
+## CMake commandline with all options
+## `pcmakedirs' is [program,src,build,prefix]
+## where `program' is only nonnull for regression testing
+##
+def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     script : str = ""
     # setup
     if exports := nonzero_keyword( "exports",**kwargs ):
@@ -121,45 +129,35 @@ def cmake_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]
         echo_string( f"Using exports: {export_cmdline}",**kwargs )
         script += f"\n{export_cmdline}"
     compilers_export : str = export_compilers( **kwargs )
-    echo_string( f"Using compilers: {compilers_export}",**kwargs )
+    trace_string( f"Using compilers: {compilers_export}",**kwargs )
     script += f"\n{compilers_export}"
     # cmake
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     cmake = cmake_basic_command( **kwargs )
     cmakeflags = cmake_options( **kwargs )
     buildsettings = cmake_build_settings( **kwargs )
-    listslocation = cmake_source_setting( srcdir,builddir,**kwargs )
+    # set src, build, prefix
+    pathsettings = cmake_paths_settings( cmakedirs,**kwargs )
+    # for the regression case only: define project macro
+    if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
-{cmake} -D CMAKE_INSTALL_PREFIX={prefixdir} \
+{cmake} \
 {buildsettings} \
 {cmakeflags} \
-{listslocation} \
+{pathsettings}
     """
     return script,"CMake configuring"
 
 def cmake_configure( **kwargs: Any ) -> str:
-    return get_value_from_loaded( cmake_configure_script,[],**kwargs,installing=True )
-
-    # create directories for source, build, install
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    return get_value_from_loaded(
+        cmake_configure_script,[srcdir,builddir,prefixdir],**kwargs,installing=True )
 
-    # create process and start logging
-    output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
-    # stuff removed
-    logfilename = output["logfile"]
-    success,failure = end_test_stage( [],[],kwargs,output )
-    process_execute( f"""
-if [ $( grep \"Manually-specified\" {logfilename} | wc -l ) -gt 0 ] ; then
-    echo && echo "Warning: cmake detected unused variables" && echo && echo
-fi
-    """,**kwargs, )
-
-def cmake_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
     script : str = ""
-    # setup directories
-    srcdir,builddir,prefixdir = configure_prep( **kwargs )
     # flags and options
-    makebuildtarget = kwargs.get("makebuildtarget","")
+    makebuildtarget = kwargs.get("makebuildtarget",program)
     jcount          = kwargs.get("jcount","6")
     # execute make & make install
     make = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
@@ -175,18 +173,6 @@ def cmake_build( **kwargs: Any ) -> str:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     return get_value_from_loaded( cmake_build_script,[],**kwargs,installing=True )
-
-    # # create process and start logging
-    # output = start_test_stage( "configure",kwargs,chdir=builddir,installing=True)
-
-    # # load prereqs and test their installation
-    # load_compiler_and_mpi_and_prereqs( **kwargs,**output, )
-
-    # process_execute( cmdline,**kwargs,**output )
-    # if extra_targets := nonzero_keyword( "extrainstalltargets" ):
-    #     cmdline = f"{make} {extra_targets}"
-    #     process_execute( cmdline,**kwargs,**output )
-    # success,failure = end_test_stage( [],[],kwargs,output )
 
 def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!

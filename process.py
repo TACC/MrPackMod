@@ -249,16 +249,21 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
     modulepath = nonzero_keyword( "modulepath",**kwargs )
-    modulereport = r"""
+    if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
+        redirect : str = f"1>&3"
+        loadscript : str = f"exec 3>{redirectloc}"
+    else:
+        redirect = ""
+        loadscript = ""
+    modulereport = f"""
 if [ $? -gt 0 ] ; then
     echo .. module command failed 
 else
     echo Loaded: && modulelist
-fi
+fi {redirect}
     """
-    load_string : str = " "
     if nonzero_keyword( "moduletrace",**kwargs ):
-        load_string += """
+        loadscript += """
 function modulelist ()
 {
     local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
@@ -269,54 +274,57 @@ function modulelist ()
         if [ $m = "cont" ]; then
             echo "----------------";
         else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?\$\{WORK\}?' );
+            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
             echo "$m : $loc";
         fi;
     done
 }
         """
     else:
-        load_string += """
+        loadscript += """
 function modulelist ()
 { module -t list 2>&1 
 }
         """
-    load_string += f"""
-echo .... Module reset
+    loadscript += f"""
+echo .... Module reset {redirect}
 module -t purge 2>/dev/null
 
-echo .... Set modulepath 
+echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
-echo $MODULEPATH
+echo $MODULEPATH  {redirect}
 module -t load TACC 2>/dev/null
-{modulereport}
+{modulereport} {redirect}
 
-echo .... Load compiler && module -t load {compiler}/{compilerversion} 2>/dev/null
-{modulereport}
+echo .... Load compiler {redirect}
+module -t load {compiler}/{compilerversion} 2>/dev/null
+{modulereport} {redirect}
     """
     if kwargs.get("MODE")=="mpi":
-        load_string += f"""
-echo .... Load mpi && module -t load {mpi}/{mpiversion} 2>/dev/null
-{modulereport}
+        loadscript += f"""
+echo .... Load mpi {redirect}
+module -t load {mpi}/{mpiversion} 2>/dev/null
+{modulereport} {redirect}
         """
     if nonnull( modules_to_load ):
-        load_string += f"""
-echo .... Load packages \"{modules_to_load}\"
+        loadscript += f"""
+echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for mod in modules_to_load.split(" "):
-            load_string += f"""
+            loadscript += f"""
 module -t load {mod} 2>/dev/null
 if [ $? -gt 0 ] ; then
     echo FAILURE: module {mod} failed to load 
 fi
             """
-        load_string += f"{modulereport}"
+        loadscript += f"{modulereport}"
     else:
         echo_warning( "not loading any modules",**kwargs )
-    load_string += f"""
-echo Final listing && {modulereport}
+    loadscript += f"""
+echo Final listing {redirect}
+{modulereport} {redirect}
     """
-    return load_string
+    return loadscript
 
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
@@ -372,6 +380,10 @@ def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
                           **kwargs )
             return True
 
+##
+## Execute a script in the context of compiler and modules
+## return: value, or FAILURE string
+##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str],**kwargs : Any ) -> str:
     # setup
@@ -387,26 +399,31 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         else:
             modules_to_load = package
             loadscript += "\n#Loading environment for package: {package}"
-    loadscript += "\n"+load_compiler_and_mpi_script( modules_to_load,**kwargs )
-    # actual test
+    # where does all crap go?
     script,title = script_function(args,**kwargs)
     scriptsdir = kwargs.get("scriptdir",".")+"/mpmscripts"
-    # make script
-    ensure_dir(scriptsdir,**kwargs)
     cleantitle = re.sub("/",'-',re.sub(' ','_',title))
-    scriptfilename : str = f"{scriptsdir}/{cleantitle}.sh"
-    outputfilename : str = f"{scriptsdir}/{cleantitle}.out"
+    outputbase : str = f"{scriptsdir}/{cleantitle}"
+
+    # cobble together script
+    loadscript += "\n"+load_compiler_and_mpi_script(
+        modules_to_load,setupredirect=f"{outputbase}.setup", # filter boring stuff
+        **kwargs )
+    ensure_dir(scriptsdir,**kwargs)
+    scriptfilename : str = f"{outputbase}.sh"
+    outputfilename : str = f"{outputbase}.out"
     with open(scriptfilename,"w") as scriptfile:
         scriptfile.write( "#!/bin/bash\n" )
         scriptfile.write( loadscript )
         scriptfile.write( f"\n# Now follows script: {title}" )
         scriptfile.write( script )
+        scriptfile.write( "exec 3>&-\n" )
         trace_string( f"Script in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
         ( f"chmod +x {scriptfilename} && {scriptfilename} 2>&1 | tee {outputfilename}",
           **kwargs,title=title )
     if re.match( 'FAILURE',value ):
-        error_abort( f"Failed: {title}",**kwargs )
+        return f"FAILURE: {title}"
     else:
         return value
     

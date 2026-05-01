@@ -11,7 +11,8 @@ import shutil
 import sys
 from typing import Any
 
-from MrPackMod.install import export_compilers,cmake_options
+from MrPackMod.install import export_compilers,cmake_options,\
+    cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded
@@ -126,10 +127,6 @@ fi
           **kwargs, )
     return grep_output_file
 
-def execute_cmake_script(
-        program: str, ext: str, cmakebuilddir : str,**kwargs: Any ) -> str:
-    return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
-
 def cmake_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,ext,cmakebuilddir = args
     compiler_exports = export_compilers( **kwargs )
@@ -147,8 +144,9 @@ fi
     """
     return script,f"CMake configure and make program {program}"
 
-def execute_ldd_script( program: str, cmakebuilddir : str, **kwargs: Any ) -> str:
-    return get_value_from_loaded( ldd_script,[program,cmakebuilddir],**kwargs )
+def execute_cmake_script(
+        program: str, ext: str, cmakebuilddir : str,**kwargs: Any ) -> str:
+    return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,cmakebuilddir = args
@@ -173,6 +171,9 @@ if [ -f \"{program}\" ] ; then
 fi
     """
     return script,f"ldd test on {program}"
+
+def execute_ldd_script( program: str, cmakebuilddir : str, **kwargs: Any ) -> str:
+    return get_value_from_loaded( ldd_script,[program,cmakebuilddir],**kwargs )
 
 ##
 ## Run a program
@@ -284,7 +285,9 @@ def do_cmake_test(
     else:
         error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
     logdir : str = ensure_dir( "logfiles",**kwargs )
-    cmakebuilddir : str = create_dir( "build",**kwargs )
+    cmakesrcdir    : str = os.getcwd()+"/"+ext
+    cmakebuilddir  : str = create_dir( "build",**kwargs )
+    cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
 
     success : list[str] = []
     failure : list[str] = []
@@ -294,19 +297,28 @@ def do_cmake_test(
     #
 
     output : OutputDict = \
-        start_test_stage( "cmake build",kwargs, # note dict
-                          title=f"{title}, cmake/make stage",
-                          package=name, )
-    execute_cmake_script( name,ext,cmakebuilddir,**kwargs, **output )
+        start_test_stage(
+            "cmake build",kwargs, # note dict
+            title=f"{title}, cmake/make stage",package=name,terminal="suppress", )
+    #execute_cmake_script( name,ext,cmakebuilddir,**kwargs, **output )
+    res : str = get_value_from_loaded(
+        cmake_configure_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],
+        **kwargs,**output )
+    print( f"Regression cmake output for program={program}:\n{res}" )
+    print( "see output: "+output["logfile"] )
+    res = get_value_from_loaded(
+        cmake_build_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],**kwargs )
     success,failure = end_test_stage( success,failure,kwargs,output )
+
+    return success,failure
 
     #
     # Check library dependencies satisfied & run
     #
 
-    output = start_test_stage( "exec",kwargs,
-                               title=f"{title}, ldd/run stage",
-                               package=name, )
+    output = start_test_stage(
+        "exec",kwargs,
+        title=f"{title}, ldd/run stage",package=name,terminal="suppress", )
     execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
     if nonnull( run_config["do_run"] ):
         execute_run_script( name,run_config,**kwargs,**output )
