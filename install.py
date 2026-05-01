@@ -144,6 +144,9 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
 {buildsettings} \
 {cmakeflags} \
 {pathsettings}
+if [ $? -gt 0 ] ; then
+    echo FAILURE: cmake failed for program={program}
+fi
     """
     return script,"CMake configuring"
 

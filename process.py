@@ -423,7 +423,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         ( f"chmod +x {scriptfilename} && {scriptfilename} 2>&1 | tee {outputfilename}",
           **kwargs,title=title )
     if re.match( 'FAILURE',value ):
-        return f"FAILURE: {title}"
+        return f"FAILURE: {title}; see: {outputfilename}"
     else:
         return value
     

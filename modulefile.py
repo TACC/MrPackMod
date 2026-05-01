@@ -194,7 +194,7 @@ def other_paths( **kwargs: Any ) -> str:
     return paths
 
 def system_paths( **kwargs: Any ) -> str:
-    print( f"In system_paths:\n{kwargs}" )
+    #print( f"In system_paths:\n{kwargs}" )
     package    = kwargs.get("PACKAGE")
     modulename = kwargs.get( "MODULENAME",package )
     prefixdir  = prefixdir_name( **kwargs )

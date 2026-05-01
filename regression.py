@@ -304,10 +304,10 @@ def do_cmake_test(
     res : str = get_value_from_loaded(
         cmake_configure_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],
         **kwargs,**output )
-    # print( f"Regression cmake output for program={program}:\n{res}" )
-    # print( "see output: "+output["logfile"] )
-    res = get_value_from_loaded(
-        cmake_build_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],**kwargs )
+    if not re.match( 'FAILURE',res ):
+        res = get_value_from_loaded(
+            cmake_build_script,[name,cmakesrcdir,cmakebuilddir,cmakeprefixdir],
+            **kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
