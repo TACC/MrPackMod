@@ -112,7 +112,7 @@ def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
         error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
     cmakepathsetting : str = f"-S {effsrcdir} -B {builddir}"
     if nonnull(prefixdir):
-        cmakepathsetting += " -D CMAKE_INSTALL_PREFIX={prefixdir}"
+        cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
     return cmakepathsetting
 
 ##
