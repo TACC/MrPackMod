@@ -165,9 +165,13 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
     makebuildtarget : str = kwargs.get("makebuildtarget","")
     # execute make & make install
     echo_string( f"Making in builddir: {builddir}",**kwargs )
+    if ninja := kwargs.get( "CMAKEUSENINJA" ):
+        makeline = f"ninja install"
+    else:
+        makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
     script : str = f"""
 cd {builddir}
-{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}
+{makeline}
 if [ $? -eq 0 ] ; then
     echo SUCCESS: compilation succeeded
 else
@@ -178,7 +182,7 @@ fi
         script += f"""
 {make} {extra_targets}
         """
-    if nonnull(prefixdir):
+    if nonnull(prefixdir) and not ninja:
         script += f"""
 {make} install
 if [ $? -eq 0 ] ; then

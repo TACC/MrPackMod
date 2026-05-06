@@ -431,7 +431,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         scriptfile.write( f"\n# Now follows script: {title}" )
         scriptfile.write( script )
         scriptfile.write( "exec 3>&-\n" )
-        trace_string( f"Script in: {scriptfilename}",**kwargs )
+    trace_string( f"Script for {title} in: {scriptfilename}\n{script}",**kwargs )
     value = process_execute_immediate\
         ( f"""
 chmod +x {scriptfilename}
