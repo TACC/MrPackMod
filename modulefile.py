@@ -23,6 +23,10 @@ from MrPackMod.process import version_satisfies,process_execute,\
     get_value_from_loaded,\
     test_module_loaded,test_module_version
 
+##
+## list of loaded modules
+## by running a new process
+##
 def loaded_modules( **kwargs: Any ) -> list[list[str]]:
     name_version_list : list[str] = process_execute\
         ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()

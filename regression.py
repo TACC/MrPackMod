@@ -153,6 +153,7 @@ def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,_,cmakebuilddir,cmakeprefixdir = args
     lddout = "ldd.out"
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
+    trace_string( f"Generate ldd script for file={program} in dir={where}",**kwargs )
     script = f"""
 cd {where}
 rm -f {lddout}
@@ -265,8 +266,11 @@ def do_existence_test(
                               title=f"{title}, run/ldd test",**options_dict,
                               package=program_clean,linedisplay=trace_string ) 
         if ldd:
-            # are library dependencies satisfied
-            execute_ldd_script( file_to_test,**kwargs,**output )
+            # are library dependencies satisfied?
+            prog_and_dirs : list[str] = [file_to_test,".",".",filedir]
+            res = get_value_from_loaded(
+                ldd_script,prog_and_dirs,**kwargs,**output )
+            print( f"ldd test returned: {res}" )
         # run!
         if do_run:
             execute_run_script( program,run_config,**kwargs,**output )

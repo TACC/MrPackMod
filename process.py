@@ -124,9 +124,9 @@ def process_execute_immediate( cmdline : str, **kwargs : Any ) -> str:
     process : subprocess.Popen[str] = process_initiate()
     process_input  : IO[str] = process.stdin
     trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
-    # Is this commandline proper?
-    if re.search( r'\$\{',cmdline ):
-        echo_warning( f"Commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
+    # # Is this commandline proper?
+    # if re.search( r'\$\{',cmdline ):
+    #     echo_warning( f"Commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
     # execute!
     process_input.write( cmdline+"\n" )
     process_input.flush() # VLE not sure if this works
@@ -311,10 +311,14 @@ module -t load {mpi}/{mpiversion} 2>/dev/null
 echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for mod in modules_to_load.split(" "):
+            if ver := loaded_module_version( mod,**kwargs ):
+                modver = f"{mod}/{ver}"
+            else:
+                modver = mod
             loadscript += f"""
-module -t load {mod} 2>/dev/null
+module -t load {modver} 2>/dev/null
 if [ $? -gt 0 ] ; then
-    echo FAILURE: module {mod} failed to load 
+    echo FAILURE: module {modver} failed to load 
 fi
             """
         loadscript += f"{modulereport}"
@@ -325,6 +329,13 @@ echo Final listing {redirect}
 {modulereport} {redirect}
     """
     return loadscript
+
+def loaded_module_version( mod,**kwargs : Any ) -> str:
+    if ver := os.getenv( f"TACC_{mod.upper()}_VER" ):
+        return ver
+    elif version := os.getenv( f"TACC_{mod.upper()}_VERSION" ):
+        return version
+    else: return ""
 
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
@@ -402,6 +413,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     # where does all crap go?
     script,title = script_function(args,**kwargs)
     scriptsdir = kwargs.get("scriptdir",".")+"/mpmscripts"
+    ## VLE title can contain path macros like TACC_PACKAGE_LIB
     cleantitle = re.sub("/",'-',re.sub(' ','_',title))
     outputbase : str = f"{scriptsdir}/{cleantitle}"
 
@@ -411,6 +423,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         **kwargs )
     ensure_dir(scriptsdir,**kwargs)
     scriptfilename : str = f"{outputbase}.sh"
+    #print( f"title <<{title}>> gives scriptfilename <<{scriptfilename}>>" )
     outputfilename : str = f"{outputbase}.out"
     with open(scriptfilename,"w") as scriptfile:
         scriptfile.write( "#!/bin/bash\n" )
@@ -420,7 +433,16 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         scriptfile.write( "exec 3>&-\n" )
         trace_string( f"Script in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
-        ( f"chmod +x {scriptfilename} && {scriptfilename} 2>&1 | tee {outputfilename}",
+        ( f"""
+chmod +x {scriptfilename}
+set -o pipefail
+{scriptfilename} 2>&1 | tee {outputfilename}
+        """+"""
+if [ ${PIPESTATUS[0]} -gt 0 ] ; then
+        """+f"""
+    echo FAILURE running script {scriptfilename}
+fi
+        """,
           **kwargs,title=title )
     if re.match( 'FAILURE',value ):
         return f"FAILURE: {title}; see: {outputfilename}"
