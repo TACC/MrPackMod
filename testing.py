@@ -27,7 +27,7 @@ if [ ! -d "{srcdir}" ] ; then
 fi 
         """,**kwargs,**output )
     # test depends on whether we are installing
-    test_modules( **kwargs,**output,installing=installing )
+    test_modules( **kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
     return success,failure
 

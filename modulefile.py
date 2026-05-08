@@ -259,7 +259,7 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         trace_string( f"depends on current versions of: {curreq}" )
         for cur in [ c for c in curreq.split(" ") if nonnull(c) ]:            
-            version = get_module_version( cur,**kwargs,installing=True )
+            version = get_module_version( cur,**kwargs )
             #version = ensure_module_version_loaded( cur,**kwargs )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
