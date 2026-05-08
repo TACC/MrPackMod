@@ -15,7 +15,8 @@ from MrPackMod.install import export_compilers,cmake_options,\
     cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names
 from MrPackMod.process import process_execute, process_initiate, \
-    create_dir,ensure_dir,get_value_from_loaded
+    create_dir,ensure_dir,get_value_from_loaded,\
+    line_strip_conditionals,file_to_exist_names
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort,\
     abort_on_zero_keyword
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
@@ -58,27 +59,13 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     return arguments_dict
 
 ##
-## Return directory, actual file name & name with LMOD variable unexpanded
-##
-def file_to_exist( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
-    if dirtype in [ "dir","inc","lib","bin", ]:
-        filedir : str = dir_variable(package,dirtype)
-        filedir = f"${filedir}"
-        file_to_test   : str = f"{filedir}/{program}"
-        file_to_report : str = f"{filedir}/{program}"
-    else:
-        filedir = f"$TACC_{package.upper()}_DIR/{dirtype}"
-        file_to_test   = f"{filedir}/{program}"
-        file_to_report = f"{filedir}/{program}"
-    return filedir,file_to_test,file_to_report
-
-##
 ## Add process lines for testing file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
     package,dirtype,program,grep = args
     title : str = f"Test existence of {package} in {dirtype}"
-    filedir,file_to_test,file_to_report = file_to_exist(package,dirtype,program,**kwargs)
+    filedir,file_to_test,file_to_report = file_to_exist_names(package,dirtype,program,**kwargs)
+    #print( f"testing {filedir} / {file_to_test}, report {file_to_report}" )
     script : str = f"""
 if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
     echo ' .. directory {filedir} exists'
@@ -115,7 +102,7 @@ def execute_file_to_exist(
 ##
 def execute_grep(
         package: str, dirtype: str, program: str, grep: str, **kwargs: Any, ) -> str:
-    _,file_to_test,file_to_report = file_to_exist( package,dirtype,program,**kwargs )
+    _,file_to_test,file_to_report = file_to_exist_names( package,dirtype,program,**kwargs )
     # with directories in place, does the actual file exist?
     program_clean = re.sub( '/','',program )
     grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
@@ -211,9 +198,6 @@ echo "Run output"
 cat {runout}
     """,**kwargs )
 
-def dir_variable( package: str, dirtype: str = "dir" ) -> str:
-    return f"TACC_{package.upper()}_{dirtype.upper()}"
-
 def do_existence_test(
         test_options: str,
         **kwargs: Any,
@@ -226,7 +210,7 @@ def do_existence_test(
     dirtype = options_dict.get("dirtype")
     grep    = options_dict.get("grep","")
 
-    filedir,_,_ = file_to_exist( package,dirtype,program, **kwargs )
+    filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
     options_dict["run_dir"] = filedir
     options_dict["chdir"]   = create_dir( "build",**kwargs )
 
@@ -241,16 +225,17 @@ def do_existence_test(
     output : OutputDict = \
         start_test_stage( "exists",kwargs, # note dict
                           title=f"{title}, existence test",**options_dict,
-                          package=program_clean,linedisplay=trace_string ) 
+                          package=program_clean,linedisplay=trace_string,installing=False ) 
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
-    #execute_file_to_exist( package,dirtype,program,options_dict["grep"],**kwargs,**output )
 
     # if nonnull( grep := options_dict["grep"] ):
     #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
     # else:
     #     grepfile = ""
+
     success,failure = end_test_stage( success,failure,kwargs,output )
+
     # if nonnull(grepfile):
     #     success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
 
@@ -260,17 +245,17 @@ def do_existence_test(
     do_run,ldd = options_dict["do_run"],options_dict["ldd"]
     if do_run or ldd:
         filedir,file_to_test,file_to_report = \
-            file_to_exist(package,dirtype,program,**kwargs,**output)
-        output = \
+            file_to_exist_names(package,dirtype,program,**kwargs,installing=False )
+        #print( f"ldd filedir: {filedir}" )
+        output : OutputDict = \
             start_test_stage( "exec",kwargs, # dict!
                               title=f"{title}, run/ldd test",**options_dict,
-                              package=program_clean,linedisplay=trace_string ) 
+                              package=program_clean,linedisplay=trace_string,installing=False ) 
         if ldd:
             # are library dependencies satisfied?
             prog_and_dirs : list[str] = [file_to_test,".",".",filedir]
             res = get_value_from_loaded(
                 ldd_script,prog_and_dirs,**kwargs,**output )
-            print( f"ldd test returned: {res}" )
         # run!
         if do_run:
             execute_run_script( program,run_config,**kwargs,**output )
@@ -310,7 +295,8 @@ def do_cmake_test(
     output : OutputDict = \
         start_test_stage(
             "cmake build",kwargs, # note dict
-            title=f"{title}, cmake/make stage",package=name,terminal="suppress", )
+            title=f"{title}, cmake/make stage",
+            package=name,terminal="suppress",installing=False, )
     res : str = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,**kwargs,**output )
     failed : bool = re.match( 'FAILURE',res )
@@ -326,7 +312,8 @@ def do_cmake_test(
     if not failed:
         output = start_test_stage(
             "exec",kwargs,
-            title=f"{title}, ldd/run stage",package=name,terminal="suppress", )
+            title=f"{title}, ldd/run stage",
+            package=name,terminal="suppress",installing=False, )
         #execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
         res = get_value_from_loaded(
             ldd_script,prog_and_dirs,**kwargs,**output )
@@ -361,7 +348,8 @@ def do_make_test(
     # compilation
     #
     output : OutputDict = \
-        start_test_stage( "compile",kwargs,chdir=builddir,package=name, ) # note dict
+        start_test_stage( "compile",kwargs, # note dict
+                          chdir=builddir,package=name,installing=False, )
     # set up for make
     compiler_exports = export_compilers( **kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -378,7 +366,8 @@ def do_make_test(
     #
     # execution
     #
-    output = start_test_stage( "exec",kwargs,chdir=builddir,package=name, ) # note dict
+    output = start_test_stage( "exec",kwargs,
+                               chdir=builddir,package=name,installing=False, )
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!

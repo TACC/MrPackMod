@@ -10,8 +10,9 @@ import shutil
 import subprocess
 import sys
 import traceback
-from typing import Any, Callable, IO, NoReturn, Optional
+from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
+from MrPackMod.basics  import loaded_module_version
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
@@ -330,19 +331,11 @@ echo Final listing {redirect}
     """
     return loadscript
 
-def loaded_module_version( mod,**kwargs : Any ) -> str:
-    if ver := os.getenv( f"TACC_{mod.upper()}_VER" ):
-        return ver
-    elif version := os.getenv( f"TACC_{mod.upper()}_VERSION" ):
-        return version
-    else: return ""
-
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
     if not nonzero_keyword( "only_return",**kwargs ):
         process_execute( load_string,**kwargs )
     return load_string
-        
 
 ##
 ## Specific module tests through process_execute
@@ -414,7 +407,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     script,title = script_function(args,**kwargs)
     scriptsdir = kwargs.get("scriptdir",".")+"/mpmscripts"
     ## VLE title can contain path macros like TACC_PACKAGE_LIB
-    cleantitle = re.sub("/",'-',re.sub(' ','_',title))
+    cleantitle = clean_title( title,**kwargs )
     outputbase : str = f"{scriptsdir}/{cleantitle}"
 
     # cobble together script
@@ -423,7 +416,6 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         **kwargs )
     ensure_dir(scriptsdir,**kwargs)
     scriptfilename : str = f"{outputbase}.sh"
-    #print( f"title <<{title}>> gives scriptfilename <<{scriptfilename}>>" )
     outputfilename : str = f"{outputbase}.out"
     with open(scriptfilename,"w") as scriptfile:
         scriptfile.write( "#!/bin/bash\n" )
@@ -449,3 +441,75 @@ fi
     else:
         return value
     
+##
+## Aux
+##
+
+##
+## return stripped line, and bool result of any prefixed test
+##
+def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]:
+    """ returns: line,accept """
+    trace_string( f"Test line for conditions: {line}",**config_dict )
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
+        value1,comparison,value2,line = condition_split( test,**config_dict )
+        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
+                      **config_dict )
+        if ( comparison=="==" and value1!=value2 ) or \
+           ( comparison=="!=" and value1==value2 ):
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
+            return line,False
+        else: 
+            trace_string( f" .. accept because {value1}{comparison}{value2}",
+                          **config_dict )
+            return line_strip_conditionals( line,**config_dict )
+    else:
+        trace_string( f" .. accept because no conditionals detected: {line}",
+                      **config_dict )
+        return line,True
+
+def condition_split(
+        cond: re.Match[str],
+        **config_dict: Any,
+        ) -> Tuple[Any, str, Any, str]:
+    field1,op,field2,line = cond.groups()
+    value1 = config_dict.get(field1,field1)
+    value2 = config_dict.get(field2,field2)
+    return value1,op,value2,line
+
+##
+## strip of macros
+##
+def remove_macros( string : str,valdict : dict[str,Any] ) -> str:
+    for key,val in valdict.items():
+        if not type(val) is str: continue
+        searchstring : str = f"${{{key}}}"
+        oldstring : str = string
+        string = string.replace( searchstring,val )
+        if oldstring!=string:
+            trace_string( f"replace: {key} => {val}",**valdict )
+    return string
+
+def clean_title( title : str,**kwargs : Any ) -> str:
+    clean : str = re.sub("/",'-',re.sub(' ','_',title))
+    clean = remove_macros( clean,kwargs )
+    return clean
+
+##
+## Return directory, actual file name & name with LMOD variable unexpanded
+##
+def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
+    if dirtype in [ "dir","inc","lib","bin", ]:
+        dirvar : str = dir_variable(package,dirtype)
+        filedir_to_report :str = f"${{{dirvar}}}"
+    else:
+        filedir_to_report = f"${{TACC_{package.upper()}_DIR/{dirtype}}}"
+    filedir        : str = remove_macros( filedir_to_report,kwargs )
+    file_to_test   : str = f"{filedir}/{program}"
+    file_to_report : str = f"{filedir_to_report}/{program}"
+    return filedir,file_to_test,file_to_report
+
+def dir_variable( package: str, dirtype: str = "dir" ) -> str:
+    return f"TACC_{package.upper()}_{dirtype.upper()}"
+

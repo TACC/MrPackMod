@@ -10,7 +10,8 @@ from typing import Any, Tuple
 #
 from MrPackMod.modulefile import loaded_modules
 from MrPackMod.error   import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
-from MrPackMod.process import open_logfile,close_logfile
+from MrPackMod.process import open_logfile,close_logfile,\
+    line_strip_conditionals,remove_macros
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
 from MrPackMod.testing import start_test_stage,end_test_stage
 
@@ -25,13 +26,7 @@ def add_new_dict_item( newkey: str, assign: str, newval: str, config_dict: dict[
     except for keys that are additive such as DEPENDSON, or if `assign' is `+='
     """
     newval = newval.strip('\n').strip(' ')
-    for key,val in config_dict.items():
-        if not type(val) is str: continue
-        searchstring = '${'+key+'}'
-        oldval = newval
-        newval = newval.replace( searchstring,val )
-        if oldval!=newval:
-            trace_string( f"replace: {key} => {val}",**config_dict )
+    newval = remove_macros( newval,config_dict )
     if ( newkey in additive_keys or assign=="+=" ) :
         if newkey in config_dict.keys() :
             config_dict[newkey] = f"{config_dict[newkey]} {newval}"
@@ -45,36 +40,6 @@ def add_new_dict_item( newkey: str, assign: str, newval: str, config_dict: dict[
     else:
         config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} {assign} {newval} from config",**config_dict )
-
-def condition_split(
-    cond: re.Match[str],
-    **config_dict: Any,
-) -> Tuple[Any, str, Any, str]:
-    field1,op,field2,line = cond.groups()
-    value1 = config_dict.get(field1,field1)
-    value2 = config_dict.get(field2,field2)
-    return value1,op,value2,line
-
-def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]:
-    """ returns: line,accept """
-    trace_string( f"Test line for conditions: {line}",**config_dict )
-    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+)\s+(.*)$',line ):
-        value1,comparison,value2,line = condition_split( test,**config_dict )
-        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
-                      **config_dict )
-        if ( comparison=="==" and value1!=value2 ) or \
-           ( comparison=="!=" and value1==value2 ):
-            trace_string( f" .. reject because not {value1}{comparison}{value2}",
-                          **config_dict )
-            return line,False
-        else: 
-            trace_string( f" .. accept because {value1}{comparison}{value2}",
-                          **config_dict )
-            return line_strip_conditionals( line,**config_dict )
-    else:
-        trace_string( f" .. accept because no conditionals detected: {line}",
-                      **config_dict )
-        return line,True
 
 def add_settings_from_config( configfile: str, config_dict: dict[str, Any] ) -> None:
     tracing: bool = config_dict.get("tracing", False)

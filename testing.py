@@ -36,6 +36,7 @@ class OutputDict(TypedDict):
     logdir : str
     terminal : Optional[str]
     #process : Any
+    installing  : bool
     linedisplay : Any
 
 ##
@@ -47,6 +48,7 @@ def start_test_stage(
         kwargs: dict[str, Any],
         title       : Optional[str] = None,
         package     : Optional[str] = "",
+        installing  : Optional[bool] = True,
         linedisplay : Optional[Any]  = echo_string,
         **test_options    : dict[str,Any],
         ) -> OutputDict:
@@ -62,6 +64,7 @@ def start_test_stage(
         "logfile":logname, # full path, so we don't need logdir separately
         "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
+        "installing":installing,   # default True, make sure to unset in regression
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )

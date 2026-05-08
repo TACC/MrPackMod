@@ -13,6 +13,7 @@ from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod import install
 from MrPackMod import names 
+from MrPackMod.basics import loaded_module_version
 from MrPackMod.process import process_initiate,process_terminate,process_execute,\
     open_logfile,close_logfile
 from MrPackMod.tracing import echo_string,echo_warning
@@ -152,6 +153,10 @@ utility_actions : {utility_actions}
         elif action=="clean":
             os.system( "rm -rf *~ *.log logfiles mpmscripts *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
+            package : str = configuration.get("PACKAGE")
+            if not loaded_module_version( package,**configuration ):
+                error_abort( f"Module {package} needs to be loaded for regression testing",
+                             **configuration )
             screen_report_action(action,**configuration)
             #do_config_tests( installing=False,**configuration,no_home=True )
             regression.do_tests\

@@ -7,7 +7,7 @@ import re
 import sys
 import traceback
 
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional, Tuple
 
 def nonnull( val: Any ) -> bool:
     return ( val is not None ) \
@@ -55,3 +55,15 @@ def unimplemented( var: str ) -> None:
     except:
         pass
 
+####
+#### Slightly higher level
+####
+
+def loaded_module_version( mod,**kwargs : Any ) -> Optional[str]:
+    if not os.getenv( f"TACC_{mod.upper()}_DIR" ):
+        return None
+    if ver := os.getenv( f"TACC_{mod.upper()}_VER" ):
+        return ver
+    elif version := os.getenv( f"TACC_{mod.upper()}_VERSION" ):
+        return version
+    else: return ""
