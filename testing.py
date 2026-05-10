@@ -3,13 +3,14 @@ import re
 import subprocess
 from typing import Any,Optional,TypedDict
 
-from MrPackMod.error   import nonnull,nonzero_keyword,error_abort
-from MrPackMod.modulefile import test_modules
-from MrPackMod.names   import srcdir_name,family_names,package_prerequisites
-from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package
-from MrPackMod.process import open_logfile,close_logfile
-from MrPackMod.tracing import echo_string,trace_string,echo_warning
+from MrPackMod.error      import nonnull,nonzero_keyword,error_abort,isnull
+from MrPackMod.modulefile import module_loaded_script
+from MrPackMod.names      import srcdir_name,family_names,package_prerequisites
+from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
+    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
+    get_value_from_loaded
+from MrPackMod.process    import open_logfile,close_logfile
+from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 
 def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
     # open a log file and load modules; pkg or prereqs depending on installing
@@ -111,3 +112,67 @@ def report_success_failure( success : list[str],failure : list[str],**kwargs : A
         echo_string( f"Success: {s}",**kwargs )
     for f in failure:
         echo_string( f"Failure: {f}",**kwargs )
+
+####
+#### Module tests  through process_execute or get_value_from_loaded
+####
+
+def test_modules( **kwargs: Any ) -> None:
+    installing : bool = kwargs.get( "installing",False )
+    process_execute\
+        ( f"echo Using modulepath:",**kwargs )
+    process_execute\
+        ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
+    if installing and  nonnull( modules := package_prerequisites(**kwargs) ):
+        modules_to_test : str = modules
+        echo_string( f"Test for prereq modules {modules_to_test}",**kwargs )
+    else:
+        modules_to_test,_ = package_names( **kwargs )
+        echo_string( f"Test for test module {modules_to_test}",**kwargs )
+    test_loaded_modules( modules_to_test,**kwargs )
+    #test_nonmodules( **kwargs )
+
+# are the required modules loaded?
+non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
+def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
+    for mod in modules.split(" "):
+        if isnull(mod): continue
+        if mod in non_packages:
+            trace_string( f"Skip test for non-package: {mod}",**kwargs )
+            continue
+        test_module_loaded( mod,**kwargs )
+        # if nonnull(ver):
+        #     test_module_version( mod,ver,**kwargs )
+
+# are no nonmodules loaded?
+def test_nonmodules( **kwargs: Any ) -> bool:
+    if not (nonmodules := nonzero_keyword( "NONMODULES",**kwargs ) ):
+        trace_string( "No nonmodules",**kwargs )
+        return True
+    success = True
+    for mod in nonmodules.split(" "):
+        if loaded := test_module_loaded( mod,**kwargs ):
+            echo_string( f"Please unload module: {mod}",**kwargs )
+            success = False
+        else: trace_string( " .. module correctly not loaded",**kwargs )
+    return success
+
+def test_module_loaded( modver : str, **kwargs: Any ) -> str:
+    return get_value_from_loaded( module_loaded_script,[modver],**kwargs )
+
+def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
+    loadedversion :str = os.getenv( "TACC_"+mod.upper()+"_VERSION","" )
+    if not loadedversion:
+        loadedversion = os.getenv( "TACC_"+mod.upper()+"_VER","" )
+    if not loadedversion:
+        trace_string( " .. module does not declare VERSION parameter",**kwargs )
+        return True
+    else:
+        if not ( version_match := version_satisfies( loadedversion,ver,**kwargs ) ):
+            trace_string( f" .. loaded version: {loadedversion} does not match version {ver}",
+                     **kwargs )
+            return False
+        else:
+            trace_string( f" .. loaded version: {loadedversion} matches version {ver}",
+                          **kwargs )
+            return True

@@ -20,8 +20,7 @@ from  MrPackMod.names import package_names,package_names_nonnull,package_prerequ
     package_dir_names,prefixdir_name,pathjoin
 from MrPackMod.tracing import echo_string,trace_string,echo_warning
 from MrPackMod.process import version_satisfies,process_execute,\
-    get_value_from_loaded,\
-    test_module_loaded,test_module_version
+    get_value_from_loaded
 
 ##
 ## list of loaded modules
@@ -32,52 +31,12 @@ def loaded_modules( **kwargs: Any ) -> list[list[str]]:
         ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
-non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
 def mod_ver( m : str,**kwargs : Any ) -> tuple[str, str]:
     mod,ver = f"{m}/".split('/',maxsplit=1)
     if re.search( r'/',mod ):
         error_abort( f"module <<{m}={mod}/{ver}>> should have been split as mod/ver",**kwargs )
     mod = mod.lower(); ver = ver.strip("/")
     return mod,ver
-
-# are the required modules loaded?
-def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
-    for mod in modules.split(" "):
-        if isnull(mod): continue
-        if mod in non_packages:
-            trace_string( f"Skip test for non-package: {mod}",**kwargs )
-            continue
-        test_module_loaded( mod,**kwargs )
-        # if nonnull(ver):
-        #     test_module_version( mod,ver,**kwargs )
-
-# are no nonmodules loaded?
-def test_nonmodules( **kwargs: Any ) -> bool:
-    if not (nonmodules := nonzero_keyword( "NONMODULES",**kwargs ) ):
-        trace_string( "No nonmodules",**kwargs )
-        return True
-    success = True
-    for mod in nonmodules.split(" "):
-        if loaded := test_module_loaded( mod,**kwargs ):
-            echo_string( f"Please unload module: {mod}",**kwargs )
-            success = False
-        else: trace_string( " .. module correctly not loaded",**kwargs )
-    return success
-
-def test_modules( **kwargs: Any ) -> None:
-    installing : bool = kwargs.get( "installing",False )
-    process_execute\
-        ( f"echo Using modulepath:",**kwargs )
-    process_execute\
-        ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
-    if installing and  nonnull( modules := package_prerequisites(**kwargs) ):
-        modules_to_test : str = modules
-        echo_string( f"Test for prereq modules {modules_to_test}",**kwargs )
-    else:
-        modules_to_test,_ = package_names( **kwargs )
-        echo_string( f"Test for test module {modules_to_test}",**kwargs )
-    test_loaded_modules( modules_to_test,**kwargs )
-    #test_nonmodules( **kwargs )
 
 def module_help_string( **kwargs: Any ) -> str:
     package,packageversion   = package_names_nonnull( **kwargs )
@@ -272,3 +231,26 @@ def dependency_clauses( **kwargs: Any ) -> str:
     trace_string( f"Dependency settings:\n{clauses}",**kwargs )
     return clauses
 
+def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    modver : str = modverlist[0]
+    title : str = f"Test presence of module: {modver}"
+    if hasver := re.search( r'(.*)/(.*)',modver):
+        mod,ver = hasver.groups()
+    elif nonnull(modver):
+        mod = modver; ver = ""
+    else:
+        echo_warning( f"Testing loaded with null modver",**kwargs )
+        return
+    modvar : str = f"TACC_{mod.upper()}_DIR"
+    script : str = f"""
+if [ -z \"${modvar}\" ] ; then 
+  echo FAILURE: variable {modvar} not set, load module {mod}
+else
+  if [ ! -d \"${modvar}\" ] ; then
+    echo FAILURE: directory {modvar} not found
+  else
+    echo SUCCESS: package={mod} version={ver} is at: {modvar}=${{{modvar}}}
+  fi
+fi
+        """
+    return script,title

@@ -338,53 +338,6 @@ def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
     return load_string
 
 ##
-## Specific module tests through process_execute
-##
-def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
-    modver : str = modverlist[0]
-    title : str = f"Test presence of module: {modver}"
-    if hasver := re.search( r'(.*)/(.*)',modver):
-        mod,ver = hasver.groups()
-    elif nonnull(modver):
-        mod = modver; ver = ""
-    else:
-        echo_warning( f"Testing loaded with null modver",**kwargs )
-        return
-    modvar : str = f"TACC_{mod.upper()}_DIR"
-    script : str = f"""
-if [ -z \"${modvar}\" ] ; then 
-  echo FAILURE: variable {modvar} not set, load module {mod}
-else
-  if [ ! -d \"${modvar}\" ] ; then
-    echo FAILURE: directory {modvar} not found
-  else
-    echo SUCCESS: package={mod} version={ver} is at: {modvar}=${{{modvar}}}
-  fi
-fi
-        """
-    return script,title
-
-def test_module_loaded( modver : str, **kwargs: Any ) -> str:
-    return get_value_from_loaded( module_loaded_script,[modver],**kwargs )
-
-def test_module_version( mod: str, ver: str, **kwargs: Any ) -> bool:
-    loadedversion :str = os.getenv( "TACC_"+mod.upper()+"_VERSION","" )
-    if not loadedversion:
-        loadedversion = os.getenv( "TACC_"+mod.upper()+"_VER","" )
-    if not loadedversion:
-        trace_string( " .. module does not declare VERSION parameter",**kwargs )
-        return True
-    else:
-        if not ( version_match := version_satisfies( loadedversion,ver,**kwargs ) ):
-            trace_string( f" .. loaded version: {loadedversion} does not match version {ver}",
-                     **kwargs )
-            return False
-        else:
-            trace_string( f" .. loaded version: {loadedversion} matches version {ver}",
-                          **kwargs )
-            return True
-
-##
 ## Execute a script in the context of compiler and modules
 ## return: value, or FAILURE string
 ##
