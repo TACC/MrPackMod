@@ -275,12 +275,11 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
         return expr
 
 def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
-    tracing : bool = False
     configuration_dict: dict[str, Any] = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",
-        'tracing':tracing,
+        'tracing':False,
         'exports':[], # vars to set before cmake/configure call
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
@@ -295,7 +294,7 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
     rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
                                 f"{os.path.expanduser('~')}/{rc_name}" 
                                ] if os.path.exists(rc) ]
-    system_settings      ( configuration_dict,rc_files,tracing=tracing )
+    system_settings      ( configuration_dict,rc_files, )
     trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
     # install paths
     install_settings     ( configuration_dict,rc_files,**output )

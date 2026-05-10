@@ -28,7 +28,7 @@ from MrPackMod.process import version_satisfies,process_execute,\
 ##
 def loaded_modules( **kwargs: Any ) -> list[list[str]]:
     name_version_list : list[str] = process_execute\
-        ( "module -t list 2>&1 | tr '\n' ' '",**kwargs ).split()
+        ( "module -t list 2>&1 | tr '\n' ' '",**kwargs,terminal="suppress" ).split()
     return [ f"{mv}/".split('/',1) for mv in name_version_list ]
 
 def mod_ver( m : str,**kwargs : Any ) -> tuple[str, str]:
