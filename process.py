@@ -358,7 +358,7 @@ else
   if [ ! -d \"${modvar}\" ] ; then
     echo FAILURE: directory {modvar} not found
   else
-    echo SUCCESS: package={mod} version={ver} is at: {modvar}
+    echo SUCCESS: package={mod} version={ver} is at: {modvar}=${{{modvar}}}
   fi
 fi
         """
