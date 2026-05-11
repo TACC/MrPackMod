@@ -9,14 +9,15 @@ from typing import Any, Tuple
 # my modules
 #
 from MrPackMod.modulefile import loaded_modules
-from MrPackMod.error   import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
-from MrPackMod.process import open_logfile,close_logfile,\
+from MrPackMod.error      import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
+from MrPackMod.names      import srcdir_name
+from MrPackMod.process    import open_logfile,close_logfile,\
     line_strip_conditionals,remove_macros
-from MrPackMod.tracing import echo_string,trace_string,echo_warning
-from MrPackMod.testing import start_test_stage,end_test_stage
+from MrPackMod.tracing    import echo_string,trace_string,echo_warning
+from MrPackMod.testing    import start_test_stage,end_test_stage
 
-additive_keys: list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
-list_keys: list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
+additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
+list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
 
 def add_new_dict_item( newkey: str, assign: str, newval: str, config_dict: dict[str, Any] ) -> None:
     """ Add a new value under the given key.
@@ -274,6 +275,13 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
     else:
         return expr
 
+#
+# Keywords like SRCDIR that can be used in the user configuration
+#
+def derived_settings( config_dict : dict[str,Any] ) -> None:
+    # danger: when testing there is no srcdir
+    config_dict["SRCDIR"] = srcdir_name( **config_dict )
+
 def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
     configuration_dict: dict[str, Any] = {
         'BUILDSYSTEM':"cmake",
@@ -305,6 +313,7 @@ def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict )
+    derived_settings( configuration_dict )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure

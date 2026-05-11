@@ -1,4 +1,7 @@
-#!/usr/bin/env/python3
+################################################################
+#### install.py
+#### install functions for cmake/autotools.make
+################################################################
 
 #
 # standard python modules
@@ -10,16 +13,13 @@ import re
 import shutil
 from typing import Any, Optional
 
-#
-# my own modules
-#
-#import module_help_string,package_info,path_settings,system_paths,dependencies
+from MrPackMod.basics  import remove_macros
 from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
     nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    process_execute_immediate
+    process_execute_immediate,remove_macros
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
 from MrPackMod.tracing import echo_string, trace_string
 from MrPackMod.testing import start_test_stage,end_test_stage
@@ -78,6 +78,12 @@ def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
         except FileNotFoundError: pass
         os.makedirs(builddir,exist_ok=True)
     return srcdir,builddir,prefixdir
+
+################################################################
+####
+#### CMake
+####
+################################################################
 
 def cmake_basic_command( **kwargs : Any ) -> str:
     cmake : str = kwargs.get( "CMAKENAME","cmake" )
@@ -206,6 +212,12 @@ def cmake_build( **kwargs: Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     return get_value_from_loaded( cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
 
+################################################################
+####
+#### Autotools
+####
+################################################################
+
 def autotools_configure( **kwargs: Any ) -> None:
     logfilename = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
@@ -312,6 +324,35 @@ def autotools_build( **kwargs: Any ) -> None:
         echo_string( f"Extra installs: {cptoinstall}",**kwargs )
         process_execute( f"cp -r {cptoinstall} {prefixdir}",**kwargs )
     close_logfile( logfilename,kwargs )
+
+################################################################
+####
+#### Make
+####
+################################################################
+
+def make_configure_script( pdirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = ""
+    if premake := nonzero_keyword( "PREMAKE",**kwargs ):
+        premake = remove_macros( premake,kwargs )
+        trace_string( f"Using premake: {premake}",**kwargs )
+        script += f"\n{premake}\n"
+    return script,"Make setup"
+
+def make_configure( **kwargs : Any ) -> str:
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    return get_value_from_loaded(
+        make_configure_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
+
+def make_build( **kwargs : Any ) -> str:
+    return ""
+
+################################################################
+####
+#### Post-install stuff
+####
+################################################################
+
 
 import os
 import stat

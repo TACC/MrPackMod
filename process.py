@@ -12,7 +12,7 @@ import sys
 import traceback
 from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
-from MrPackMod.basics  import loaded_module_version
+from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
@@ -430,24 +430,6 @@ def condition_split(
     value1 = config_dict.get(field1,field1)
     value2 = config_dict.get(field2,field2)
     return value1,op,value2,line
-
-##
-## strip of macros
-##
-def remove_macros( string : str,valdict : dict[str,Any] ) -> str:
-    for key,val in valdict.items():
-        if not type(val) is str: continue
-        searchstring : str = f"${{{key}}}"
-        oldstring : str = string
-        string = string.replace( searchstring,val )
-        if oldstring!=string:
-            trace_string( f"replace: {key} => {val}",**valdict )
-    return string
-
-def clean_title( title : str,**kwargs : Any ) -> str:
-    clean : str = re.sub("/",'-',re.sub(' ','_',title))
-    clean = remove_macros( clean,kwargs )
-    return clean
 
 ##
 ## Return directory, actual file name & name with LMOD variable unexpanded

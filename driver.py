@@ -1,5 +1,6 @@
 ################################################################
-#### driver.py : top level mpm function for the commandline actions
+#### driver.py
+#### top level mpm function executing the commandline actions
 ################################################################
 
 import argparse
@@ -136,12 +137,16 @@ utility_actions : {utility_actions}
                     install.cmake_configure( **configuration )
                 elif system == "autotools":
                     install.autotools_configure( **configuration )
+                elif system == "make":
+                    install.make_configure( **configuration )
                 else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
             if action in [ "install", "build", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_build( **configuration )
                 elif system == "autotools":
                     install.autotools_build( **configuration )
+                elif system == "make":
+                    install.make_build( **configuration )
                 else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
             if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
                 success,failure = install.write_module_file( **configuration )

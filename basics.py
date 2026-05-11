@@ -56,6 +56,29 @@ def unimplemented( var: str ) -> None:
         pass
 
 ####
+#### Macro related
+####
+
+##
+## stripping of macros
+##
+
+def remove_macros( string : str,valdict : dict[str,Any] ) -> str:
+    for key,val in valdict.items():
+        if not type(val) is str: continue
+        searchstring : str = f"${{{key}}}"
+        oldstring : str = string
+        string = string.replace( searchstring,val )
+        # if oldstring!=string:
+        #     trace_string( f"replace: {key} => {val}",**valdict )
+    return string
+
+def clean_title( title : str,**kwargs : Any ) -> str:
+    clean : str = re.sub("/",'-',re.sub(' ','_',title))
+    clean = remove_macros( clean,kwargs )
+    return clean
+
+####
 #### Slightly higher level
 ####
 
