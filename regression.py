@@ -11,7 +11,7 @@ import shutil
 import sys
 from typing import Any
 
-from MrPackMod.install import export_compilers,cmake_options,\
+from MrPackMod.install import export_compilers_script,cmake_options,\
     cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names
 from MrPackMod.process import process_execute, process_initiate, \
@@ -117,7 +117,7 @@ fi
 
 def cmake_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,ext,cmakebuilddir = args
-    compiler_exports = export_compilers( **kwargs )
+    compiler_exports,_ = export_compilers_script( [],**kwargs )
     cmakeflags = cmake_options( **kwargs )
     scriptdir : str = abort_on_zero_keyword( "scriptdir",**kwargs )
     script : str = f"""
@@ -351,7 +351,7 @@ def do_make_test(
         start_test_stage( "compile",kwargs, # note dict
                           chdir=builddir,package=name,installing=False, )
     # set up for make
-    compiler_exports = export_compilers( **kwargs,**output )
+    compiler_exports,_ = export_compilers_script( [],**kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
     process_execute\
         ( f"{compiler_exports} && make -f ../{ext}/Makefile SRCDIR=../{ext} PROJECTNAME={name} {name}",
