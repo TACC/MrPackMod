@@ -258,7 +258,7 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
         loadscript = ""
     modulereport = f"""
 if [ $? -gt 0 ] ; then
-    echo .. module command failed 
+    echo FAILURE module command failed && exit
 else
     echo Loaded: && modulelist
 fi {redirect}
@@ -284,28 +284,33 @@ function modulelist ()
     else:
         loadscript += """
 function modulelist ()
-{ module -t list 2>&1 
+{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
 }
         """
     loadscript += f"""
 echo .... Module reset {redirect}
 module -t purge 2>/dev/null
+echo .... Loading basic modules {redirect}
+module -t reset 2>/dev/null
+module -ft unload impi mvapich openmpi
+{modulereport}
 
 echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
-echo $MODULEPATH  {redirect}
-module -t load TACC 2>/dev/null
-{modulereport} {redirect}
+echo MODULEPATH=$MODULEPATH {redirect}
+echo .... Can we load compiler {compiler}/{compilerversion} {redirect}
+module -t avail {compiler}/{compilerversion} 2>&3
+{modulereport}
 
-echo .... Load compiler {redirect}
+echo .... Load compiler {compiler}/{compilerversion} {redirect}
 module -t load {compiler}/{compilerversion} 2>/dev/null
-{modulereport} {redirect}
+{modulereport}
     """
     if kwargs.get("MODE")=="mpi":
         loadscript += f"""
 echo .... Load mpi {redirect}
 module -t load {mpi}/{mpiversion} 2>/dev/null
-{modulereport} {redirect}
+{modulereport}
         """
     if nonnull( modules_to_load ):
         loadscript += f"""
@@ -327,7 +332,7 @@ fi
         echo_warning( "not loading any modules",**kwargs )
     loadscript += f"""
 echo Final listing {redirect}
-{modulereport} {redirect}
+{modulereport}
     """
     return loadscript
 

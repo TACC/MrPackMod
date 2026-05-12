@@ -344,7 +344,16 @@ def make_configure( **kwargs : Any ) -> str:
     return get_value_from_loaded(
         make_configure_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
 
+def make_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = ""
+    if targets := nonzero_keyword( "MAKETARGETS",**kwargs ):
+        jcount = kwargs.get("JCOUNT",6)
+        script += f"\nmake -j {jcount} {targets}\n"
+    return script,"Make build"
+
 def make_build( **kwargs : Any ) -> str:
+    return get_value_from_loaded(
+        make_build_script,[],**kwargs,installing=True )
     return ""
 
 ################################################################
