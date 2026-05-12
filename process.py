@@ -363,7 +363,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
             loadscript += "\n#Loading environment for package: {package}"
     # where does all crap go?
     script,title = script_function(args,**kwargs)
-    scriptsdir = kwargs.get("scriptdir",".")+"/mpmscripts"
+    scriptsdir = nonzero_keyword( "scriptsdir",**kwargs ) #kwargs.get("scriptdir",".")+"/mpmscripts"
     ## VLE title can contain path macros like TACC_PACKAGE_LIB
     cleantitle = clean_title( title,**kwargs )
     outputbase : str = f"{scriptsdir}/{cleantitle}"

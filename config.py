@@ -280,18 +280,12 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
 #
 def derived_settings( config_dict : dict[str,Any] ) -> None:
     # danger: when testing there is no srcdir
-    config_dict["SRCDIR"] = srcdir_name( **config_dict )
+    config_dict["SRCDIR"]     = srcdir_name( **config_dict )
 
-def read_config( configfile: str, **kwargs: Any ) -> dict[str, Any]:
-    configuration_dict: dict[str, Any] = {
-        'BUILDSYSTEM':"cmake",
-        'MODULES':"", 'mode':"seq",
-        'PACKAGE':"all", 'PACKAGEVERSION':"",
-        'tracing':False,
-        'exports':[], # vars to set before cmake/configure call
-        'logfiles':{}, # name,handle pairs
-        'scriptdir':os.getcwd(),
-    }
+#
+# Read configuration, starting with some basics
+#
+def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: Any ) -> None:
 
     # create test process, open logfile;
     # note that we are not interested in modules here

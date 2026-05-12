@@ -49,13 +49,16 @@ def logfile_name(
         logstage : str, # this contains the package name
         **kwargs : Any,
         ) -> tuple[str, str]:
-    if dir := nonzero_keyword( "dir",**kwargs ):
-        logfiledir : str = dir
-    else:
-        logfiledir       = abort_on_zero_keyword( "scriptdir",**kwargs )
+    logfiledir : str = abort_on_zero_keyword( "scriptsdir",**kwargs )
+    # if dir := nonzero_keyword( "dir",**kwargs ):
+    #     logfiledir : str = dir
+    # else:
+    #     logfiledir       = abort_on_zero_keyword( "scriptdir",**kwargs )
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
-    logfileshortname : str = f"{logstage}-{moduleversion}_{compiler}-{cversion}"
+    logfileshortname : str = f"{logstage}-{moduleversion}"
+    if nonnull(compiler):
+        logfileshortname += f"_{compiler}-{cversion}"
     if mode := nonzero_keyword( "MODE",**kwargs ):
         logfileshortname += f"_{mpi}-{mversion}"
     logfileshortname += ".log"

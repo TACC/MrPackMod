@@ -16,7 +16,7 @@ from MrPackMod import install
 from MrPackMod import names 
 from MrPackMod.basics import loaded_module_version
 from MrPackMod.process import process_initiate,process_terminate,process_execute,\
-    open_logfile,close_logfile
+    open_logfile,close_logfile,ensure_dir
 from MrPackMod.tracing import echo_string,echo_warning
 from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
     error_abort
@@ -31,6 +31,10 @@ def screen_report_action( action: str, **kwargs: Any ) -> None:
 ====
 ================================================================
     """)
+
+def action_setup( **kwargs : Any ) -> None:
+    ensure_dir( abort_on_zero_keyword("scriptsdir",**kwargs) )
+    
 
 def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     arguments = parser.parse_args()
@@ -62,7 +66,18 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
                     for action in actions ] ) \
                         or len(actions)==0 # help only
 
-    configuration = config.read_config(configfile,tracing=tracing,nowarn=nowarn)
+    configuration: dict[str, Any] = {
+        'BUILDSYSTEM':"cmake",
+        'MODULES':"", 'mode':"seq",
+        'PACKAGE':"all", 'PACKAGEVERSION':"",
+        'tracing':False,
+        'exports':[], # vars to set before cmake/configure call
+        'logfiles':{}, # name,handle pairs
+        'scriptdir':os.getcwd(),
+        'scriptsdir':f"{os.getcwd()}/mpmscripts"
+    }
+    action_setup( **configuration ) # hm. this also appears below
+    config.read_config( configuration,configfile,tracing=tracing,nowarn=nowarn )
     # take care of jcount, dependencies, tracing
     # VLE this seems ad-hoc
     for arg,val in [ ["jcount",jcount], ["tracing",tracing], ["dependencies",dependencies], ]:
@@ -79,7 +94,11 @@ build_actions   : {build_actions}
 context_actions : {context_actions}
 package_actions : {package_actions}
 utility_actions : {utility_actions}
-""" )
+""" ) ; sys.exit(0)
+        # Actual actions
+        action_setup( **configuration ) # multiple times, because "clean" can erase dirs we need
+        if False:
+            continue
         # auxiliaries
         elif action=="dependencies":
             print( configuration['MODULES'] )
@@ -156,6 +175,7 @@ utility_actions : {utility_actions}
                 if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
+            # try also todelete keyword("scriptsdir")
             os.system( "rm -rf *~ *.log logfiles mpmscripts *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
             package : str = configuration.get("PACKAGE")
