@@ -296,7 +296,7 @@ module -ft unload impi mvapich openmpi
 
 echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
-echo MODULEPATH=$MODULEPATH {redirect}
+echo MODULEPATH=$MODULEPATH | tr ':' '\n' {redirect}
 echo .... Can we load compiler {compiler}/{compilerversion} {redirect}
 module -t avail {compiler}/{compilerversion} 2>&3
 {modulereport}
@@ -322,11 +322,8 @@ echo .... Load packages \"{modules_to_load}\" {redirect}
                 modver = mod
             loadscript += f"""
 module -t load {modver} 2>/dev/null
-if [ $? -gt 0 ] ; then
-    echo FAILURE: module {modver} failed to load 
-fi
+{modulereport}
             """
-        loadscript += f"{modulereport}"
     else:
         echo_warning( "not loading any modules",**kwargs )
     loadscript += f"""

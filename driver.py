@@ -168,7 +168,7 @@ utility_actions : {utility_actions}
                 if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
-            os.system( "rm -rf *~ *.log logfiles mpmscripts* *.out build* __pycache__ .mypy_cache" )
+            os.system( "rm -rf *~ a.out *.log logfiles mpmscripts* *.out build* __pycache__ .mypy_cache" )
         elif action=="regression":
             package : str = configuration.get("PACKAGE")
             if not loaded_module_version( package,**configuration ):

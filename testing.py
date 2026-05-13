@@ -56,8 +56,9 @@ def start_test_stage(
         ) -> OutputDict:
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
-    # note: kwargs does not contain "scriptsdir", logfile will go to default dir
-    # if test_options does not contain it either
+    # note: kwargs does not contain "scriptsdir",
+    # test_options is allowed to not contain it either,
+    # then logfile will go to default dir
     scriptsdir : str = test_options.get("scriptsdir")
     logname,loghandle,scriptsdir = \
         open_logfile( stage,**kwargs,scriptsdir=scriptsdir, ) 

@@ -227,46 +227,88 @@ def cmake_build( **kwargs: Any ) -> str:
 ####
 ################################################################
 
-def autotools_configure( **kwargs: Any ) -> None:
-    logfilename,_,_ = open_logfile( "configure",kwargs ) # note dict!
-    srcdir,builddir,prefixdir = configure_prep( **kwargs )
-    #
-    # execute configure
-    #
-    os.chdir(srcdir)
-    shell = process_initiate( **kwargs )
-    compilers_export = export_compilers( **kwargs )
-    process_execute( compilers_export,**kwargs,process=shell )
-    flags_export = export_flags( **kwargs )
-    process_execute( flags_export,**kwargs,process=shell )
+def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,srcdir,builddir,prefixdir = pmakedirs
+    # setup
+    compilers_export,_ = export_compilers_script( [],**kwargs )
+    trace_string( f"Using compilers: {compilers_export}",**kwargs )
+    flags_export : str = export_flags( **kwargs )
+    trace_string( f"Using flags: {flags_export}",**kwargs )
+    script : str = f"""
+cd {srcdir}
+{compilers_export}
+{flags_export}
+    """
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
-        process_execute( before,**kwargs,process=shell )
+        script += f"\n{before}\n"
+
     ##
-    ## go to the right location
+    ## go to the right location for configure
     ##
     if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
         trace_string( " .. going to configure in build dir",**kwargs )
-        has_configure = os.path.exists( f"{builddir}/configure" )
-        has_autogen = os.path.exists( f"{builddir}/autogen.sh" )
-        has_ac = os.path.exists( f"{builddir}/configure.ac" )
-        os.chdir(builddir) # needed for gcc
-        cmdline = f"{srcdir}/configure"
+        configloc : str = builddir
+        config_cmdline : str = f"{srcdir}/configure"
     elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
         trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
-        has_configure = os.path.exists( f"{subdir}/configure" )
-        has_autogen = os.path.exists( f"{subdir}/autogen.sh" )
-        has_ac = os.path.exists( f"{subdir}/configure.ac" )
-        process_execute( f"cd {subdir}",**kwargs,process=shell )
-        # os.chdir(subdir) # needed for taccstats
-        cmdline = f"./configure"
+        configloc = subdir
+        config_cmdline = f"./configure"
     else:
-        has_configure = os.path.exists( f"configure" )
-        has_autogen = os.path.exists( f"autogen.sh" )
-        has_ac = os.path.exists( f"configure.ac" )
-        cmdline = f"./configure"
+        configloc = "."
+        config_cmdline = f"./configure"
+    config_loc_script : str = f"""
+if [ -f \"{configloc}/configure\" ] ; then
+  has_configure=1 ; else has_configure= ; fi
+if [ -f \"{configloc}/autogen.sh\" ] ; then
+  has_autogen=1 ; else has_autogen= ; fi
+if [ -f \"{configloc}/configure.ac\" ] ; then
+  has_ac=1 ; else has_ac= ; fi
+cd {configloc}
+    """
+
     ##
     ## do stuff before configure
     ##
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    reconf_script : str = f"""
+if [ -z \"$has_configure\" ] ; then 
+  if [ ! -z \"$has_ac\" ] ; then
+    aclocal && autoconf
+  elif [ ! -z \"has_autogen\" ] ; then 
+    ./autogen.sh
+  else
+    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
+  fi
+fi
+{autoupdate}
+    """
+    ##
+    ## do configure
+    ##
+    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
+        flags : str = f" {flags}"
+    else: flags = ""
+    configure_script : str = f"""
+./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+    """
+    return config_loc_script+reconf_script+configure_script,"Autotools configuring"
+
+    
+def autotools_configure( **kwargs : Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "configure",kwargs,title="autotools configure",installing=True )
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    retval : str = get_value_from_loaded(
+        autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
+
+def original_autotools_configure():
     if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
         if has_ac: 
             if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
@@ -284,20 +326,6 @@ def autotools_configure( **kwargs: Any ) -> None:
         else:
             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
         process_execute( cmdline,**kwargs,process=shell )
-    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
-        process_execute( "./autoupdate",**kwargs,process=shell )
-    ##
-    ## do configure
-    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
-        prefixoption = option # pdtoolkit
-    else: prefixoption = "--prefix"
-    cmdline = f"./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib"
-    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
-        cmdline += f" {flags}"
-    process_execute( cmdline,**kwargs,process=shell )
-    process_terminate( shell,**kwargs )
-    close_logfile( logfilename,kwargs )
-    
 def autotools_build( **kwargs: Any ) -> None:
     logfilename,_,_ = open_logfile( "install",kwargs ) # note dict!
     #
@@ -340,7 +368,7 @@ def autotools_build( **kwargs: Any ) -> None:
 ####
 ################################################################
 
-def make_configure_script( pdirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     script : str = ""
     if premake := nonzero_keyword( "PREMAKE",**kwargs ):
         premake = remove_macros( premake,kwargs )
@@ -349,21 +377,31 @@ def make_configure_script( pdirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     return script,"Make setup"
 
 def make_configure( **kwargs : Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "configure",kwargs,title="make configure",installing=True )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
-    return get_value_from_loaded(
-        make_configure_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
+    retval : str = get_value_from_loaded(
+        make_configure_script,[],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
 
 def make_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    script : str = ""
-    if targets := nonzero_keyword( "MAKETARGETS",**kwargs ):
-        jcount = kwargs.get("JCOUNT",6)
-        script += f"\nmake -j {jcount} {targets}\n"
+    srcdir  : str = srcdir_name( **kwargs )
+    jcount  : str = kwargs.get("jcount",6)
+    targets : str = kwargs.get( "MAKETARGETS","" )
+    script = f"""
+cd {srcdir}
+make -j {jcount} {targets}
+    """
     return script,"Make build"
 
 def make_build( **kwargs : Any ) -> str:
-    return get_value_from_loaded(
-        make_build_script,[],**kwargs,installing=True )
-    return ""
+    output : OutputDict = \
+        start_test_stage( "build",kwargs,title="make build",installing=True )
+    retval : str = get_value_from_loaded(
+        make_build_script,[],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
 
 ################################################################
 ####
