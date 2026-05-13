@@ -44,16 +44,13 @@ def package_prerequisites( **kwargs : Any ) -> str:
 
 #
 # name of a logfile
+# the "logstage" typically contains the package name
 # 
 def logfile_name(
-        logstage : str, # this contains the package name
-        **kwargs : Any,
-        ) -> tuple[str, str]:
-    logfiledir : str = abort_on_zero_keyword( "scriptsdir",**kwargs )
-    # if dir := nonzero_keyword( "dir",**kwargs ):
-    #     logfiledir : str = dir
-    # else:
-    #     logfiledir       = abort_on_zero_keyword( "scriptdir",**kwargs )
+        logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
+    if not ( scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ) ):
+        scriptsdir = os.getcwd()+"/mpmscripts"
+    
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
     logfileshortname : str = f"{logstage}-{moduleversion}"
@@ -62,8 +59,8 @@ def logfile_name(
     if mode := nonzero_keyword( "MODE",**kwargs ):
         logfileshortname += f"_{mpi}-{mversion}"
     logfileshortname += ".log"
-    logfilename = f"{logfiledir}/{logfileshortname}"
-    return logfilename,logfileshortname
+    logfilename = f"{scriptsdir}/{logfileshortname}"
+    return logfilename,logfileshortname,scriptsdir
 
 #
 # Create a directory for either building or install

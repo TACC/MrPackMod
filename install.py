@@ -165,9 +165,13 @@ fi
     return script,"CMake configuring"
 
 def cmake_configure( **kwargs: Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "configure",kwargs,title="cmake configure",installing=True )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
-    return get_value_from_loaded(
-        cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
+    retval : str = get_value_from_loaded(
+        cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
 
 def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
@@ -209,8 +213,13 @@ fi
 def cmake_build( **kwargs: Any ) -> str:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
+    output : OutputDict = \
+        start_test_stage( "build",kwargs,title="cmake build",installing=True )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
-    return get_value_from_loaded( cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,installing=True )
+    retval : str = get_value_from_loaded(
+        cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
 
 ################################################################
 ####
@@ -219,7 +228,7 @@ def cmake_build( **kwargs: Any ) -> str:
 ################################################################
 
 def autotools_configure( **kwargs: Any ) -> None:
-    logfilename = open_logfile( "configure",kwargs ) # note dict!
+    logfilename,_,_ = open_logfile( "configure",kwargs ) # note dict!
     srcdir,builddir,prefixdir = configure_prep( **kwargs )
     #
     # execute configure
@@ -290,7 +299,7 @@ def autotools_configure( **kwargs: Any ) -> None:
     close_logfile( logfilename,kwargs )
     
 def autotools_build( **kwargs: Any ) -> None:
-    logfilename = open_logfile( "install",kwargs ) # note dict!
+    logfilename,_,_ = open_logfile( "install",kwargs ) # note dict!
     #
     # setup directories
     #

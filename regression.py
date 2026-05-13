@@ -11,6 +11,7 @@ import shutil
 import sys
 from typing import Any
 
+from MrPackMod.basics  import clean_title
 from MrPackMod.install import export_compilers_script,cmake_options,\
     cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names
@@ -199,11 +200,11 @@ cat {runout}
     """,**kwargs )
 
 def do_existence_test(
-        test_options: str,
-        **kwargs: Any,
+        test_definition: str, test_options : dict[str,Any], **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
+
     package,_ = package_names( **kwargs )
-    options_dict : dict = parse_command( test_options,**kwargs )
+    options_dict : dict = parse_command( test_definition,**kwargs )
     trace_string( f"Existence test options: {options_dict}",**kwargs )
     program = options_dict["program"]
     title   = options_dict.pop("title")
@@ -222,10 +223,12 @@ def do_existence_test(
     #
     # program can contain a path
     program_clean = re.sub( '/','',program )
+    cleantitle = clean_title( title )
+    options_dict["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
     output : OutputDict = \
         start_test_stage( "exists",kwargs, # note dict
                           title=f"{title}, existence test",**options_dict,
-                          package=program_clean,linedisplay=trace_string,installing=False ) 
+                          package=program_clean,**test_options ) 
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
 
@@ -263,12 +266,10 @@ def do_existence_test(
     return success,failure
 
 def do_cmake_test(
-    test_options: str,
-    **kwargs: Any,
-) -> tuple[list[str], list[str]]:
+        test_definition: str, test_options,**kwargs: Any, ) -> tuple[list[str], list[str]]:
 
     #parsed_options
-    run_config : dict = parse_command( test_options,**kwargs )
+    run_config : dict = parse_command( test_definition,**kwargs )
     try :
         program = run_config["program"]
         title   = run_config["title"]
@@ -296,7 +297,7 @@ def do_cmake_test(
         start_test_stage(
             "cmake build",kwargs, # note dict
             title=f"{title}, cmake/make stage",
-            package=name,terminal="suppress",installing=False, )
+            package=name,**test_options )
     res : str = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,**kwargs,**output )
     failed : bool = re.match( 'FAILURE',res )
@@ -313,7 +314,7 @@ def do_cmake_test(
         output = start_test_stage(
             "exec",kwargs,
             title=f"{title}, ldd/run stage",
-            package=name,terminal="suppress",installing=False, )
+            package=name,**test_options )
         #execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
         res = get_value_from_loaded(
             ldd_script,prog_and_dirs,**kwargs,**output )
@@ -325,11 +326,11 @@ def do_cmake_test(
     return success,failure
 
 def do_make_test(
-    test_options: str,
+    test_definition: str,
     **kwargs: Any,
 ) -> tuple[list[str], list[str]]:
     failure : list[str] = []; success : list[str] = []
-    run_config : dict = parse_command( test_options,**kwargs )
+    run_config : dict = parse_command( test_definition,**kwargs )
     try :
         program = run_config["program"]
         title   = run_config["title"]
@@ -406,13 +407,15 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
     return False
 
 def do_tests( **kwargs: Any ) -> None:
+    test_options : dict = {'linedisplay':trace_string,'installing':False }
     #
     # existence tests
     #
     if tests := kwargs.get( "EXISTENCETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_existence_test( test,**kwargs )
+                success,failure = do_existence_test(
+                    test,test_options,**kwargs, )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -424,7 +427,8 @@ def do_tests( **kwargs: Any ) -> None:
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_cmake_test( test,**kwargs )
+                success,failure = do_cmake_test(
+                    test,test_options,**kwargs, )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -443,8 +447,8 @@ def do_tests( **kwargs: Any ) -> None:
                     echo_string( f"    ERROR: {f}",**kwargs, )
             else: report_skipped_test( test,**kwargs )
 
-def report_skipped_test( test_options : str,**kwargs : Any ) -> None:
-    options_dict : dict = parse_command( test_options,**kwargs )
+def report_skipped_test( test_definition : str,**kwargs : Any ) -> None:
+    options_dict : dict = parse_command( test_definition,**kwargs )
     title : str   = options_dict.pop("title")
     echo_string( f"Skipping test: {title}",**kwargs )
 

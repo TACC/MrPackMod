@@ -11,8 +11,7 @@ from typing import Any, Tuple
 from MrPackMod.modulefile import loaded_modules
 from MrPackMod.error      import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
 from MrPackMod.names      import srcdir_name
-from MrPackMod.process    import open_logfile,close_logfile,\
-    line_strip_conditionals,remove_macros
+from MrPackMod.process    import line_strip_conditionals,remove_macros
 from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 from MrPackMod.testing    import start_test_stage,end_test_stage
 
@@ -38,6 +37,7 @@ def add_new_dict_item( newkey: str, assign: str, newval: str, config_dict: dict[
         if newkey not in config_dict.keys() :
             config_dict[newkey] = []
         config_dict[newkey].append( newval )
+        print( f"Added test: {newkey}={config_dict[newkey]}" )
     else:
         config_dict[newkey] = newval
     trace_string( f"Setting: {newkey} {assign} {newval} from config",**config_dict )

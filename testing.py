@@ -12,12 +12,21 @@ from MrPackMod.process    import process_execute, process_initiate, process_term
 from MrPackMod.process    import open_logfile,close_logfile
 from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 
+class OutputDict(TypedDict):
+    logfile : str
+    logdir : str
+    terminal : Optional[str]
+    #process : Any
+    installing  : bool
+    linedisplay : Any
+    scriptsdir : str
+
 def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
     # open a log file and load modules; pkg or prereqs depending on installing
-    output  = start_test_stage( "moduleconfig",kwargs,
-                                installing=installing,terminal="suppress" )
-    success : list[str] = []
-    failure : list[str] = []
+    output : OutputDict  = \
+        start_test_stage( "moduleconfig",kwargs,
+                          installing=installing,terminal="suppress" )
+    success : list[str] = [] ; failure : list[str] = []
 
     # test presence of source dir
     if  nonzero_keyword("installing",**kwargs ):
@@ -31,14 +40,6 @@ fi
     test_modules( **kwargs,**output )
     success,failure = end_test_stage( success,failure,kwargs,output )
     return success,failure
-
-class OutputDict(TypedDict):
-    logfile : str
-    logdir : str
-    terminal : Optional[str]
-    #process : Any
-    installing  : bool
-    linedisplay : Any
 
 ##
 ## Start test stage:
@@ -55,8 +56,11 @@ def start_test_stage(
         ) -> OutputDict:
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
-    logname,loghandle = \
-        open_logfile( stage,**kwargs ) 
+    # note: kwargs does not contain "scriptsdir", logfile will go to default dir
+    # if test_options does not contain it either
+    scriptsdir : str = test_options.get("scriptsdir")
+    logname,loghandle,scriptsdir = \
+        open_logfile( stage,**kwargs,scriptsdir=scriptsdir, ) 
     kwargs["logfiles"][logname] = loghandle
 
     # Create a process for the commands of this test stage
@@ -66,6 +70,7 @@ def start_test_stage(
         "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
         "installing":installing,   # default True, make sure to unset in regression
+        "scriptsdir":scriptsdir,
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )

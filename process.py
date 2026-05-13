@@ -5,6 +5,7 @@
 ##
 import datetime
 import os
+import pdb
 import re
 import shutil
 import subprocess
@@ -13,7 +14,7 @@ import traceback
 from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
 from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title
-from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword
+from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
@@ -51,11 +52,8 @@ from MrPackMod.names import logfile_name
 ## add name/handle to kwargs["logfiles"]
 ##
 def open_logfile(
-        logstage : str,
-        logdir   : Optional[str] = None,
-        terminal : str = "",
-        **kwargs   : Any,
-        ) -> tuple[str,str]:
+        logstage : str, logdir   : Optional[str] = None,
+        terminal : str = "", **kwargs   : Any, ) -> tuple[str,str]:
     logdir : str = kwargs.get("logdir",".")
     if nonnull( package := kwargs.get("program") ):
         logname : str = f"{package}_{logstage}"
@@ -64,12 +62,13 @@ def open_logfile(
         logname = f"{packagename}_{logstage}"
 
     # get global name, ignore local name
-    logname,_ = logfile_name( logstage,dir=logdir,**kwargs )
+    logname,_,logdir = logfile_name( logstage,**kwargs )
+    ensure_dir(logdir)
     loghandle = open( logname,"w" )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
-    return logname,loghandle
+    return logname,loghandle,logdir
 
 def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
     try :
@@ -363,7 +362,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
             loadscript += "\n#Loading environment for package: {package}"
     # where does all crap go?
     script,title = script_function(args,**kwargs)
-    scriptsdir = nonzero_keyword( "scriptsdir",**kwargs ) #kwargs.get("scriptdir",".")+"/mpmscripts"
+    scriptsdir = abort_on_zero_keyword( "scriptsdir",**kwargs ) #kwargs.get("scriptdir",".")+"/mpmscripts"
     ## VLE title can contain path macros like TACC_PACKAGE_LIB
     cleantitle = clean_title( title,**kwargs )
     outputbase : str = f"{scriptsdir}/{cleantitle}"
