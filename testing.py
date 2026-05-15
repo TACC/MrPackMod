@@ -5,7 +5,8 @@ from typing import Any,Optional,TypedDict
 
 from MrPackMod.error      import nonnull,nonzero_keyword,error_abort,isnull
 from MrPackMod.modulefile import module_loaded_script
-from MrPackMod.names      import srcdir_name,family_names,package_names,package_prerequisites
+from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
+    package_prerequisites
 from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
     load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
     get_value_from_loaded
@@ -52,6 +53,7 @@ def start_test_stage(
         package     : Optional[str] = "",
         installing  : Optional[bool] = True,
         linedisplay : Optional[Any]  = echo_string,
+        scriptsdir  : Optional[str] = None,
         **test_options    : dict[str,Any],
         ) -> OutputDict:
 
@@ -59,7 +61,7 @@ def start_test_stage(
     # note: kwargs does not contain "scriptsdir",
     # test_options is allowed to not contain it either,
     # then logfile will go to default dir
-    scriptsdir : str = test_options.get("scriptsdir")
+    scriptsdir : str = scriptsdir_name( **kwargs ) # test_options.get("scriptsdir")
     logname,loghandle,scriptsdir = \
         open_logfile( stage,**kwargs,scriptsdir=scriptsdir, ) 
     kwargs["logfiles"][logname] = loghandle

@@ -32,7 +32,11 @@ def ensure_dir( name: str, **kwargs: Any ) -> str:
     else:
         pwd = os.getcwd()
         dir = f"{pwd}/{name}"
-    trace_string( f"mkdir -p : {dir}",**kwargs )
+    if os.path.isdir( dir ):
+        trace_string( f"mkdir existing : {name} -> {dir}",**kwargs )
+    else:
+        breakpoint()
+        trace_string( f"mkdir new dir : {name} -> {dir}",**kwargs )
     os.makedirs( dir,exist_ok=True)
     return dir
 
@@ -53,9 +57,7 @@ from MrPackMod.names import logfile_name
 ## add name/handle to kwargs["logfiles"]
 ##
 def open_logfile(
-        logstage : str, logdir   : Optional[str] = None,
-        terminal : str = "", **kwargs   : Any, ) -> tuple[str,str]:
-    logdir : str = kwargs.get("logdir",".")
+        logstage : str, terminal : str = "", **kwargs   : Any, ) -> tuple[str,str]:
     if nonnull( package := kwargs.get("program") ):
         logname : str = f"{package}_{logstage}"
     else:
@@ -63,13 +65,13 @@ def open_logfile(
         logname = f"{packagename}_{logstage}"
 
     # get global name, ignore local name
-    logname,_,logdir = logfile_name( logstage,**kwargs )
-    ensure_dir(logdir)
+    logname,_,scriptsdir = logfile_name( logstage,**kwargs )
+    ensure_dir(scriptsdir)
     loghandle = open( logname,"w" )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
-    return logname,loghandle,logdir
+    return logname,loghandle,scriptsdir
 
 def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
     try :
@@ -292,7 +294,9 @@ echo .... Module reset {redirect}
 module -t purge 2>/dev/null
 echo .... Loading basic modules {redirect}
 module -t reset 2>/dev/null
-module -ft unload impi mvapich openmpi
+if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
+  module -ft unload ${{TACC_FAMILY_MPI}}
+fi
 {modulereport}
 
 echo .... Set modulepath {redirect}
