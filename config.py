@@ -10,7 +10,7 @@ from typing import Any, Tuple
 #
 from MrPackMod.modulefile import loaded_modules
 from MrPackMod.error      import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
-from MrPackMod.names      import srcdir_name
+from MrPackMod.names      import srcdir_name,builddir_name,prefixdir_name
 from MrPackMod.process    import line_strip_conditionals,remove_macros
 from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 from MrPackMod.testing    import start_test_stage,end_test_stage
@@ -277,10 +277,13 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
 
 #
 # Keywords like SRCDIR that can be used in the user configuration
+# see basics.derived_settings
 #
-def derived_settings( config_dict : dict[str,Any] ) -> None:
+def set_derived_settings( config_dict : dict[str,Any] ) -> None:
     # danger: when testing there is no srcdir
     config_dict["SRCDIR"]     = srcdir_name( **config_dict )
+    config_dict["BUILDDIR"]   = builddir_name( **config_dict )
+    config_dict["PREFIXDIR"]  = prefixdir_name( **config_dict )
 
 #
 # Read configuration, starting with some basics
@@ -307,7 +310,7 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict )
-    derived_settings( configuration_dict )
+    set_derived_settings( configuration_dict )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure

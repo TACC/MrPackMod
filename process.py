@@ -13,7 +13,8 @@ import sys
 import traceback
 from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
-from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title
+from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title,\
+    derived_settings
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
@@ -321,6 +322,7 @@ echo .... Load packages \"{modules_to_load}\" {redirect}
             else:
                 modver = mod
             loadscript += f"""
+echo .... load {modver} {redirect}
 module -t load {modver} 2>/dev/null
 {modulereport}
             """
@@ -373,6 +375,8 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     outputfilename : str = f"{outputbase}.out"
     with open(scriptfilename,"w") as scriptfile:
         scriptfile.write( "#!/bin/bash\n" )
+        for s in derived_settings:
+            scriptfile.write( f"export {s}={kwargs[s]}\n" )
         scriptfile.write( loadscript )
         scriptfile.write( f"\n# Now follows script: {title}" )
         scriptfile.write( script )

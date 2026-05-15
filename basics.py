@@ -90,3 +90,5 @@ def loaded_module_version( mod,**kwargs : Any ) -> Optional[str]:
     elif version := os.getenv( f"TACC_{mod.upper()}_VERSION" ):
         return version
     else: return ""
+
+derived_settings : list[str] = [ "SRCDIR","BUILDDIR","PREFIXDIR" ]

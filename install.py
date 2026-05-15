@@ -390,10 +390,14 @@ def make_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     srcdir  : str = srcdir_name( **kwargs )
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
+    trace_string( f"making targets: {targets}",**kwargs )
     script = f"""
 cd {srcdir}
 make -j {jcount} {targets}
     """
+    if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
+        trace_string( f"postmake: {postmake}",**kwargs )
+        script += f"\n{postmake}\n"
     return script,"Make build"
 
 def make_build( **kwargs : Any ) -> str:
