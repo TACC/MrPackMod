@@ -46,10 +46,17 @@ def package_prerequisites( **kwargs : Any ) -> str:
 # name of a logfile
 # the "logstage" typically contains the package name
 # 
+def scriptsdir_name( **kwargs : Any ) -> str:
+    if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
+        return scriptsdir
+    elif bdir := nonzero_keyword( "builddirroot",**kwargs ):
+        return f"{bdir}/mpmscripts"
+    else:
+        return os.getcwd()+"/mpmscripts"
+
 def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
-    if not ( scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ) ):
-        scriptsdir = os.getcwd()+"/mpmscripts"
+    scriptsdir : str = scriptsdir_name( **kwargs )
     
     _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
