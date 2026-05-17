@@ -35,7 +35,7 @@ def ensure_dir( name: str, **kwargs: Any ) -> str:
     if os.path.isdir( dir ):
         trace_string( f"mkdir existing : {name} -> {dir}",**kwargs )
     else:
-        breakpoint()
+        #breakpoint()
         trace_string( f"mkdir new dir : {name} -> {dir}",**kwargs )
     os.makedirs( dir,exist_ok=True)
     return dir

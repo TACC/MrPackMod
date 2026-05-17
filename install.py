@@ -97,11 +97,11 @@ def cmake_basic_command( **kwargs : Any ) -> str:
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
 def cmake_options( **kwargs: Any ) -> str:
-    cmakeflags = "-D CMAKE_VERBOSE_MAKEFILE=ON -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    cmakeflags = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if standard := kwargs.get("CPPSTANDARD"):
-        cmakeflags += f" -D CMAKE_CXX_FLAGS=-std=c++{standard}"
+        cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
-        cmakeflags += f" {flags}"
+        cmakeflags += f" -D MPM_CUSTOM_FLAGS=START {flags} "
     return cmakeflags.lstrip(" ")
 
 def cmake_build_settings( **kwargs ) -> str:
@@ -112,7 +112,7 @@ def cmake_build_settings( **kwargs ) -> str:
     if static := kwargs.get("buildstaticlibs"):
         buildsharedlibs = "OFF"
     else: buildsharedlibs = "ON"
-    return f"-D BUILD_SHARED_LIBS={buildsharedlibs} -D CMAKE_BUILD_TYPE={cmakebuildtype}"
+    return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
 
 def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
     srcdir,builddir,prefixdir = cmakedirs
@@ -162,6 +162,8 @@ else
     echo FAILURE: cmake failed
 fi
     """
+    # VLE I can' get newlines in this script. Hm.
+    script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
 def cmake_configure( **kwargs: Any ) -> str:
