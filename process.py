@@ -291,7 +291,8 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         # prerequisites or package
         modulestoload,loadcomment = modules_to_load( **kwargs )
         # compiler modules
-        compilermpi : str = load_compiler_and_mpi_script( modulestoload,**kwargs )
+        compilermpi : str = load_compiler_and_mpi_script\
+            ( modulestoload,setupredirect=f"{cleantitle}_setup.out",**kwargs )
         scriptfile.write( compilermpi+"\n" )
         # compiler names
         compilersettings,_ = export_compilers_script( [],**kwargs )
