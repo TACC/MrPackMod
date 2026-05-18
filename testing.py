@@ -63,7 +63,7 @@ def start_test_stage(
     # then logfile will go to default dir
     scriptsdir : str = scriptsdir_name( **kwargs ) # test_options.get("scriptsdir")
     logname,loghandle,scriptsdir = \
-        open_logfile( stage,**kwargs,scriptsdir=scriptsdir, ) 
+        open_logfile( stage.replace(' ','_'),**kwargs,scriptsdir=scriptsdir, ) 
     kwargs["logfiles"][logname] = loghandle
 
     # Create a process for the commands of this test stage

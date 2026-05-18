@@ -12,14 +12,14 @@ import sys
 from typing import Any
 
 from MrPackMod.basics  import clean_title
-from MrPackMod.install import export_compilers_script,cmake_options,\
-    cmake_configure_script,cmake_build_script
+from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded,\
     line_strip_conditionals,file_to_exist_names
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort,\
     abort_on_zero_keyword
+from MrPackMod.scripts import export_compilers_script
 from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
@@ -115,27 +115,6 @@ fi
 """,
           **kwargs, )
     return grep_output_file
-
-def cmake_script( args : list[str],**kwargs ) -> tuple[str,str]:
-    program,ext,cmakebuilddir = args
-    compiler_exports,_ = export_compilers_script( [],**kwargs )
-    cmakeflags = cmake_options( **kwargs )
-    scriptdir : str = abort_on_zero_keyword( "scriptdir",**kwargs )
-    script : str = f"""
-{compiler_exports} && cmake -D PROJECTNAME={program} -B {cmakebuilddir} {cmakeflags} -S {scriptdir}/{ext}
-cd {cmakebuilddir}
-make V=1
-if [ -f \"{program}\" ] ; then
-    found=1 && echo SUCCESS: program created
-else
-    found=0 && echo FAILURE: program not created
-fi
-    """
-    return script,f"CMake configure and make program {program}"
-
-def execute_cmake_script(
-        program: str, ext: str, cmakebuilddir : str,**kwargs: Any ) -> str:
-    return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,_,cmakebuilddir,cmakeprefixdir = args
@@ -295,7 +274,7 @@ def do_cmake_test(
     #
     output : OutputDict = \
         start_test_stage(
-            "cmake build",kwargs, # note dict
+            "cmake build and make",kwargs, # note dict
             title=f"{title}, cmake/make stage",
             package=name,**test_options )
     res : str = get_value_from_loaded(
@@ -471,4 +450,26 @@ def add_grep_lines(
         echo_warning( f"Can not find grep file: {grepfile}",**kwargs )
         pass
     return success
+
+# def cmake_script( args : list[str],**kwargs ) -> tuple[str,str]:
+#     program,ext,cmakebuilddir = args
+#     compiler_exports,_ = export_compilers_script( [],**kwargs )
+#     cmakeflags = cmake_options( **kwargs )
+#     scriptdir : str = abort_on_zero_keyword( "scriptdir",**kwargs )
+#     script : str = f"""
+# {compiler_exports}
+# cmake -D PROJECTNAME={program} -B {cmakebuilddir} {cmakeflags} -S {scriptdir}/{ext}
+# cd {cmakebuilddir}
+# make V=1
+# if [ -f \"{program}\" ] ; then
+#     found=1 && echo SUCCESS: program created
+# else
+#     found=0 && echo FAILURE: program not created
+# fi
+#     """
+#     return script,f"CMake configure and make program {program}"
+
+# def execute_cmake_script(
+#         program: str, ext: str, cmakebuilddir : str,**kwargs: Any ) -> str:
+#     return get_value_from_loaded(cmake_script,[program,ext,cmakebuilddir],**kwargs )
 

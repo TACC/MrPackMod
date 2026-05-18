@@ -21,29 +21,9 @@ from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_nam
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     process_execute_immediate,remove_macros
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
+from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script
 from MrPackMod.tracing import echo_string, trace_string
 from MrPackMod.testing import start_test_stage,end_test_stage
-
-def export_compilers_script( dummy : list[str],**kwargs: Any ) -> tuple[str,str]:
-    echo_string( "Exporting compilers",**kwargs )
-    compilers = compilers_names( **kwargs )
-    script = ""; cont = ""
-    for key,val in compilers.items():
-        echo_string( f" .. Setting compiler: {key}={val}",**kwargs )
-        which = process_execute_immediate( f"""
-which {val}
-if [ $? -gt 0 ] ; then
-  echo FAILURE determining location of {val}
-fi
-        """,**kwargs, )
-        if not re.match( "FAILURE",which ):
-            echo_string( f"    where {val}={which}",**kwargs )
-            if ( mpi := kwargs.get("MODE") ) == "mpi":
-                info = process_execute( f"{which} -show",**kwargs )
-                echo_string( f"    which is:\n    {info}",**kwargs )
-            script += f"{cont}export {key}={val}"
-            cont = " && "
-    return script,"Compiler settings"
 
 def compilers_flags( **kwargs: Any ) -> dict[str, str]:
     flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
@@ -134,15 +114,16 @@ def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
 ##
 def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+
     script : str = ""
     # setup
     if exports := nonzero_keyword( "exports",**kwargs ):
         export_cmdline : str = " && ".join(exports)
         echo_string( f"Using exports: {export_cmdline}",**kwargs )
-        script += f"\n{export_cmdline}"
-    compilers_export,_ = export_compilers_script( [],**kwargs )
-    trace_string( f"Using compilers: {compilers_export}",**kwargs )
-    script += f"\n{compilers_export}"
+        script += f"""
+{export_cmdline}
+        """
+
     # cmake
     cmake = cmake_basic_command( **kwargs )
     cmakeflags = cmake_options( **kwargs )
@@ -183,7 +164,7 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
     make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
     makebuildtarget : str = kwargs.get("makebuildtarget","")
     # execute make & make install
-    echo_string( f"Making in builddir: {builddir}",**kwargs )
+    trace_string( f"Making in builddir: {builddir}",**kwargs )
     if ninja := kwargs.get( "CMAKEUSENINJA" ):
         makeline = f"ninja install"
     else:

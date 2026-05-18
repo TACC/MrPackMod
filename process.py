@@ -17,6 +17,7 @@ from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title,\
     derived_settings
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
+from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
 ##
@@ -245,104 +246,25 @@ def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> str:
     trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
     return load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
-# this routine is called through the above two wrappers
-# from `start_test_stage'
-def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
-    title : str = f"Load compiler and mpi and modules: {modules_to_load}"
-    errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
-    _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulepath = nonzero_keyword( "modulepath",**kwargs )
-    if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
-        redirect : str = f"1>&3"
-        loadscript : str = f"exec 3>{redirectloc}"
-    else:
-        redirect = ""
-        loadscript = ""
-    modulereport = f"""
-if [ $? -gt 0 ] ; then
-    echo FAILURE module command failed && exit
-else
-    echo Loaded: && modulelist
-fi {redirect}
-    """
-    if nonzero_keyword( "moduletrace",**kwargs ):
-        loadscript += """
-function modulelist ()
-{
-    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
-    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
-    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
-    for m in $compiler $mpi cont $modules;
-    do
-        if [ $m = "cont" ]; then
-            echo "----------------";
-        else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
-            echo "$m : $loc";
-        fi;
-    done
-}
-        """
-    else:
-        loadscript += """
-function modulelist ()
-{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
-}
-        """
-    loadscript += f"""
-echo .... Module reset {redirect}
-module -t purge 2>/dev/null
-echo .... Loading basic modules {redirect}
-module -t reset 2>/dev/null
-if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
-  module -ft unload ${{TACC_FAMILY_MPI}}
-fi
-{modulereport}
-
-echo .... Set modulepath {redirect}
-export MODULEPATH={modulepath}
-echo MODULEPATH=$MODULEPATH | tr ':' '\n' {redirect}
-echo .... Can we load compiler {compiler}/{compilerversion} {redirect}
-module -t avail {compiler}/{compilerversion} 2>&3
-{modulereport}
-
-echo .... Load compiler {compiler}/{compilerversion} {redirect}
-module -t load {compiler}/{compilerversion} 2>/dev/null
-{modulereport}
-    """
-    if kwargs.get("MODE")=="mpi":
-        loadscript += f"""
-echo .... Load mpi {redirect}
-module -t load {mpi}/{mpiversion} 2>/dev/null
-{modulereport}
-        """
-    if nonnull( modules_to_load ):
-        loadscript += f"""
-echo .... Load packages \"{modules_to_load}\" {redirect}
-        """
-        for mod in modules_to_load.split(" "):
-            if ver := loaded_module_version( mod,**kwargs ):
-                modver = f"{mod}/{ver}"
-            else:
-                modver = mod
-            loadscript += f"""
-echo .... load {modver} {redirect}
-module -t load {modver} 2>/dev/null
-{modulereport}
-            """
-    else:
-        echo_warning( "not loading any modules",**kwargs )
-    loadscript += f"""
-echo Final listing {redirect}
-{modulereport}
-    """
-    return loadscript
-
 def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
     if not nonzero_keyword( "only_return",**kwargs ):
         process_execute( load_string,**kwargs )
     return load_string
+
+def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
+    if nonzero_keyword("installing",**kwargs):
+        modulestoload : str = package_prerequisites( **kwargs )
+        loadcomment : str = "\n# Loading environment for prerequisites: {modules_to_laod}"
+    else:
+        package,packageversion =  package_names( **kwargs )
+        if nonnull(packageversion):
+            modulestoload = f"{package}/{packageversion}"
+            loadcomment = f"\n# Loading environment for package: {package}/{packageversion}"
+        else:
+            modulestoload = package
+            loadcomment = "\n#Loading environment for package: {package}"
+    return modulestoload,loadcomment
 
 ##
 ## Execute a script in the context of compiler and modules
@@ -350,42 +272,38 @@ def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
 ##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str],**kwargs : Any ) -> str:
-    # setup
-    loadscript = ""
-    if nonzero_keyword("installing",**kwargs):
-        modules_to_load : str = package_prerequisites( **kwargs )
-        loadscript += "\n# Loading environment for prerequisites: {modules_to_laod}"
-    else:
-        package,packageversion =  package_names( **kwargs )
-        if nonnull(packageversion):
-            modules_to_load = f"{package}/{packageversion}"
-            loadscript += f"\n# Loading environment for package: {package}/{packageversion}"
-        else:
-            modules_to_load = package
-            loadscript += "\n#Loading environment for package: {package}"
-    # where does all crap go?
-    script,title = script_function(args,**kwargs)
-    scriptsdir = abort_on_zero_keyword( "scriptsdir",**kwargs )
-    ## VLE title can contain path macros like TACC_PACKAGE_LIB
+    # This is the meat of the script
+    mainscript,title = script_function(args,**kwargs)
+
+    # Script location
+    scriptsdir : str = abort_on_zero_keyword( "scriptsdir",**kwargs )
+    ensure_dir(scriptsdir,**kwargs)
+    # title can contain path macros like TACC_PACKAGE_LIB
     cleantitle = clean_title( title,**kwargs )
     outputbase : str = f"{scriptsdir}/{cleantitle}"
 
     # cobble together script
-    loadscript += "\n"+load_compiler_and_mpi_script(
-        modules_to_load,setupredirect=f"{outputbase}.setup", # filter boring stuff
-        **kwargs )
-    ensure_dir(scriptsdir,**kwargs)
     scriptfilename : str = f"{outputbase}.sh"
     outputfilename : str = f"{outputbase}.out"
     with open(scriptfilename,"w") as scriptfile:
-        scriptfile.write( "#!/bin/bash\n" )
+        # header
+        scriptfile.write( "#!/bin/bash\n\n" )
+        # prerequisites or package
+        modulestoload,loadcomment = modules_to_load( **kwargs )
+        # compiler modules
+        compilermpi : str = load_compiler_and_mpi_script( modulestoload,**kwargs )
+        scriptfile.write( compilermpi+"\n" )
+        # compiler names
+        compilersettings,_ = export_compilers_script( [],**kwargs )
+        scriptfile.write( compilersettings+"\n" )
+        # stuff
         for s in derived_settings:
             scriptfile.write( f"export {s}={kwargs[s]}\n" )
-        scriptfile.write( loadscript )
-        scriptfile.write( f"\n# Now follows script: {title}" )
-        scriptfile.write( script )
+        # actual script
+        scriptfile.write( f"\n# Now follows script: {title}\n" )
+        scriptfile.write( mainscript )
         scriptfile.write( "exec 3>&-\n" )
-    trace_string( f"Script for {title} in: {scriptfilename}\n{script}",**kwargs )
+    trace_string( f"Script for {title} in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
         ( f"""
 chmod +x {scriptfilename}
