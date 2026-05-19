@@ -37,10 +37,9 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
     modulepath = nonzero_keyword( "modulepath",**kwargs )
-    loadscript : str = ""
     if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
         redirect = ""
-    modulereport = f"""
+    loadscript : str = f"""
 function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2 && exit
@@ -87,8 +86,8 @@ echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
 echo MODULEPATH=$MODULEPATH | tr ':' '\n' {redirect}
 echo .... Can we load compiler {compiler}/{compilerversion} {redirect}
-module -t avail {compiler}/{compilerversion} 2>&3
-{modulereport}
+module -t avail {compiler}/{compilerversion} {redirect}
+modulereport $? "avail {compiler}/{compilerversion}"
 
 echo .... Load compiler {compiler}/{compilerversion} {redirect}
 module -t load {compiler}/{compilerversion} 2>/dev/null
