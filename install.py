@@ -373,7 +373,9 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     if premake := nonzero_keyword( "PREMAKE",**kwargs ):
         premake = remove_macros( premake,kwargs )
         trace_string( f"Using premake: {premake}",**kwargs )
-        redirect : str = f"1>&3" # This is copied from process.py. Generalize?
+        if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
+            redirect : str = "1>&3" # This is copied from process.py. Generalize?
+        else: redirect = ""
         script += f"\n( {premake} ) {redirect}\n"
     return script,"Make setup"
 

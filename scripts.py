@@ -37,18 +37,17 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
     modulepath = nonzero_keyword( "modulepath",**kwargs )
-    if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
-        redirect : str = f"1>&3"
-        loadscript : str = f"exec 3>{redirectloc}"
-    else:
+    loadscript : str = ""
+    if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
         redirect = ""
-        loadscript = ""
     modulereport = f"""
-if [ $? -gt 0 ] ; then
-    echo FAILURE module command failed && exit
+function modulereport () {{
+if [ $1 -gt 0 ] ; then
+    echo FAILURE module command failed: $2 && exit
 else
     echo Loaded: && modulelist
 fi {redirect}
+}}
     """
     if nonzero_keyword( "moduletrace",**kwargs ):
         loadscript += """
@@ -82,7 +81,7 @@ module -t reset 2>/dev/null
 if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
   module -ft unload ${{TACC_FAMILY_MPI}}
 fi
-{modulereport}
+modulereport $? "module purge/reset"
 
 echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
@@ -93,13 +92,13 @@ module -t avail {compiler}/{compilerversion} 2>&3
 
 echo .... Load compiler {compiler}/{compilerversion} {redirect}
 module -t load {compiler}/{compilerversion} 2>/dev/null
-{modulereport}
+modulereport $? "load {compiler}/{compilerversion}"
     """
     if kwargs.get("MODE")=="mpi":
         loadscript += f"""
 echo .... Load mpi {redirect}
 module -t load {mpi}/{mpiversion} 2>/dev/null
-{modulereport}
+modulereport $? "load {mpi}/{mpiversion}"
         """
     if nonnull( modules_to_load ):
         loadscript += f"""
@@ -113,7 +112,7 @@ echo .... Load packages \"{modules_to_load}\" {redirect}
             loadscript += f"""
 echo .... load {modver} {redirect}
 module -t load {modver} 2>/dev/null
-{modulereport}
+modulereport $? "load {modver}"
             """
     else:
         echo_warning( "not loading any modules",**kwargs )

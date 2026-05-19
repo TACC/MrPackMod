@@ -285,25 +285,40 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     # cobble together script
     scriptfilename : str = f"{outputbase}.sh"
     outputfilename : str = f"{outputbase}.out"
+    doredirect : Any = nonzero_keyword( "setupredirect",**kwargs )
     with open(scriptfilename,"w") as scriptfile:
+
         # header
         scriptfile.write( "#!/bin/bash\n\n" )
+        if doredirect:
+            scriptfile.write( f"exec 3>f{cleantitle}_setup.out\n" )
+            redirect : str = f"1>&3"
+        else: redirect = ""
+
         # prerequisites or package
         modulestoload,loadcomment = modules_to_load( **kwargs )
+
         # compiler modules
         compilermpi : str = load_compiler_and_mpi_script\
-            ( modulestoload,setupredirect=f"{cleantitle}_setup.out",**kwargs )
+            ( modulestoload, redirect=redirect, **kwargs )
         scriptfile.write( compilermpi+"\n" )
+
         # compiler names
         compilersettings,_ = export_compilers_script( [],**kwargs )
         scriptfile.write( compilersettings+"\n" )
+
         # stuff
         for s in derived_settings:
             scriptfile.write( f"export {s}={kwargs[s]}\n" )
+
         # actual script
         scriptfile.write( f"\n# Now follows script: {title}\n" )
         scriptfile.write( mainscript )
-        scriptfile.write( "exec 3>&-\n" )
+
+        # footer
+        if doredirect:
+            scriptfile.write( "exec 3>&-\n" )
+
     trace_string( f"Script for {title} in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
         ( f"""
