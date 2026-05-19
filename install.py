@@ -217,13 +217,14 @@ def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[
     trace_string( f"Using compilers: {compilers_export}",**kwargs )
     flags_export : str = export_flags( **kwargs )
     trace_string( f"Using flags: {flags_export}",**kwargs )
-    script : str = f"""
+    setup_script : str = f"""
 cd {srcdir}
+echo Going to configure in $(pwd)
 {compilers_export}
 {flags_export}
     """
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
-        script += f"\n{before}\n"
+        setup_script += f"\n{before}\n"
 
     ##
     ## go to the right location for configure
@@ -241,11 +242,17 @@ cd {srcdir}
         config_cmdline = f"./configure"
     config_loc_script : str = f"""
 if [ -f \"{configloc}/configure\" ] ; then
-  has_configure=1 ; else has_configure= ; fi
+  has_configure=1
+  echo has configure script
+else has_configure= ; echo no configure script ; fi
 if [ -f \"{configloc}/autogen.sh\" ] ; then
-  has_autogen=1 ; else has_autogen= ; fi
+  has_autogen=1
+  echo has autogen
+else has_autogen= ; echo no autogen ; fi
 if [ -f \"{configloc}/configure.ac\" ] ; then
-  has_ac=1 ; else has_ac= ; fi
+  has_ac=1
+  echo has configure.ac 
+else has_ac= ; echo no configure.ac ; fi
 cd {configloc}
     """
 
@@ -259,7 +266,7 @@ cd {configloc}
 if [ -z \"$has_configure\" ] ; then 
   if [ ! -z \"$has_ac\" ] ; then
     aclocal && autoconf
-  elif [ ! -z \"has_autogen\" ] ; then 
+  elif [ ! -z \"$has_autogen\" ] ; then 
     ./autogen.sh
   else
     echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
@@ -279,7 +286,7 @@ fi
     configure_script : str = f"""
 ./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
     """
-    return config_loc_script+reconf_script+configure_script,"Autotools configuring"
+    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
 
     
 def autotools_configure( **kwargs : Any ) -> str:
@@ -309,41 +316,51 @@ def original_autotools_configure():
         else:
             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
         process_execute( cmdline,**kwargs,process=shell )
-def autotools_build( **kwargs: Any ) -> None:
-    logfilename,_,_ = open_logfile( "install",kwargs ) # note dict!
-    #
-    # setup directories
-    #
-    srcdir    = srcdir_name( **kwargs )
-    builddir  = builddir_name( **kwargs )
-    prefixdir = prefixdir_name( **kwargs )
-    if nonzero_keyword("NOINSTALL"):
-        return
-    if subdir := nonzero_keyword("MAKESUBDIR",**kwargs):
-        os.chdir(subdir)
-    else:
-        os.chdir(srcdir)
-    echo_string( f"Building and installing in {os.getcwd()}" )
+
+def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+
+    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
+        subdir = srcdir
+
     #
     # Make
     #
-    jval = kwargs.get("jcount",6)
-    makecommand = f"make --no-print-directory -j {jval}"
-    echo_string( f"Making default target with: {makecommand}",**kwargs )
-    process_execute( makecommand,**kwargs )
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"make --no-print-directory -j {jval}"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
     if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
-        echo_string( f" .. making extra targets: {extra}",**kwargs )
-        process_execute( f"{makecommand} {extra}",**kwargs )
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
     #
     # install
     #
     extra = kwargs.get( "EXTRAINSTALLTARGET","" )
-    cmdline = f"make --no-print-directory install {extra}"
-    process_execute( cmdline,**kwargs )
+    script += f"\n{makecommand} install {extra}\n"
+
+    #
+    # after actions
+    #
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
-        echo_string( f"Extra installs: {cptoinstall}",**kwargs )
-        process_execute( f"cp -r {cptoinstall} {prefixdir}",**kwargs )
-    close_logfile( logfilename,kwargs )
+        trace_string( f"Extra installs: {cptoinstall}",**kwargs )
+        script += f"\ncp -r {cptoinstall} {prefixdir}\n"
+    return script,"Autotools make and install"
+
+def autotools_build( **kwargs : Any ) ->str:
+    if nonzero_keyword("noinstall",**kwargs):
+        return "No installation needed"
+    output : OutputDict = \
+        start_test_stage( "build",kwargs,title="autotools build",installing=True )
+    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+    retval : str = get_value_from_loaded(
+        autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
 
 ################################################################
 ####
