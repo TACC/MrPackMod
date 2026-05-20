@@ -82,7 +82,7 @@ def clean_title( title : str,**kwargs : Any ) -> str:
 #### Slightly higher level
 ####
 
-def loaded_module_version( mod,**kwargs : Any ) -> Optional[str]:
+def module_version_from_env( mod,**kwargs : Any ) -> Optional[str]:
     if not os.getenv( f"TACC_{mod.upper()}_DIR" ):
         return None
     if ver := os.getenv( f"TACC_{mod.upper()}_VER" ):

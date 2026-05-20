@@ -199,10 +199,12 @@ fi
             f"Find VERSION or VER macro for package {pkg}"
 
 def ensure_module_version_loaded( pkg : str,**kwargs : Any ) -> str:
+    echo_warning( f"script ensure_module_version_loaded does not actually ensure",**kwargs )
     return get_value_from_loaded( module_version_script,[pkg],**kwargs )
 
+# Get module version of something in the install environment
 def get_module_version( pkg : str,**kwargs : Any ) -> str:
-    return get_value_from_loaded( module_version_script,[pkg],**kwargs )
+    return get_value_from_loaded( module_version_script,[pkg],**kwargs,installing=True )
 
 ##
 ## Construct the modulefile string
@@ -218,7 +220,8 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         trace_string( f"depends on current versions of: {curreq}" )
         for cur in [ c for c in curreq.split(" ") if nonnull(c) ]:            
-            version = get_module_version( cur,**kwargs )
+            if isnull( version := get_module_version( cur,**kwargs ) ):
+                error_abort( f"Can not determine version of module {cur}",**kwargs )
             #version = ensure_module_version_loaded( cur,**kwargs )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"
     if family    := nonzero_keyword( "FAMILY",**kwargs ):

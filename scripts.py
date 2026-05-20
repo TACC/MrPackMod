@@ -6,7 +6,7 @@
 
 import re
 
-from MrPackMod.basics  import loaded_module_version
+from MrPackMod.basics  import module_version_from_env
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import compilers_names,family_names,\
     mode_has_mpi,mode_has_seq
@@ -101,7 +101,7 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for mod in modules_to_load.split(" "):
-            if ver := loaded_module_version( mod,**kwargs ):
+            if nonnull( ver := module_version_from_env( mod,**kwargs ) ):
                 modver = f"{mod}/{ver}"
             else:
                 modver = mod

@@ -13,8 +13,7 @@ import sys
 import traceback
 from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
-from MrPackMod.basics  import loaded_module_version,remove_macros,clean_title,\
-    derived_settings
+from MrPackMod.basics  import remove_macros,clean_title,derived_settings
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites
 from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script
