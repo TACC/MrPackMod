@@ -117,15 +117,23 @@ def family_names(
         print( "Deduce running in jail" )
         return None,None,None,None,None,None
 
+def mode_has_mpi( **kwargs ) -> bool:
+    has : str = abort_on_zero_keyword( "MODE",**kwargs )
+    return has in [ "mpi","hybrid", ]
+
+def mode_has_seq( **kwargs ) -> bool:
+    has : str = abort_on_zero_keyword( "MODE",**kwargs )
+    return has in [ "seq", "omp", ]
+
 def compilers_names( **kwargs: Any ) -> dict[str, str]:
     compilers = { 'CC':"unknown_cc", 'CXX':"unknown_cxx", 'FC':"unknown_fc", }
-    if ( mode := abort_on_zero_keyword( "MODE",**kwargs ) ) in [ "mpi","hybrid", ]:
+    if mode_has_mpi( **kwargs ):
         compilers["CC"] = "mpicc"; compilers["CXX"] = "mpicxx"; compilers["FC"] = "mpif90"
-    elif mode in [ "seq", "omp", ]:
+    elif mode_has_seq( **kwargs ):
         compilers["CC"]  = abort_on_zero_env( "TACC_CC",**kwargs )
         compilers["CXX"] = abort_on_zero_env( "TACC_CXX",**kwargs )
         compilers["FC"]  = abort_on_zero_env( "TACC_FC",**kwargs )
-    elif mode == "core":
+    elif ( mode := abort_on_zero_keyword( "MODE",**kwargs ) )  == "core":
         compilers["CC"] = "gcc"; compilers["CXX"] = "g++"; compilers["FC"] = "gfortran"
     else: raise Exception( f"Unknown mode: {mode}" )
     return compilers

@@ -8,7 +8,8 @@ import re
 
 from MrPackMod.basics  import loaded_module_version
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
-from MrPackMod.names   import compilers_names,family_names
+from MrPackMod.names   import compilers_names,family_names,\
+    mode_has_mpi,mode_has_seq
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
 from typing import Any
@@ -42,14 +43,80 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     loadscript : str = f"""
 function modulereport () {{
 if [ $1 -gt 0 ] ; then
-    echo FAILURE module command failed: $2 && exit
+    echo FAILURE module command failed: $2
+    echo Output: && module -t $3
+    exit
 else
-    echo Loaded: && modulelist
+    echo SUCCESS module command succeeded: $2
+    echo Now loaded: && modulelist
 fi {redirect}
 }}
     """
-    if nonzero_keyword( "moduletrace",**kwargs ):
-        loadscript += """
+    loadscript += """
+function modulelist ()
+{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
+}
+        """
+    loadscript += f"""
+function modulecommand () {{
+    echo
+    echo .... $1 : module $2 {redirect}
+    if [ -z "$3" ] ; then 
+      module -t $2 2>/dev/null
+    else
+      module -t $2
+    fi
+    modulereport $? "$1" "$2"
+}}
+    """
+    loadscript += f"""
+echo .... Module setup {redirect}
+
+modulecommand "module purge" "purge"
+
+modulecommand "load basics" "reset"
+
+if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
+  modulecommand "unload mpi" "unload ${{TACC_FAMILY_MPI}}"
+fi
+
+modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
+
+echo .... After reset: {redirect}
+modulelist {redirect}
+
+echo .... Set modulepath {redirect}
+export MODULEPATH={modulepath}
+echo MODULEPATH=${{MODULEPATH}} {redirect}
+modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" display
+
+modulecommand "Load compiler" "load {compiler}/{compilerversion}"
+    """
+    if mode_has_mpi( **kwargs ):
+        loadscript += f"""
+modulecommand "Load mpi" "load {mpi}/{mpiversion}"
+        """
+    if nonnull( modules_to_load ):
+        loadscript += f"""
+echo .... Load packages \"{modules_to_load}\" {redirect}
+        """
+        for mod in modules_to_load.split(" "):
+            if ver := loaded_module_version( mod,**kwargs ):
+                modver = f"{mod}/{ver}"
+            else:
+                modver = mod
+            loadscript += f"""
+modulecommand "load module: {modver}" "load {modver}"
+            """
+    else:
+        echo_warning( "not loading any modules",**kwargs )
+    loadscript += f"""
+echo Module listing:
+modulelist
+    """
+    return loadscript
+
+modulelonglist : str = """
 function modulelist ()
 {
     local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
@@ -66,58 +133,3 @@ function modulelist ()
     done
 }
         """
-    else:
-        loadscript += """
-function modulelist ()
-{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
-}
-        """
-    loadscript += f"""
-echo .... Module reset {redirect}
-module -t purge 2>/dev/null
-echo .... Loading basic modules {redirect}
-module -t reset 2>/dev/null
-if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
-  module -ft unload ${{TACC_FAMILY_MPI}}
-fi
-modulereport $? "module purge/reset"
-
-echo .... Set modulepath {redirect}
-export MODULEPATH={modulepath}
-echo MODULEPATH=$MODULEPATH | tr ':' '\n' {redirect}
-echo .... Can we load compiler {compiler}/{compilerversion} {redirect}
-module -t avail {compiler}/{compilerversion} {redirect}
-modulereport $? "avail {compiler}/{compilerversion}"
-
-echo .... Load compiler {compiler}/{compilerversion} {redirect}
-module -t load {compiler}/{compilerversion} 2>/dev/null
-modulereport $? "load {compiler}/{compilerversion}"
-    """
-    if kwargs.get("MODE")=="mpi":
-        loadscript += f"""
-echo .... Load mpi {redirect}
-module -t load {mpi}/{mpiversion} 2>/dev/null
-modulereport $? "load {mpi}/{mpiversion}"
-        """
-    if nonnull( modules_to_load ):
-        loadscript += f"""
-echo .... Load packages \"{modules_to_load}\" {redirect}
-        """
-        for mod in modules_to_load.split(" "):
-            if ver := loaded_module_version( mod,**kwargs ):
-                modver = f"{mod}/{ver}"
-            else:
-                modver = mod
-            loadscript += f"""
-echo .... load {modver} {redirect}
-module -t load {modver} 2>/dev/null
-modulereport $? "load {modver}"
-            """
-    else:
-        echo_warning( "not loading any modules",**kwargs )
-    loadscript += f"""
-echo Module listing:
-modulelist
-    """
-    return loadscript
-

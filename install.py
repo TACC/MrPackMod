@@ -97,12 +97,14 @@ def cmake_build_settings( **kwargs ) -> str:
 def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
     srcdir,builddir,prefixdir = cmakedirs
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
-        effsrcdir : str = f"{srcdir}/{source}"
-    else: effsrcdir = srcdir
-    settingsfile : str = f"{effsrcdir}/CMakeLists.txt"
+        effectivesrcdir : str = f"{srcdir}/{source}"
+    else: effectivesrcdir = srcdir
+    if not os.path.isdir(effectivesrcdir):
+        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+    settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
         error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
-    cmakepathsetting : str = f"-S {effsrcdir} -B {builddir}"
+    cmakepathsetting : str = f"-S {effectivesrcdir} -B {builddir}"
     if nonnull(prefixdir):
         cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
     return cmakepathsetting
