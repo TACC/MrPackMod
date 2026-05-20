@@ -204,7 +204,12 @@ def ensure_module_version_loaded( pkg : str,**kwargs : Any ) -> str:
 
 # Get module version of something in the install environment
 def get_module_version( pkg : str,**kwargs : Any ) -> str:
-    return get_value_from_loaded( module_version_script,[pkg],**kwargs,installing=True )
+    if nonzero_keyword( "installing",**kwargs ):
+        # this happens in "dependency_clauses"
+        return get_value_from_loaded( module_version_script,[pkg],**kwargs, )
+    else:
+        # does this ever happen?
+        return get_value_from_loaded( module_version_script,[pkg],**kwargs,installing=True )
 
 ##
 ## Construct the modulefile string
