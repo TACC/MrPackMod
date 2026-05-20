@@ -74,6 +74,8 @@ echo .... Module setup {redirect}
 
 modulecommand "module purge" "purge"
 
+export LMOD_SYSTEM_DEFAULT_MODULES=TACC
+
 modulecommand "load basics" "reset"
 
 if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
