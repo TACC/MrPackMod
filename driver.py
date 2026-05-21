@@ -112,7 +112,7 @@ utility_actions : {utility_actions}
         elif action=="test":
             success : list[str] = [] # these lines only for typing
             failure : list[str] = [] 
-            success,failure = do_config_tests( installing=True,**configuration )
+            success,failure = do_config_tests( installing=True,**configuration, )
             report_success_failure( success,failure,**configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):

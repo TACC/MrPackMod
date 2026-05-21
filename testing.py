@@ -126,12 +126,11 @@ def report_success_failure( success : list[str],failure : list[str],**kwargs : A
 ####
 
 def test_modules( **kwargs: Any ) -> None:
-    installing : bool = kwargs.get( "installing",False )
     process_execute\
         ( f"echo Using modulepath:",**kwargs )
     process_execute\
         ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
-    if installing:
+    if installing := kwargs.get( "installing",False ):
         if nonnull( modules := package_prerequisites(**kwargs) ):
             modules_to_test : str = modules
             echo_string( f"Test for prereq modules {modules_to_test}",**kwargs )

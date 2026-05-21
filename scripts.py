@@ -60,7 +60,12 @@ def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
     modulepath = nonzero_keyword( "modulepath",**kwargs )
     if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
         redirect = ""
-    loadscript : str = f"""
+    loadscript : str = ""
+    #
+    # Start by defining some functions
+    #
+    loadscript += f"""
+# Non-redirected return code reporting
 function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2
@@ -73,24 +78,31 @@ fi {redirect}
 }}
     """
     loadscript += """
+# Single line module listing
 function modulelist ()
 { module -t list 2>&1 | sort | tr '\n' ' ' && echo
 }
         """
     loadscript += f"""
+# Execute a module command and report result:
+# $1 : title, $2 actual command, $3 nonzero to display, otherwise redirected
 function modulecommand () {{
     echo
     echo .... $1 : module $2 {redirect}
     if [ -z "$3" ] ; then 
-      module -t $2 2>/dev/null
+      module -t $2 2>/dev/null {redirect}
     else
-      module -t $2
+      module -t $2 {redirect}
     fi
     modulereport $? "$1" "$2"
 }}
     """
+    #
+    # Now the actual script
+    #
     loadscript += f"""
-echo .... Module setup {redirect}
+echo
+echo Module setup starts here {redirect}
 
 modulecommand "module purge" "purge"
 
@@ -98,10 +110,10 @@ export LMOD_SYSTEM_DEFAULT_MODULES=TACC
 
 modulecommand "reset" "reset"
     """
-    if mode_has_seq( **kwargs ):
+    if not mode_is_core( **kwargs ):
         loadscript += f"""
 if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
-  modulecommand "unload mpi" "unload ${{TACC_FAMILY_MPI}}"
+  modulecommand "unload mpi" "-f unload ${{TACC_FAMILY_MPI}}"
 fi
 
 modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
