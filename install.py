@@ -25,25 +25,6 @@ from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_scri
 from MrPackMod.tracing import echo_string, trace_string
 from MrPackMod.testing import start_test_stage,end_test_stage
 
-def compilers_flags( **kwargs: Any ) -> dict[str, str]:
-    flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
-    if cflags := nonzero_keyword( "cflags",**kwargs ):
-        flags["CFLAGS"] = cflags
-    if cxxflags := nonzero_keyword( "cxxflags",**kwargs ):
-        flags["CCXXFLAGS"] = cxxflags
-    if fflags := nonzero_keyword( "fflags",**kwargs ):
-        flags["FFLAGS"] = fflags
-    return flags
-
-def export_flags( **kwargs: Any ) -> str:
-    flags = compilers_flags( **kwargs )
-    cmdline = ""; cont = ""
-    for lang in [ "CFLAGS", "CXXFLAGS", "FFLAGS", ]:
-        if nonnull( flag := flags[lang] ):
-            cmdline += f"{cont}export {lang}=\"{flag}\""
-            cont = " && "
-    return cmdline
-
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
     #
@@ -214,17 +195,6 @@ def cmake_build( **kwargs: Any ) -> str:
 
 def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program,srcdir,builddir,prefixdir = pmakedirs
-    # setup
-    compilers_export,_ = export_compilers_script( [],**kwargs )
-    trace_string( f"Using compilers: {compilers_export}",**kwargs )
-    flags_export : str = export_flags( **kwargs )
-    trace_string( f"Using flags: {flags_export}",**kwargs )
-    setup_script : str = f"""
-cd {srcdir}
-echo Going to configure in $(pwd)
-{compilers_export}
-{flags_export}
-    """
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
         setup_script += f"\n{before}\n"
 

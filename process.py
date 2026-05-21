@@ -15,8 +15,10 @@ from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
 from MrPackMod.basics  import remove_macros,clean_title,derived_settings
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
-from MrPackMod.names   import package_names,family_names,package_prerequisites
-from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script
+from MrPackMod.names   import package_names,family_names,package_prerequisites,\
+    mode_is_core
+from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script,\
+    export_flags
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
 ##
@@ -297,15 +299,16 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
 
         # prerequisites or package
         modulestoload,loadcomment = modules_to_load( **kwargs )
-
-        # compiler modules
+        # compiler modules, in core mode this only resets
         compilermpi : str = load_compiler_and_mpi_script\
             ( modulestoload, redirect=redirect, **kwargs )
         scriptfile.write( compilermpi+"\n" )
 
-        # compiler names
+        # compiler names, this is empty in core mode
         compilersettings,_ = export_compilers_script( [],**kwargs )
         scriptfile.write( compilersettings+"\n" )
+        flags_export : str = export_flags( **kwargs )
+        scriptfile.write( flags_export+"\n" )
 
         # stuff
         for s in derived_settings:

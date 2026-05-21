@@ -9,12 +9,32 @@ import re
 from MrPackMod.basics  import module_version_from_env
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
 from MrPackMod.names   import compilers_names,family_names,\
-    mode_has_mpi,mode_has_seq
+    mode_has_mpi,mode_has_seq,mode_is_core
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
 from typing import Any
 
+def compilers_flags( **kwargs: Any ) -> dict[str, str]:
+    flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
+    if cflags := nonzero_keyword( "cflags",**kwargs ):
+        flags["CFLAGS"] = cflags
+    if cxxflags := nonzero_keyword( "cxxflags",**kwargs ):
+        flags["CCXXFLAGS"] = cxxflags
+    if fflags := nonzero_keyword( "fflags",**kwargs ):
+        flags["FFLAGS"] = fflags
+    return flags
+
+def export_flags( **kwargs: Any ) -> str:
+    flags = compilers_flags( **kwargs )
+    cmdline = ""; cont = ""
+    for lang in [ "CFLAGS", "CXXFLAGS", "FFLAGS", ]:
+        if nonnull( flag := flags[lang] ):
+            cmdline += f"{cont}export {lang}=\"{flag}\""
+            cont = " && "
+    return cmdline
+
 def export_compilers_script( dummy : list[str],**kwargs: Any ) -> tuple[str,str]:
+    if mode_is_core( **kwargs ): return "","No compilers in core mode"
     trace_string( "Exporting compilers",**kwargs )
     compilers = compilers_names( **kwargs )
     script = ""; cont = ""
@@ -76,8 +96,10 @@ modulecommand "module purge" "purge"
 
 export LMOD_SYSTEM_DEFAULT_MODULES=TACC
 
-modulecommand "load basics" "reset"
-
+modulecommand "reset" "reset"
+    """
+    if mode_has_seq( **kwargs ):
+        loadscript += f"""
 if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
   modulecommand "unload mpi" "unload ${{TACC_FAMILY_MPI}}"
 fi

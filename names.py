@@ -12,7 +12,7 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
-from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull
+from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull,isnull
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     abort_on_zero_keyword,error_abort
@@ -97,25 +97,18 @@ def create_homedir( **kwargs: Any ) -> str:
 ## Description: compute compiler & mpi name & version
 ## Result: quintuple system,cname,cversion,mname,mversion
 ##
-def family_names(
-    **kwargs: Any,
-) -> Union[
+def family_names( **kwargs: Any ) -> Union[
     tuple[str, str, str, str, str, str],
     tuple[None, None, None, None, None, None],
-]:
-    try:
-        # in jail we can run without compiler loaded
-        system   = nonzero_keyword("SYSTEM",**kwargs)
-        compiler = nonzero_keyword("COMPILER",**kwargs)
-        cversion = nonzero_keyword("COMPILERVERSION",**kwargs)
-        cshortv  = cversion
-        # re.sub( r'^([^\.]*)\.([^\.]*)(\.*)?$',r'\1\2',cversion ) # DOESN'T WORK
-        mpi      = nonzero_keyword("MPI",**kwargs)
-        mversion = nonzero_keyword("MPIVERSION",**kwargs)
-        return system,compiler,cversion,cshortv,mpi,mversion
-    except:
-        print( "Deduce running in jail" )
-        return None,None,None,None,None,None
+    ]:
+    system   = nonzero_keyword("SYSTEM",**kwargs)
+    compiler = kwargs.get("COMPILER")
+    cversion = kwargs.get("COMPILERVERSION")
+    cshortv  = cversion
+    # re.sub( r'^([^\.]*)\.([^\.]*)(\.*)?$',r'\1\2',cversion ) # DOESN'T WORK
+    mpi      = kwargs.get("MPI")
+    mversion = kwargs.get("MPIVERSION")
+    return system,compiler,cversion,cshortv,mpi,mversion
 
 def mode_has_mpi( **kwargs ) -> bool:
     has : str = abort_on_zero_keyword( "MODE",**kwargs )
@@ -124,6 +117,10 @@ def mode_has_mpi( **kwargs ) -> bool:
 def mode_has_seq( **kwargs ) -> bool:
     has : str = abort_on_zero_keyword( "MODE",**kwargs )
     return has in [ "seq", "omp", ]
+
+def mode_is_core( **kwargs ) -> bool:
+    has : str = abort_on_zero_keyword( "MODE",**kwargs )
+    return has == "core"
 
 def compilers_names( **kwargs: Any ) -> dict[str, str]:
     compilers = { 'CC':"unknown_cc", 'CXX':"unknown_cxx", 'FC':"unknown_fc", }
@@ -145,12 +142,12 @@ def environment_code( **kwargs: Any ) -> Optional[str]:
     mode = abort_on_zero_keyword( "MODE",**kwargs )
     systemcode,compilercode,compilerversion,compilershortversion,mpicode,mpiversion = \
         family_names( **kwargs )
-    if compilercode is None:
+    if isnull(compilercode):
         # we are running in jail with only system compilers
         return systemcode
     else:
         envcode = f"{systemcode}-{compilercode}{compilerversion}"
-        if mode in ["mpi","hybrid",]:
+        if mode_is_mpi(**kwargs):
             envcode = f"{envcode}-{mpicode}{mpiversion}"
         return envcode
 

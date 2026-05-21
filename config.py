@@ -134,17 +134,17 @@ def system_settings(
                 rc_files,**kwargs ),
             # compiler family
             'COMPILER':setting_from_env_or_rc(
-            "COMPILER", "TACC_FAMILY_COMPILER","UNKNOWN_COMPILER",
+            "COMPILER", "TACC_FAMILY_COMPILER","",
                 rc_files,**kwargs  ),
             'COMPILERVERSION':setting_from_env_or_rc(
-                "COMPILERVERSION", "TACC_FAMILY_COMPILER_VERSION","UNKNOWN_COMPILER_VERSION",
+                "COMPILERVERSION", "TACC_FAMILY_COMPILER_VERSION","",
                 rc_files,**kwargs  ),
             # mpi family
             'MPI':setting_from_env_or_rc(
-                "MPI", "TACC_FAMILY_MPI","UNKNOWN_MPI",
+                "MPI", "TACC_FAMILY_MPI","",
                 rc_files,**kwargs  ),
             'MPIVERSION':setting_from_env_or_rc(
-                "MPIVERSION", "TACC_FAMILY_MPI_VERSION","UNKNOWN_MPI_VERSION",
+                "MPIVERSION", "TACC_FAMILY_MPI_VERSION","",
                 rc_files,**kwargs  ),
             # compiler names
             'CC':setting_from_env_or_rc(
@@ -244,7 +244,7 @@ def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) ->
 
 def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
-    compiler = abort_on_zero_keyword( "COMPILER",**config_dict )
+    compiler = config_dict.get( "COMPILER" )
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):
@@ -252,24 +252,22 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     else:
         error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict,**output )
     rc0 = f"{rc_dir}/.mrpackmodrc"
-    rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
-    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-    rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
-    has0 = os.path.exists( f"{rc0}" )
-    has1 = os.path.exists( f"{rc1}" )
-    has2 = os.path.exists( f"{rc2}" )
-    has3 = os.path.exists( f"{rc3}" )
-    trace_string(
-        f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
-        **config_dict,**output )
-    if has0:
+    if os.path.exists( f"{rc0}" ):
         add_settings_from_config( f"{rc0}",config_dict,**output )
-    if has2:
+    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+    if os.path.exists( f"{rc2}" ):
         add_settings_from_config( f"{rc2}",config_dict,**output )
-    if has1:
-        add_settings_from_config( f"{rc1}",config_dict,**output )
-    if has3:
-        add_settings_from_config( f"{rc3}",config_dict,**output )
+    if nonnull(compiler):
+        rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
+        if os.path.exists( f"{rc1}" ):
+            add_settings_from_config( f"{rc1}",config_dict,**output )
+    if nonnull(compiler):
+        rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
+        if os.path.exists( f"{rc3}" ):
+            add_settings_from_config( f"{rc3}",config_dict,**output )
+    # trace_string(
+    #     f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
+    #     **config_dict,**output )
 
 def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
