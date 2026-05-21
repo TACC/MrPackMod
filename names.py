@@ -12,7 +12,8 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
-from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull,isnull
+from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull,isnull,\
+    mode_is_mpi
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     abort_on_zero_keyword,error_abort
@@ -147,7 +148,7 @@ def environment_code( **kwargs: Any ) -> Optional[str]:
         return systemcode
     else:
         envcode = f"{systemcode}-{compilercode}{compilerversion}"
-        if mode_is_mpi(**kwargs):
+        if mode_has_mpi(**kwargs):
             envcode = f"{envcode}-{mpicode}{mpiversion}"
         return envcode
 
