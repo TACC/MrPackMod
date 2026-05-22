@@ -267,11 +267,14 @@ def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
     #
     # construct module path
     #
-    existing : Any = zero_keyword( "modulediradd",**kwargs )
-    if nonnull( dirset := kwargs.get("moduledir") ):
+    if existing := nonzero_keyword( "modulediradd",**kwargs ):
+        # in jail we can get an explicit, already-existing path (see netcdf/netcdff)
+        modulepath = existing
+        return f"{modulepath}",f"{moduleversion}.lua",True
+    elif nonnull( dirset := kwargs.get("moduledir") ):
         # in jail we get an explicit path
         modulepath = dirset
-        return f"{modulepath}",f"{moduleversion}.lua",existing
+        return f"{modulepath}",f"{moduleversion}.lua",False
     else:
         # otherwise we build the path from system & compiler info
         modulepath = abort_on_zero_keyword( "moduleroot",**kwargs )
@@ -285,7 +288,7 @@ def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
             elif mode in [ "seq","omp", ]:
                 modulepath += f"/Compiler/{compilercode}/{compilerversion}"
             else: error_abort( f"Unknown mode: {mode}" )
-        return f"{modulepath}/{modulename}",f"{moduleversion}.lua",existing
+        return f"{modulepath}/{modulename}",f"{moduleversion}.lua",False
 
 def module_names( **kwargs: Any ) -> tuple[str, str]:
     package,packageversion = package_names( **kwargs )
