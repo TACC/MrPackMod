@@ -63,7 +63,7 @@ Certain environment variables can be overriden in the configuration file (see ab
 - `INSTALLROOT` : the package is installed in `${INSTALLROOT}/installation-${PACKAGE}-${EXTENSION}` where the extension is compound of system, compiler, mpi.
   Override this whole path with `INSTALLPATH`.
 - `MODULEROOT` : this is used to build up the `${MODULEROOT}/{Core,Compiler,MPI}/et/cetera` path as in the LMod documentation.
-  Override the whole of this path with `MODULEDIRSET` (!!!not yet implemented!!!)
+  Override the whole of this path with `MODULEDIR`.
 
 These can be set through a file called `.mrpackmodrc`, which is searched in 1) the current directory 2) one level back, 
 to accomodate the case where you have one large "software" directory with each package a subdirectory, and
@@ -86,7 +86,7 @@ Certain environment variables can be overriden:
 - `INSTALLROOT` : the package is installed in `${INSTALLROOT}/installation-${PACKAGE}-${EXTENSION}` where the extension is compound of system, compiler, mpi.
   Override this whole path with `INSTALLPATH`.
 - `MODULEROOT` : this is used to build up the `${MODULEROOT}/{Core,Compiler,MPI}/et/cetera` path as in the LMod documentation.
-  Override the whole of this path with `MODULEDIRSET` (!!!not yet implemented!!!)
+  Override the whole of this path with `MODULEDIR`.
   
 ## Downloading
 
@@ -147,7 +147,10 @@ An LMod module file `${MODULENAME}/${PACKAGEVERSION}.lua` is generated on an aut
 Here `MODULENAME` is `PACKAGE`, unless the setting `MODULENAME` is explicitly used;
 see for instance `MODULENAME = phdf5` for the parallel version of `PACKAGE = hdf5`.
 
-Alternatively, use `MODULEDIRSET` for a fully explicit path.
+Alternatively, use `MODULEDIR` for a fully explicit path.
+Note: the module directory is created afresh;  `MODULEDIRADD` to prevent it first being erased,
+for instance if you want to install multiple packages in the same module directory
+(see `netcdf` and `netcdff`).
 
 ### Lib,Inc,Bin and such
 

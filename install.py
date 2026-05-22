@@ -434,12 +434,16 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     #
     # write
     #
-    modulefilepath,luaversion = modulefile_path_and_name( **kwargs )
-    if not os.path.isdir(modulefilepath):
+    modulefilepath,luaversion,existing = modulefile_path_and_name( **kwargs )
+    # maybe create moduledir
+    if hasdir := os.path.isdir(modulefilepath):
+        if existing:
+            abort_string( f"Module specified as add-able, but does not exist: {modulefilepath}",**kwargs )
+    else:
         echo_string( f"First create module dir: {modulefilepath}",**kwargs )
         # create directories recursively
         os.makedirs( modulefilepath,exist_ok=True )
-        # too limited os.mkdir( modulefilepath )
+    # now write
     echo_string( f"Writing modulefile: {modulefilepath}/{luaversion}" )
     with open( f"{modulefilepath}/{luaversion}","w" ) as lua_out:
         modulecontents = f"""\
@@ -457,7 +461,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     return success,failure
 
 def public_module( **kwargs: Any ) -> None:
-    modulefilepath,_ = modulefile_path_and_name( **kwargs )
+    modulefilepath,_,_ = modulefile_path_and_name( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
 

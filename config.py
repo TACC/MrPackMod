@@ -212,6 +212,9 @@ def install_settings(
             'moduledir':setting_from_env_or_rc(
                 "MODULEDIR", "MODULEDIR","",
                 rc_files,**kwargs  ),
+            'modulediradd':setting_from_env_or_rc(
+                "MODULEDIRADD", "MODULEDIRADD","",
+                rc_files,**kwargs  ),
             # optional stuff
             'INSTALLEXT':setting_from_env_or_rc(
                 "INSTALLEXT", "INSTALLEXT", "",

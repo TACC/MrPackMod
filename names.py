@@ -12,7 +12,7 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
-from MrPackMod.basics  import zero_keyword,nonzero_keyword,nonnull,isnull
+from MrPackMod.basics  import zero_keyword,nonzero_keyword,zero_keyword,nonnull,isnull
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     abort_on_zero_keyword,error_abort
@@ -260,17 +260,18 @@ def package_dir_names( **kwargs: Any ) -> tuple[str, str, str, str]:
     else: bindir = ""
     return prefixdir,libdir,incdir,bindir
 
-def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str]:
+def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
     abort_on_nonzero_env( "MODULEDIRSET" )
     package,packageversion = package_names_nonnull( **kwargs )
     modulename,moduleversion = module_names( **kwargs )
     #
     # construct module path
     #
+    existing : Any = zero_keyword( "modulediradd",**kwargs )
     if nonnull( dirset := kwargs.get("moduledir") ):
         # in jail we get an explicit path
         modulepath = dirset
-        return f"{modulepath}",f"{moduleversion}.lua"
+        return f"{modulepath}",f"{moduleversion}.lua",existing
     else:
         # otherwise we build the path from system & compiler info
         modulepath = abort_on_zero_keyword( "moduleroot",**kwargs )
@@ -284,7 +285,7 @@ def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str]:
             elif mode in [ "seq","omp", ]:
                 modulepath += f"/Compiler/{compilercode}/{compilerversion}"
             else: error_abort( f"Unknown mode: {mode}" )
-        return f"{modulepath}/{modulename}",f"{moduleversion}.lua"
+        return f"{modulepath}/{modulename}",f"{moduleversion}.lua",existing
 
 def module_names( **kwargs: Any ) -> tuple[str, str]:
     package,packageversion = package_names( **kwargs )
