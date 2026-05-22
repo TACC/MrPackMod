@@ -439,10 +439,10 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     if not ( hasdir := os.path.isdir(modulefilepath) ):
         if existing:
             error_abort( f"Module specified as add-able, but does not exist: {modulefilepath}",**kwargs )
-    else:
-        echo_string( f"First create module dir: {modulefilepath}",**kwargs )
-        # create directories recursively
-        os.makedirs( modulefilepath,exist_ok=True )
+        else:
+            echo_string( f"First ensure module dir: {modulefilepath}",**kwargs )
+            # create directories recursively
+            os.makedirs( modulefilepath,exist_ok=True )
     # now write
     echo_string( f"Writing modulefile: {modulefilepath}/{luaversion}" )
     with open( f"{modulefilepath}/{luaversion}","w" ) as lua_out:
