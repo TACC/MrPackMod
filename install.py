@@ -196,7 +196,8 @@ def cmake_build( **kwargs: Any ) -> str:
 def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program,srcdir,builddir,prefixdir = pmakedirs
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
-        setup_script += f"\n{before}\n"
+        setup_script : str = f"\n{before}\n"
+    else: setup_script = "\n"
 
     ##
     ## go to the right location for configure
