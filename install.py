@@ -208,25 +208,26 @@ def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[
         config_cmdline : str = f"{srcdir}/configure"
     elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
         trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
-        configloc = subdir
+        configloc = f"{srcdir}/{subdir}"
         config_cmdline = f"./configure"
     else:
-        configloc = "."
+        configloc = f"{srcdir}"
         config_cmdline = f"./configure"
     config_loc_script : str = f"""
-if [ -f \"{configloc}/configure\" ] ; then
+cd {configloc}
+echo Starting configure process in $(pwd)
+if [ -f \"configure\" ] ; then
   has_configure=1
   echo has configure script
 else has_configure= ; echo no configure script ; fi
-if [ -f \"{configloc}/autogen.sh\" ] ; then
+if [ -f \"autogen.sh\" ] ; then
   has_autogen=1
   echo has autogen
 else has_autogen= ; echo no autogen ; fi
-if [ -f \"{configloc}/configure.ac\" ] ; then
+if [ -f \"configure.ac\" ] ; then
   has_ac=1
   echo has configure.ac 
 else has_ac= ; echo no configure.ac ; fi
-cd {configloc}
     """
 
     ##
