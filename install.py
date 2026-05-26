@@ -317,12 +317,6 @@ cd {subdir}
     extra = kwargs.get( "EXTRAINSTALLTARGET","" )
     script += f"\n{makecommand} install {extra}\n"
 
-    #
-    # after actions
-    #
-    if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
-        trace_string( f"Extra installs: {cptoinstall}",**kwargs )
-        script += f"\ncp -r {cptoinstall} {prefixdir}\n"
     return script,"Autotools make and install"
 
 def autotools_build( **kwargs : Any ) ->str:
@@ -390,7 +384,25 @@ def make_build( **kwargs : Any ) -> str:
 ####
 ################################################################
 
+def post_install_actions_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    # if we get here, we already know there are actions
+    cptoinstall :str = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
+    prefixdir : str = plist[0]
+    trace_string( f"Extra cp to prefix={prefixdir}: {cptoinstall}",**kwargs )
+    script : str = f"\ncp -r {cptoinstall} {prefixdir}\n"
+    return script,"Post-install copy actions"
 
+def post_install_actions( **kwargs ) -> str:
+    if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
+        _,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        output : OutputDict = \
+            start_test_stage( "actions",kwargs,title="post-install actions",installing=True )
+        retval : str = get_value_from_loaded(
+            post_install_actions_script,[prefixdir],**kwargs,**output )
+        success,failure = end_test_stage( [],[],kwargs,output )
+        return retval
+    else: return "SUCCESS: no cp-to-install"
+    
 import os
 import stat
 

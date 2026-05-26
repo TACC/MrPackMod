@@ -158,7 +158,9 @@ utility_actions : {utility_actions}
                     install.autotools_build( **configuration )
                 elif system == "make":
                     install.make_build( **configuration )
-                else: raise Exception( f"Can only build for cmake and autotools, not: {system}" )
+                else: raise Exception\
+                    ( f"Can only build for cmake/autotools/make, not: {system}" )
+                install.post_install_actions( **configuration )
             if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
                 success,failure = install.write_module_file( **configuration )
                 report_success_failure( success,failure )
