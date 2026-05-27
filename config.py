@@ -16,8 +16,12 @@ from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 from MrPackMod.testing    import start_test_stage,end_test_stage,\
     OutputDict
 
-additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT", "MODULE", ]
-list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", ]
+additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
+                              "MODULE", 
+                             ]
+list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST",
+                              "CLEANTARGET",
+                             ]
 
 def add_new_dict_item(
         newkey: str, assign: str, newval: str, config_dict: dict[str, Any],**output : Any ) -> None:

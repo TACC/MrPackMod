@@ -387,18 +387,19 @@ def make_build( **kwargs : Any ) -> str:
 def post_install_actions_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
     # if we get here, we already know there are actions
     cptoinstall :str = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
-    prefixdir : str = plist[0]
-    trace_string( f"Extra cp to prefix={prefixdir}: {cptoinstall}",**kwargs )
-    script : str = f"\ncp -r {cptoinstall} {prefixdir}\n"
+    srcdir,prefixdir = plist
+    trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
+                  **kwargs )
+    script : str = f"\ncd {srcdir} && cp -r {cptoinstall} {prefixdir}\n"
     return script,"Post-install copy actions"
 
 def post_install_actions( **kwargs ) -> str:
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
-        _,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
         output : OutputDict = \
             start_test_stage( "actions",kwargs,title="post-install actions",installing=True )
         retval : str = get_value_from_loaded(
-            post_install_actions_script,[prefixdir],**kwargs,**output )
+            post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
         success,failure = end_test_stage( [],[],kwargs,output )
         return retval
     else: return "SUCCESS: no cp-to-install"

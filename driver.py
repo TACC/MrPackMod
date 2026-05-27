@@ -169,7 +169,12 @@ utility_actions : {utility_actions}
                 if zero_keyword( "NOMODULE",**kwargs ):
                     install.public_module( **configuration )
         elif action=="clean":
-            os.system( "rm -rf *~ a.out *.log logfiles mpmscripts* *.out build* __pycache__ .mypy_cache" )
+            clean_targets : str = \
+                "*~ a.out *.log logfiles mpmscripts* *.out build* __pycache__"
+            if targets := nonzero_keyword( "CLEANTARGET",**configuration ):
+                for t in targets:
+                    clean_targets += " "+t
+            os.system( f"rm -rf {clean_targets}" )
         elif action=="regression":
             package : str = configuration.get("PACKAGE")
             echo_warning( f"Need better test for package actually being loaded",**configuration )
