@@ -150,6 +150,8 @@ utility_actions : {utility_actions}
                     install.autotools_configure( **configuration )
                 elif system == "make":
                     install.make_configure( **configuration )
+                elif system == "petsc":
+                    install.petsc_configure( **configuration )
                 else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
             if action in [ "install", "build", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
@@ -158,6 +160,8 @@ utility_actions : {utility_actions}
                     install.autotools_build( **configuration )
                 elif system == "make":
                     install.make_build( **configuration )
+                elif system == "petsc":
+                    install.petsc_build( **configuration )
                 else: raise Exception\
                     ( f"Can only build for cmake/autotools/make, not: {system}" )
                 install.post_install_actions( **configuration )

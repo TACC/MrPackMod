@@ -334,7 +334,7 @@ if [ ${PIPESTATUS[0]} -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
 fi
         """,
-          **kwargs,title=title )
+          **kwargs,title=title, )
     if re.match( 'FAILURE',value ):
         return f"FAILURE: {title}; see: {outputfilename}"
     else:

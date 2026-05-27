@@ -91,11 +91,12 @@ fi
         """
     return script,title
 
-def execute_file_to_exist(
-        package : str, dirtype : str, program : str, grep : str,
-        **kwargs : Any, ) -> str:
-    return get_value_from_loaded(
-        file_to_exist_script,[package,dirtype,program,grep],**kwargs )
+# OLD VERSION
+# def execute_file_to_exist(
+#         package : str, dirtype : str, program : str, grep : str,
+#         **kwargs : Any, ) -> str:
+#     return get_value_from_loaded(
+#         file_to_exist_script,[package,dirtype,program,grep],**kwargs )
 
 ##
 ## Add lines to a process for testing the existence of a file
@@ -207,7 +208,8 @@ def do_existence_test(
     output : OutputDict = \
         start_test_stage( "exists",kwargs, # note dict
                           title=f"{title}, existence test",**options_dict,
-                          package=program_clean,**test_options ) 
+                          package=program_clean,**test_options,
+                         )
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
 

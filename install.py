@@ -380,6 +380,51 @@ def make_build( **kwargs : Any ) -> str:
 
 ################################################################
 ####
+#### PETSc has a custom installer
+####
+################################################################
+
+def petsc_configure_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir,prefixdir = plist
+    script : str = f"""
+cd {srcdir}
+python3 ./configure \
+    CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
+    --prefix={prefixdir}
+    """
+    return script,"Make setup"
+
+def petsc_configure( **kwargs : Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "configure",kwargs,title="petsc configure",installing=True )
+    srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
+    retval : str = get_value_from_loaded(
+        petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
+
+def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir  : str = srcdir_name( **kwargs )
+    jcount  : str = kwargs.get("jcount",6)
+    targets : str = kwargs.get( "MAKETARGETS","" )
+    trace_string( f"making targets: {targets}",**kwargs )
+    script = f"""
+cd {srcdir}
+make -j {jcount} all
+make -j {jcount} install
+    """
+    return script,"Make build"
+
+def petsc_build( **kwargs : Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "build",kwargs,title="make build",installing=True )
+    retval : str = get_value_from_loaded(
+        petsc_build_script,[],**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
+
+################################################################
+####
 #### Post-install stuff
 ####
 ################################################################
