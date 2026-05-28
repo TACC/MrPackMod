@@ -107,7 +107,7 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
 
     script : str = ""
     # setup
-    if export_cmdline := nonzero_exports( "exports",**kwargs ):
+    if export_cmdline := nonzero_exports( **kwargs ):
         script += f"\n{export_cmdline}\n"
 
     # cmake
