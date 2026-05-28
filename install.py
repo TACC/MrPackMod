@@ -156,7 +156,16 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
     else:
         makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
     script : str = f"""
+if [ ! -d "{builddir}" ] ; then
+    echo FAILURE: no such build dir: {builddir}
+    exit  1
+fi
 cd {builddir}
+
+if [ ! -f makefile -a ! -f Makefile ] ; then
+    echo FAILURE: build dir has no makefile or Makefile
+    exit 1
+fi
 {makeline}
 if [ $? -eq 0 ] ; then
     echo SUCCESS: compilation succeeded
