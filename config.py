@@ -18,6 +18,7 @@ from MrPackMod.testing    import start_test_stage,end_test_stage,\
 
 additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
                               "MODULE", 
+                              "CMAKEFLAGS","CONFIGUREFLAGS","PETSCFLAGS",
                              ]
 list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST",
                               "CLEANTARGET",
@@ -33,9 +34,12 @@ def add_new_dict_item(
     """
     newval = newval.strip('\n').strip(' ')
     newval = remove_macros( newval,config_dict )
-    if ( newkey in additive_keys or assign=="+=" ) :
+    if ( newkey in additive_keys or assign in ["+=","*="] ) :
         if newkey in config_dict.keys() :
-            config_dict[newkey] = f"{config_dict[newkey]} {newval}"
+            if assign=="*=":
+                config_dict[newkey] = f"{config_dict[newkey]}{newval}"
+            else:
+                config_dict[newkey] = f"{config_dict[newkey]} {newval}"
         else:
             # we tolerate "+=" if not previous value set
             config_dict[newkey] = newval
@@ -72,12 +76,13 @@ def add_settings_from_config(
                 trace_string( f"Include file: {includefile}",**config_dict,**output )
                 add_settings_from_config( includefile,config_dict )
             elif export := re.search( r'export\s+(.+)$',line ):
+                line = remove_macros( line,config_dict )
                 trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
                 config_dict["exports"].append(line)
-            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*(\+?=)\s*(.*)$',line ):
+            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
                 # definition line
                 key,assign,val = keyval.groups()
-                if assign=="+=":
+                if assign in [ "+=","*=" ]:
                     trace_string( f" .. addition {key} {assign} {val}",
                                   **config_dict,**output )
                 else:

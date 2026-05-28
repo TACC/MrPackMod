@@ -95,17 +95,20 @@ def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
 ## `pcmakedirs' is [program,src,build,prefix]
 ## where `program' is only nonnull for regression testing
 ##
+def nonzero_exports( **kwargs : Any ) -> Optional[str]:
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline : str = " && ".join(exports)
+        trace_string( f"Using exports: {export_cmdline}",**kwargs )
+        return export_cmdline
+    else: return False
+
 def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
 
     script : str = ""
     # setup
-    if exports := nonzero_keyword( "exports",**kwargs ):
-        export_cmdline : str = " && ".join(exports)
-        echo_string( f"Using exports: {export_cmdline}",**kwargs )
-        script += f"""
-{export_cmdline}
-        """
+    if export_cmdline := nonzero_exports( "exports",**kwargs ):
+        script += f"\n{export_cmdline}\n"
 
     # cmake
     cmake = cmake_basic_command( **kwargs )
@@ -386,11 +389,15 @@ def make_build( **kwargs : Any ) -> str:
 
 def petsc_configure_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
     srcdir,prefixdir = plist
-    script : str = f"""
-cd {srcdir}
+    petscflags : str = kwargs.get("PETSCFLAGS","")
+    script : str = f"\ncd {srcdir}\n"
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
 python3 ./configure \
     CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
-    --prefix={prefixdir}
+    {petscflags} \
+    --prefix={prefixdir} 
     """
     return script,"Make setup"
 
@@ -408,8 +415,11 @@ def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
     trace_string( f"making targets: {targets}",**kwargs )
-    script = f"""
-cd {srcdir}
+
+    script : str = f"\ncd {srcdir}\n"
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
 make -j {jcount} all
 make -j {jcount} install
     """
