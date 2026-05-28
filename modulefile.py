@@ -232,12 +232,16 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if family    := nonzero_keyword( "FAMILY",**kwargs ):
         trace_string( f"belongs to family: {family}" )
         clauses += f"family( \"{family}\" )\n"
-#     clauses = \
-# f"""\
-# {clauses}
-# """.strip()
     trace_string( f"Dependency settings:\n{clauses}",**kwargs )
     return clauses
+
+#
+# Extra vars to set in the modulefile
+#
+def extra_vars( **kwargs ) -> Optional[str]:
+    if varsline := nonzero_keyword( "EXTRAVARS",**kwargs ):
+        return  varsline
+    else: return False
 
 def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modver : str = modverlist[0]

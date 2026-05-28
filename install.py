@@ -507,8 +507,10 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     pkg_info      = modulefile.package_info       ( **kwargs,**output )
     path_settings = modulefile.path_settings      ( **kwargs,**output )
     system_paths  = modulefile.system_paths       ( **kwargs,**output )
+    if nonnull( vars := modulefile.extra_vars( **kwargs,**output ) ):
+        modvars : str = f"\n{vars}"
     if nonnull( depends := modulefile.dependency_clauses( **kwargs,**output ) ):
-        depends = f"\n{depends}"
+        depends : str = f"\n{depends}"
 
     #
     # write
@@ -532,7 +534,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
 
 {path_settings}
 
-{system_paths}{depends}
+{system_paths}{modvars}{depends}
 """
         trace_string( f"Module contents:\n{modulecontents}",**kwargs )
         lua_out.write( modulecontents )
