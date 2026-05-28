@@ -103,6 +103,8 @@ def add_settings_from_config(
                 continue
             else:
                 saving = False # time to add a value to the dict
+                if key=="BUILDSYSTEM":
+                    set_derived_settings( config_dict,**output )
                 if envval := nonzero_env( key,**config_dict ):
                     # override with environment if specified
                     add_new_dict_item( key,assign,envval,config_dict,**output )
@@ -328,7 +330,6 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict,**output )
-    set_derived_settings( configuration_dict,**kwargs,**output )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure

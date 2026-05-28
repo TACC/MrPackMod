@@ -7,7 +7,7 @@ import datetime
 import os
 import re
 import sys
-from typing import Any
+from typing import Any, Optional
 
 #
 # my own modules
@@ -240,7 +240,12 @@ def dependency_clauses( **kwargs: Any ) -> str:
 #
 def extra_vars( **kwargs ) -> Optional[str]:
     if varsline := nonzero_keyword( "EXTRAVARS",**kwargs ):
-        return  varsline
+        settings : str = ""
+        for setting in varsline.split():
+            k,v = setting.split('=')
+            settings += f"\nsetenv( \"{k}\", \"{v}\" )"
+        settings += "\n"
+        return  settings
     else: return False
 
 def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
