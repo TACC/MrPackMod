@@ -70,7 +70,11 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }
-    config.read_config( configuration,configfile,tracing=tracing,nowarn=nowarn )
+    not_create_home : bool = "regression" in actions
+    config.read_config( configuration,configfile,
+                        nowarn=nowarn,
+                        no_home=not_create_home,
+                       )
     # take care of jcount, dependencies, tracing
     # VLE this seems ad-hoc
     for arg,val in [ ["jcount",jcount], ["tracing",tracing], ["dependencies",dependencies], ]:

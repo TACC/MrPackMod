@@ -328,7 +328,7 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     add_settings_from_config( configfile,configuration_dict,**output )
-    set_derived_settings( configuration_dict,**output )
+    set_derived_settings( configuration_dict,**kwargs,**output )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure
