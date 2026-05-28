@@ -454,7 +454,14 @@ def post_install_actions_script( plist : list[str],**kwargs : Any ) -> tuple[str
     srcdir,prefixdir = plist
     trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
                   **kwargs )
-    script : str = f"\ncd {srcdir} && cp -r {cptoinstall} {prefixdir}\n"
+    script : str = f"""
+if [ -d "{prefixdir}/{cptoinstall}" ] ; then
+    echo FAILURE: cptoinstall={cptoinstall} already exists in prefix
+    exit 1
+fi
+cd {srcdir}
+cp -r {cptoinstall} {prefixdir}
+    """
     return script,"Post-install copy actions"
 
 def post_install_actions( **kwargs ) -> str:
@@ -509,8 +516,10 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     system_paths  = modulefile.system_paths       ( **kwargs,**output )
     if nonnull( vars := modulefile.extra_vars( **kwargs,**output ) ):
         modvars : str = f"\n{vars}"
+    else: modvars = ""
     if nonnull( depends := modulefile.dependency_clauses( **kwargs,**output ) ):
         depends : str = f"\n{depends}"
+    else: depends = ""
 
     #
     # write
