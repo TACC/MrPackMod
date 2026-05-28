@@ -119,10 +119,9 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
     # for the regression case only: define project macro
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
-{cmake} \
-{buildsettings} \
-{cmakeflags} \
-{pathsettings}
+cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
+echo cmake cmdline=$cmdline | sed -e 's/-D/\n    -D/:g'
+eval $cmdline
 if [ $? -eq 0 ] ; then
     echo SUCCESS: configure succeeded
 else
