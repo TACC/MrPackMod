@@ -120,7 +120,8 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
 cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
-echo cmake cmdline=$cmdline | sed -e 's/-D/\n    -D/:g'
+echo Doing cmake in pwd=${{PWD}}
+echo .... cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
 eval $cmdline
 if [ $? -eq 0 ] ; then
     echo SUCCESS: configure succeeded
