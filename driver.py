@@ -70,7 +70,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }
-    not_create_home : bool = "regression" in actions
+    not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
     config.read_config( configuration,configfile,
                         nowarn=nowarn,
                         no_home=not_create_home,
