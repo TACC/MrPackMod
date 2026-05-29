@@ -103,7 +103,7 @@ def add_settings_from_config(
                 continue
             else:
                 saving = False # time to add a value to the dict
-                if key=="BUILDSYSTEM":
+                if key in derived_setting_triggers:
                     set_derived_settings( config_dict,**output )
                 if envval := nonzero_env( key,**config_dict ):
                     # override with environment if specified
@@ -296,6 +296,10 @@ def expr_value( expr: str, **kwargs: Any ) -> str:
 # Keywords like SRCDIR that can be used in the user configuration
 # see basics.derived_settings
 #
+derived_setting_triggers = [
+    "BUILDSYSTEM",
+    "EXISTENCETEST","CMAKETEST","MAKETEST",
+    ]
 def set_derived_settings( config_dict : dict[str,Any],**output ) -> None:
     # danger: when testing there is no srcdir
     config_dict["SRCDIR"]     = srcdir_name(    **config_dict,**output )
