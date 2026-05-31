@@ -315,10 +315,11 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
             scriptfile.write( f"export {s}={kwargs[s]}\n" )
 
         # load  modules:  package (for testing) or prereq (for installing)
-        modulestoload,modulescomment = modules_to_load( **kwargs )
-        scriptfile.write( "\n"+modulescomment+"\n" )
-        for m in modulestoload.split():
-            scriptfile.write( f"modulecommand \"load {m}\" \"load {m}\"\n" )
+        if not kwargs.get("skipmodules"):
+            modulestoload,modulescomment = modules_to_load( **kwargs )
+            scriptfile.write( "\n"+modulescomment+"\n" )
+            for m in modulestoload.split():
+                scriptfile.write( f"modulecommand \"load {m}\" \"load {m}\"\n" )
 
         # actual script
         scriptfile.write( f"\n# Now follows script: {title}\n" )
@@ -346,6 +347,11 @@ fi
     else:
         return value
     
+def get_value_from_virgin( script_function : Callable[ list[str],tuple[str,str] ],
+                           args : list[str], **kwargs : Any ) -> str:
+    return get_value_from_loaded(
+        script_function,args,**kwargs,skipmodules=True )
+
 ##
 ## Aux
 ##

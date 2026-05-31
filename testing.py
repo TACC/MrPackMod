@@ -8,9 +8,10 @@ from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
     package_prerequisites
 from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
-    get_value_from_loaded
+    get_value_from_loaded,get_value_from_virgin
 #    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
 from MrPackMod.process    import open_logfile,close_logfile
+from MrPackMod.scripts    import module_proper_script
 from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 
 class OutputDict(TypedDict):
@@ -22,25 +23,23 @@ class OutputDict(TypedDict):
     linedisplay : Any
     scriptsdir : str
 
-def do_config_tests( installing : bool,**kwargs : Any ) -> tuple[ list[str],list[str] ]:
-    # open a log file and load modules; pkg or prereqs depending on installing
+def do_config_tests( installing : bool,**kwargs : Any ) -> str:
+    allgood : bool = True
+    modulestring : str = package_prerequisites( **kwargs )
+    moduleslist  : list[str] = modulestring.split()
     output : OutputDict  = \
         start_test_stage( "moduleconfig",kwargs,
                           installing=installing,terminal="suppress" )
-    success : list[str] = [] ; failure : list[str] = []
-
-    # test presence of source dir
-    if  nonzero_keyword("installing",**kwargs ):
-        srcdir = srcdir_name( **kwargs,**output )
-        process_execute( f"""
-if [ ! -d "{srcdir}" ] ; then
-    echo FAILURE: Source directory {srcdir} does not exist
-fi 
-        """,**kwargs,**output )
-    # test depends on whether we are installing
-    test_modules( **kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
-    return success,failure
+    retval : str = get_value_from_virgin(
+        module_proper_script,moduleslist,**kwargs,**output )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    for s in success:
+        echo_string(s,**kwargs)
+    for f in failure:
+        echo_string(f,**kwargs)
+    if len(failure)>0:
+        return "FAILURE: not all modules proper"
+    else: return "SUCCESS: all modules proper"
 
 ##
 ## Start test stage:

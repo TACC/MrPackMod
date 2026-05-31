@@ -8,7 +8,7 @@ import re
 
 from MrPackMod.basics  import module_version_from_env
 from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
-from MrPackMod.names   import compilers_names,family_names,\
+from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core
 from MrPackMod.tracing import trace_string,echo_string,echo_warning,trace_var
 
@@ -169,3 +169,34 @@ function modulelist ()
     done
 }
         """
+
+def module_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = ""
+    if  nonzero_keyword("installing",**kwargs ):
+        srcdir = srcdir_name( **kwargs )
+        script += f"""
+if [ ! -d "{srcdir}" ] ; then
+    echo "FAILURE: Source directory {srcdir} does not exist"
+    exit 1
+fi
+        """
+    for modver in moduleslist:
+        # strip any version number
+        module,_ = f"{modver}/".split("/",maxsplit=1)
+        script += f"""
+modulecommand "load {modver}" "load {modver}"
+nam=TACC_{module.upper()}_DIR
+eval dir=\\${{$nam}}
+if [ ! -d "${{dir}}" ] ; then
+    echo "FAILURE: package dir $nam=$dir does not exist"
+else
+    echo "SUCCESS: package {modver} is at $dir"
+fi
+for e in BIN LIB INC ; do
+    nam=TACC_{module.upper()}_${{e}}
+    if [ ! -z "${{dir}}" -a ! -d "${{dir}}" ] ; then 
+        echo "FAILURE: variable $nam set but dir $dir does not exist"
+    fi
+done
+        """
+    return script,f"test modules"
