@@ -67,7 +67,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'PACKAGE':"all", 'PACKAGEVERSION':"",
         'tracing':False,
         'exports':[], # vars to set before cmake/configure call
-        'unsets':[] # vars that should not be set, like PETSC_DIR
+        'unsets':[],  # vars that should not be set, like PETSC_DIR
         'logfiles':{}, # name,handle pairs
         'scriptdir':os.getcwd(),
     }
