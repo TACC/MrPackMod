@@ -50,12 +50,15 @@ def scriptsdir_name( **kwargs : Any ) -> str:
     if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
         return scriptsdir
     else:
-        package,_ = package_names( **kwargs )
         if bdir := nonzero_keyword( "builddirroot",**kwargs ):
-            scriptroot :str =  bdir
-        else:
-            scriptroot = os.getcwd()
-        return f"{scriptroot}/mpmscripts_{package}"
+            scriptroot : str =  bdir
+        elif startdir := nonzero_keyword( "startdir",**kwargs ):
+            scriptroot : str = startdir
+        else: # this should 
+            raise Exception( f"should have startdir or builddirroot for scripts" )
+        if not os.access( scriptroot,os.W_OK ):
+            raise Exception( f"scrptroot {scriptroot} not writable" )
+        return f"{scriptroot}/mpmscripts"
 
 def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:

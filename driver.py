@@ -60,7 +60,6 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
                                ]
                     for action in actions ] ) \
                         or len(actions)==0 # help only
-
     configuration: dict[str, Any] = {
         'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
@@ -69,7 +68,8 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'exports':[], # vars to set before cmake/configure call
         'unsets':[],  # vars that should not be set, like PETSC_DIR
         'logfiles':{}, # name,handle pairs
-        'scriptdir':os.getcwd(),
+        'startdir':os.getcwd(), 
+        'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
     }
     not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
     config.read_config( configuration,configfile,

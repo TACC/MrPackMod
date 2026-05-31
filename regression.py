@@ -13,7 +13,7 @@ from typing import Any
 
 from MrPackMod.basics  import clean_title
 from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
-from MrPackMod.names   import package_names
+from MrPackMod.names   import package_names,scriptsdir_name
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded,\
     line_strip_conditionals,file_to_exist_names
@@ -112,7 +112,9 @@ fi
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,programprint,cmakebuilddir,cmakeprefixdir = args
-    lddout = "ldd.out"
+    programprint = programprint.replace( r'\$\{.+\}/','' )
+    scriptsdir : str = scriptsdir_name( **kwargs )
+    lddout = f"{scriptsdir}/ldd_{programprint}.out"
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
     trace_string( f"Generate ldd script for file={program} in dir={where}",**kwargs )
     script = f"""
