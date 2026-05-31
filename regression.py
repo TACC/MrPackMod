@@ -36,13 +36,18 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     parser.add_argument( '-r',"--run", action='store_true', default=False )
     parser.add_argument( '--run_in_dir', action='store_true', default=False )
     parser.add_argument( '-a',"--run_args" )
+    parser.add_argument( '-t',"--test_value",default="0" )
+
     parser.add_argument( '-k','--keywords',default="" )
     parser.add_argument( '-p',"--run_prefix" )
     # existence
     parser.add_argument( '-l',"--ldd", action='store_true', default=False )
     parser.add_argument( '-x',"--executable",action='store_true', default=False )
     parser.add_argument( "-d","--dir" )
+
+    # grep in file
     parser.add_argument( "-g","--grep" )
+
     # universal
     parser.add_argument( '-i','--title',default="some cmake test" )
     parser.add_argument( 'program', nargs=1, help=f"program.c" )
