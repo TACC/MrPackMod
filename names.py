@@ -49,10 +49,13 @@ def package_prerequisites( **kwargs : Any ) -> str:
 def scriptsdir_name( **kwargs : Any ) -> str:
     if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
         return scriptsdir
-    elif bdir := nonzero_keyword( "builddirroot",**kwargs ):
-        return f"{bdir}/mpmscripts"
     else:
-        return os.getcwd()+"/mpmscripts"
+        package,_ = package_names( **kwargs )
+        if bdir := nonzero_keyword( "builddirroot",**kwargs ):
+            scriptroot :str =  bdir
+        else:
+            scriptroot = os.getcwd()
+        return f"{scriptroot}/mpmscripts_{package}"
 
 def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
