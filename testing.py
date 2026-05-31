@@ -61,7 +61,6 @@ def start_test_stage(
     # test_options is allowed to not contain it either,
     # then logfile will go to default dir
     scriptsdir : str = scriptsdir_name( **kwargs ) # test_options.get("scriptsdir")
-    print( f"opening logfile in scriptsdir={scriptsdir}" )
     logname,loghandle,scriptsdir = \
         open_logfile( stage.replace(' ','_'),**kwargs,scriptsdir=scriptsdir, ) 
     kwargs["logfiles"][logname] = loghandle

@@ -270,7 +270,6 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     scriptfilename : str = f"{outputbase}.sh"
     outputfilename : str = f"{outputbase}.out"
     doredirect : Any = nonzero_keyword( "setupredirect",**kwargs )
-    print( f"title <<{title}>> give file name <<{scriptfilename}>>" )
     with open(scriptfilename,"w") as scriptfile:
 
         # header

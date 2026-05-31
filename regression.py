@@ -40,6 +40,7 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     parser.add_argument( '-p',"--run_prefix" )
     # existence
     parser.add_argument( '-l',"--ldd", action='store_true', default=False )
+    parser.add_argument( '-x',"--executable",action='store_true', default=False )
     parser.add_argument( "-d","--dir" )
     parser.add_argument( "-g","--grep" )
     # universal
@@ -63,10 +64,9 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
 ## Add process lines for testing file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    package,dirtype,program,grep = args
+    package,dirtype,program,grep,executable = args
     title : str = f"Test existence of {package} in {dirtype}"
     filedir,file_to_test,file_to_report = file_to_exist_names(package,dirtype,program,**kwargs)
-    #print( f"testing {filedir} / {file_to_test}, report {file_to_report}" )
     script : str = f"""
 if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
     echo ' .. directory {filedir} exists'
@@ -77,7 +77,16 @@ fi
 if [ -f \"{file_to_test}\" ] ; then
     echo 'SUCCESS: file exists: <<{file_to_report}>> '
 else
-    echo 'FAILURE: file does not exist <<{file_to_report}>>'
+    echo 'FAILURE: file does not exist <<{file_to_report}>>' 
+    exit 1
+fi
+        """
+    if executable:
+        script += f"""
+if [ -x \"{file_to_test}\" ] ; then
+    echo "SUCCESS: file is executable"
+else
+    echo "FAILURE: file is not executable"
 fi
         """
     if nonnull( grep ):
@@ -182,6 +191,7 @@ def do_existence_test(
     title   = run_config.pop("title")
     dirtype = run_config.get("dirtype")
     grep    = run_config.get("grep","")
+    executable = run_config.get("executable")
 
     filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
     run_config["run_dir"] = filedir
@@ -203,7 +213,8 @@ def do_existence_test(
                           package=program_clean,**test_options,
                          )
     res : str = get_value_from_loaded(
-        file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
+        file_to_exist_script,[package,dirtype,program,grep,executable],
+        **kwargs,**output )
 
     # if nonnull( grep := run_config["grep"] ):
     #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
