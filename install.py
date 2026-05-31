@@ -102,6 +102,13 @@ def nonzero_exports( **kwargs : Any ) -> Optional[str]:
         return export_cmdline
     else: return False
 
+def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
+    if unsets := nonzero_keyword( "unsets",**kwargs ):
+        unset_cmdline : str = " && ".join(unsets)
+        trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
+        return unset_cmdline
+    else: return False
+
 def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
 
@@ -109,6 +116,8 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
     # setup
     if export_cmdline := nonzero_exports( **kwargs ):
         script += f"\n{export_cmdline}\n"
+    if unset_cmdline := nonzero_unsets( **kwargs ):
+        script += f"\n{unset_cmdline}\n"
 
     # cmake
     cmake = cmake_basic_command( **kwargs )

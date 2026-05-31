@@ -235,24 +235,6 @@ def version_satisfies(
             return False
     return True
 
-# def load_compiler_and_mpi_and_package( **kwargs : Any ) -> str:
-#     package,packageversion =  package_names( **kwargs )
-#     modules_to_load : str = package
-#     if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
-#     trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
-#     return load_compiler_and_mpi_and( modules_to_load,**kwargs )
-
-# def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> str:
-#     modules_to_load : str = package_prerequisites( **kwargs )
-#     trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
-#     return load_compiler_and_mpi_and( modules_to_load,**kwargs )
-
-# def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
-#     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
-#     if not nonzero_keyword( "only_return",**kwargs ):
-#         process_execute( load_string,**kwargs )
-#     return load_string
-
 def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
     if nonzero_keyword("installing",**kwargs):
         modulestoload : str = package_prerequisites( **kwargs )

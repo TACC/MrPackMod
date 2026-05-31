@@ -130,15 +130,14 @@ def test_modules( **kwargs: Any ) -> None:
     process_execute\
         ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
     if installing := kwargs.get( "installing",False ):
-        if nonnull( modules := package_prerequisites(**kwargs) ):
-            modules_to_test : str = modules
-            echo_string( f"Test for prereq modules {modules_to_test}",**kwargs )
-        else: modules_to_test = ""
+        if nonnull( modulestotest := package_prerequisites(**kwargs) ):
+            echo_string( f"Test for prereq modules {modulestotest}",**kwargs )
+        else: modulestotest = ""
     else:
-        modules_to_test,_ = package_names( **kwargs )
-        echo_string( f"Test for test module {modules_to_test}",**kwargs )
-    if nonnull( modules_to_test ):
-        test_loaded_modules( modules_to_test,**kwargs )
+        modulestotest,_ = package_names( **kwargs )
+        echo_string( f"Test for test module {modulestotest}",**kwargs )
+    if nonnull( modulestotest ):
+        test_loaded_modules( modulestotest,**kwargs )
     #test_nonmodules( **kwargs )
 
 # are the required modules loaded?
