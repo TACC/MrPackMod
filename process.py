@@ -257,6 +257,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
                            args : list[str],**kwargs : Any ) -> str:
     # This is the meat of the script
     mainscript,title = script_function(args,**kwargs)
+    title = remove_macros( title,kwargs )
 
     # Script location
     scriptsdir : str = abort_on_zero_keyword( "scriptsdir",**kwargs )
@@ -269,6 +270,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     scriptfilename : str = f"{outputbase}.sh"
     outputfilename : str = f"{outputbase}.out"
     doredirect : Any = nonzero_keyword( "setupredirect",**kwargs )
+    print( f"title <<{title}>> give file name <<{scriptfilename}>>" )
     with open(scriptfilename,"w") as scriptfile:
 
         # header

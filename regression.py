@@ -91,13 +91,6 @@ fi
         """
     return script,title
 
-# OLD VERSION
-# def execute_file_to_exist(
-#         package : str, dirtype : str, program : str, grep : str,
-#         **kwargs : Any, ) -> str:
-#     return get_value_from_loaded(
-#         file_to_exist_script,[package,dirtype,program,grep],**kwargs )
-
 ##
 ## Add lines to a process for testing the existence of a file
 ## In case we grep something in that file, return the name of the grep file
@@ -118,7 +111,7 @@ fi
     return grep_output_file
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
-    program,_,cmakebuilddir,cmakeprefixdir = args
+    program,programprint,cmakebuilddir,cmakeprefixdir = args
     lddout = "ldd.out"
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
     trace_string( f"Generate ldd script for file={program} in dir={where}",**kwargs )
@@ -143,10 +136,7 @@ else
     echo FAILURE: could not find program={program} to run ldd on
 fi
     """
-    return script,f"ldd test on {program}"
-
-def execute_ldd_script( program: str, cmakebuilddir : str, **kwargs: Any ) -> str:
-    return get_value_from_loaded( ldd_script,[program,cmakebuilddir],**kwargs )
+    return script,f"ldd test on {programprint}"
 
 ##
 ## Run a program
@@ -237,7 +227,7 @@ def do_existence_test(
                               package=program_clean,linedisplay=trace_string,installing=False ) 
         if ldd:
             # are library dependencies satisfied?
-            prog_and_dirs : list[str] = [file_to_test,".",".",filedir]
+            prog_and_dirs : list[str] = [file_to_test,file_to_report,".",filedir]
             res = get_value_from_loaded(
                 ldd_script,prog_and_dirs,**kwargs,**output )
         # run!
@@ -296,7 +286,7 @@ def do_cmake_test(
             "exec",kwargs,
             title=f"{title}, ldd/run stage",
             package=name,**test_options )
-        #execute_ldd_script( name,cmakebuilddir,**kwargs,**output )
+        # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
         res = get_value_from_loaded(
             ldd_script,prog_and_dirs,**kwargs,**output )
         if nonnull( do_run ):
