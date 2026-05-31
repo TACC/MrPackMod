@@ -169,7 +169,7 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     if not outside_process and ( title := nonzero_keyword( "title",**kwargs ) ):
         process_input.write( f"echo {title}" )
 
-    # All set: add the commandline to process intput
+    # All set: add the commandline to process input
     if load_context:
         load_string = load_compiler_and_mpi_and_prereqs( **kwargs,only_return=True )
         process_input.write( load_string )
@@ -235,36 +235,36 @@ def version_satisfies(
             return False
     return True
 
-def load_compiler_and_mpi_and_package( **kwargs : Any ) -> str:
-    package,packageversion =  package_names( **kwargs )
-    modules_to_load : str = package
-    if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
-    trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
-    return load_compiler_and_mpi_and( modules_to_load,**kwargs )
+# def load_compiler_and_mpi_and_package( **kwargs : Any ) -> str:
+#     package,packageversion =  package_names( **kwargs )
+#     modules_to_load : str = package
+#     if nonnull(packageversion): modules_to_load = f"{modules_to_load}/{packageversion}"
+#     trace_string( f"---- Load base modules and package: <<{modules_to_load}>>",**kwargs )
+#     return load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
-def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> str:
-    modules_to_load : str = package_prerequisites( **kwargs )
-    trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
-    return load_compiler_and_mpi_and( modules_to_load,**kwargs )
+# def load_compiler_and_mpi_and_prereqs( **kwargs : Any ) -> str:
+#     modules_to_load : str = package_prerequisites( **kwargs )
+#     trace_string( f"---- Load base modules and prereqs: <<{modules_to_load}>>",**kwargs )
+#     return load_compiler_and_mpi_and( modules_to_load,**kwargs )
 
-def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
-    load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
-    if not nonzero_keyword( "only_return",**kwargs ):
-        process_execute( load_string,**kwargs )
-    return load_string
+# def load_compiler_and_mpi_and( modules_to_load : str,**kwargs: Any ) -> str:
+#     load_string : str = load_compiler_and_mpi_script( modules_to_load,**kwargs )
+#     if not nonzero_keyword( "only_return",**kwargs ):
+#         process_execute( load_string,**kwargs )
+#     return load_string
 
 def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
     if nonzero_keyword("installing",**kwargs):
         modulestoload : str = package_prerequisites( **kwargs )
-        loadcomment : str = "\n# Loading environment for prerequisites: {modules_to_laod}"
+        loadcomment : str = f"# Loading environment for prerequisites: {modulestoload}"
     else:
         package,packageversion =  package_names( **kwargs )
         if nonnull(packageversion):
             modulestoload = f"{package}/{packageversion}"
-            loadcomment = f"\n# Loading environment for package: {package}/{packageversion}"
+            loadcomment = f"# Loading environment for package: {package}/{packageversion}"
         else:
             modulestoload = package
-            loadcomment = "\n#Loading environment for package: {package}"
+            loadcomment = f"#Loading environment for package: {package}"
     return modulestoload,loadcomment
 
 ##
@@ -313,6 +313,12 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         # stuff
         for s in derived_settings:
             scriptfile.write( f"export {s}={kwargs[s]}\n" )
+
+        # load  modules:  package (for testing) or prereq (for installing)
+        modulestoload,modulescomment = modules_to_load( **kwargs )
+        scriptfile.write( "\n"+modulescomment+"\n" )
+        for m in modulestoload.split():
+            scriptfile.write( f"modulecommand \"load {m}\" \"load {m}\"\n" )
 
         # actual script
         scriptfile.write( f"\n# Now follows script: {title}\n" )

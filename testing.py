@@ -8,8 +8,8 @@ from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
     package_prerequisites
 from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
-    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
     get_value_from_loaded
+#    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
 from MrPackMod.process    import open_logfile,close_logfile
 from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 

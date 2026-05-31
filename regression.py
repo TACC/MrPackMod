@@ -184,16 +184,16 @@ def do_existence_test(
         ) -> tuple[list[str], list[str]]:
 
     package,_ = package_names( **kwargs )
-    options_dict : dict = parse_command( test_definition,**kwargs )
-    trace_string( f"Existence test options: {options_dict}",**kwargs )
-    program = options_dict["program"]
-    title   = options_dict.pop("title")
-    dirtype = options_dict.get("dirtype")
-    grep    = options_dict.get("grep","")
+    run_config : dict = parse_command( test_definition,**kwargs )
+    trace_string( f"Existence test options: {run_config}",**kwargs )
+    program = run_config["program"]
+    title   = run_config.pop("title")
+    dirtype = run_config.get("dirtype")
+    grep    = run_config.get("grep","")
 
     filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
-    options_dict["run_dir"] = filedir
-    options_dict["chdir"]   = create_dir( "build",**kwargs )
+    run_config["run_dir"] = filedir
+    run_config["chdir"]   = create_dir( "build",**kwargs )
 
     success  : list[str] = []
     failure  : list[str] = []
@@ -204,16 +204,16 @@ def do_existence_test(
     # program can contain a path
     program_clean = re.sub( '/','',program )
     cleantitle = clean_title( title )
-    options_dict["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
+    run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
     output : OutputDict = \
         start_test_stage( "exists",kwargs, # note dict
-                          title=f"{title}, existence test",**options_dict,
+                          title=f"{title}, existence test",**run_config,
                           package=program_clean,**test_options,
                          )
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep],**kwargs,**output )
 
-    # if nonnull( grep := options_dict["grep"] ):
+    # if nonnull( grep := run_config["grep"] ):
     #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
     # else:
     #     grepfile = ""
@@ -226,14 +226,14 @@ def do_existence_test(
     #
     # run and ldd
     #
-    do_run,ldd = options_dict["do_run"],options_dict["ldd"]
+    do_run,ldd = run_config["do_run"],run_config["ldd"]
     if do_run or ldd:
         filedir,file_to_test,file_to_report = \
             file_to_exist_names(package,dirtype,program,**kwargs,installing=False )
         #print( f"ldd filedir: {filedir}" )
         output : OutputDict = \
             start_test_stage( "exec",kwargs, # dict!
-                              title=f"{title}, run/ldd test",**options_dict,
+                              title=f"{title}, run/ldd test",**run_config,
                               package=program_clean,linedisplay=trace_string,installing=False ) 
         if ldd:
             # are library dependencies satisfied?
@@ -429,8 +429,8 @@ def do_tests( **kwargs: Any ) -> None:
             else: report_skipped_test( test,**kwargs )
 
 def report_skipped_test( test_definition : str,**kwargs : Any ) -> None:
-    options_dict : dict = parse_command( test_definition,**kwargs )
-    title : str   = options_dict.pop("title")
+    run_config : dict = parse_command( test_definition,**kwargs )
+    title : str   = run_config.pop("title")
     echo_string( f"Skipping test: {title}",**kwargs )
 
 ##
