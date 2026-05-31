@@ -79,6 +79,10 @@ def add_settings_from_config(
                 line = remove_macros( line,config_dict )
                 trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
                 config_dict["exports"].append(line)
+            elif unset := re.search( r'unset\s+(.+)$',line ):
+                line = remove_macros( line,config_dict )
+                trace_string( f"Adding unset: <<{line}>>",**config_dict,**output )
+                config_dict["unsets"].append(line)
             elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
                 # definition line
                 key,assign,val = keyval.groups()
