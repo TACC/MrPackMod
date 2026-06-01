@@ -45,5 +45,5 @@ def error_abort( string: str, **kwargs: Any ) -> NoReturn:
 
 # test on FAILURE/SUCCESS
 def abort_on_failure_result( result : str,**kwargs : Any ) -> Optional[NoReturn]:
-    if match := re.match( 'FAILURE:?\s*(.*)$',result ):
+    if match := re.match( r'FAILURE:?\s*(.*)$',result ):
         error_abort( match.groups()[0],**kwargs )
