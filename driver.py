@@ -37,6 +37,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     dependencies = arguments.dependencies
     find_string  = arguments.find_string
     jcount       = arguments.jcount
+    displayvar   = arguments.var
     tracing      = arguments.trace
     command_arguments = arguments.args
 
@@ -55,7 +56,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     if tracing:
         print( f"Actions: {actions}" )
     nowarn = any( [ action in [ "clean","configurelog","dependencies",
-                                "actions", "url",
+                                "actions", "url", "show",
                                 "listmodules", "modules", "public", "version",
                                ]
                     for action in actions ] ) \
@@ -115,6 +116,11 @@ utility_actions : {utility_actions}
         elif action=="configurelog":
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
+        elif action=="show":
+            try:
+                print( configuration[displayvar] )
+            except:
+                print( f"No configuration variable: {displayvar}" )
         elif action=="test":
             abort_on_failure_result(
                 do_config_tests( installing=True,**configuration ),**configuration )

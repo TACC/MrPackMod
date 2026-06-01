@@ -15,10 +15,14 @@ parser: argparse.ArgumentParser = argparse.ArgumentParser\
 parser.add_argument( '-j','--jcount',default='6' )
 parser.add_argument( '-t','--trace',action='store_true',default=False )
 parser.add_argument( '-c','--configuration',default="Configuration")
+# VLE what does this do?
 parser.add_argument( '-d','--dependencies',action='store_true',default=False )
 parser.add_argument( '-f','--find_string',action='store_true',default=False )
+# display configuration variable, action=show
+parser.add_argument( '-v','--var',default='none')
 parser.add_argument( '--filter',default="" )
 parser.add_argument( '--match',default="" )
+# VLE what does this do?
 parser.add_argument( '-A','--args',default="" )
 ##
 ## what actions do we support?
