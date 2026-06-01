@@ -128,6 +128,16 @@ modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" displ
 
 modulecommand "Load compiler" "load {compiler}/{compilerversion}"
     """
+    if nonzero_keyword( "BLASLAPACK",**kwargs ):
+        if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
+            blas : str = ""
+            if comp=="gcc": blas : str = "mkl"
+            if comp=="nvidia" : bas = "nvpl"
+            if nonnull(blas):
+                loadscript += f"""
+echo "Load blas/lapack library: {blas}"
+modulecommand "load blas" "load {blas}"
+                """
     if mode_has_mpi( **kwargs ):
         loadscript += f"""
 modulecommand "Load mpi" "load {mpi}/{mpiversion}"

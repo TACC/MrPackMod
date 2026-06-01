@@ -9,7 +9,7 @@ import pdb
 import sys
 from typing import Any
 
-from MrPackMod import config 
+from MrPackMod.config import read_config,derived_setting_triggers
 from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod import install
@@ -72,12 +72,13 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
     }
     not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
-    config.read_config( configuration,configfile,
-                        nowarn=nowarn,
-                        no_home=not_create_home,
-                       )
+    read_config( configuration,configfile,
+                 nowarn=nowarn,
+                 no_home=not_create_home,
+                )
     # make sure we have triggered derived settings
-    _ = abort_on_zero_keyword( "BUILDSYSTEM",**configuration )
+    if not any( [ nonnull(configuration.get(key)) for key in derived_setting_triggers ] ):
+        raise Exception( f"Need to have any of {derived_setting_triggers}" )
     # take care of jcount, dependencies, tracing
     # VLE this seems ad-hoc
     for arg,val in [ ["jcount",jcount], ["tracing",tracing], ["dependencies",dependencies], ]:
