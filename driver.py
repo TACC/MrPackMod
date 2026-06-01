@@ -18,7 +18,7 @@ from MrPackMod.process import process_initiate,process_terminate,process_execute
     ensure_dir
 from MrPackMod.tracing import echo_string,echo_warning
 from MrPackMod.error import nonnull, nonzero_keyword, zero_keyword, abort_on_zero_keyword,\
-    error_abort
+    error_abort,abort_on_failure_result
 from MrPackMod.testing import do_config_tests,report_success_failure
 from MrPackMod import regression
 
@@ -61,7 +61,6 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
                     for action in actions ] ) \
                         or len(actions)==0 # help only
     configuration: dict[str, Any] = {
-        'BUILDSYSTEM':"cmake",
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",
         'tracing':False,
@@ -76,6 +75,8 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
                         nowarn=nowarn,
                         no_home=not_create_home,
                        )
+    # make sure we have triggered derived settings
+    _ = abort_on_zero_keyword( "BUILDSYSTEM",**configuration )
     # take care of jcount, dependencies, tracing
     # VLE this seems ad-hoc
     for arg,val in [ ["jcount",jcount], ["tracing",tracing], ["dependencies",dependencies], ]:
@@ -115,7 +116,8 @@ utility_actions : {utility_actions}
             logfile = info.configurelog_name( **configuration,nowarn=True )
             print( logfile )
         elif action=="test":
-            do_config_tests( installing=True,**configuration, )
+            abort_on_failure_result(
+                do_config_tests( installing=True,**configuration ),**configuration )
         elif action=="listmodules":
             if modulelist := configuration.get("MODULES"):
                 print( modulelist )
@@ -142,9 +144,10 @@ utility_actions : {utility_actions}
             download.pull_from_url( **configuration )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
+            abort_on_failure_result(
+                do_config_tests( installing=True,**configuration ),**configuration )
             success = []
             failure = []
-            do_config_tests( installing=True,**configuration )
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )

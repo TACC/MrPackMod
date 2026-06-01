@@ -33,12 +33,16 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
     retval : str = get_value_from_virgin(
         module_proper_script,moduleslist,**kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
+    # print( f"config test return: {retval}" )
+    # print( f"config test success: {success}" )
+    # print( f"config test failure: {failure}" )
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:
         echo_string(f,**kwargs)
     if len(failure)>0:
-        return "FAILURE: not all modules proper"
+        # VLE some of the failure results are not relevant.
+        return f"FAILURE: not all modules proper: <<{failure[0]}>>"
     else: return "SUCCESS: all modules proper"
 
 ##
