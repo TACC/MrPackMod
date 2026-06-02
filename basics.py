@@ -83,12 +83,18 @@ def clean_title( title : str,**kwargs : Any ) -> str:
 ####
 
 def module_version_from_env( mod,**kwargs : Any ) -> Optional[str]:
-    if not os.getenv( f"TACC_{mod.upper()}_DIR" ):
+    PKG : str = mod.upper()
+    if not os.getenv( f"TACC_{PKG}_DIR" ):
+        #print( f"packge not loaded: {PKG}" )
         return None
-    if ver := os.getenv( f"TACC_{mod.upper()}_VER" ):
+    if ver := os.getenv( f"TACC_{PKG}_VER" ):
+        #print( f"packge {PKG} has VER={ver}" )
         return ver
-    elif version := os.getenv( f"TACC_{mod.upper()}_VERSION" ):
+    elif version := os.getenv( f"TACC_{PKG}_VERSION" ):
+        #print( f"packge {PKG} has VERSION={version}" )
         return version
-    else: return ""
+    else:
+        #print( f"packge {PKG} could not determine version" )
+        return ""
 
 derived_settings : list[str] = [ "SRCDIR","BUILDDIR","PREFIXDIR" ]

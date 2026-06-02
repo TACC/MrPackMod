@@ -14,7 +14,8 @@ import traceback
 from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
 from MrPackMod.basics  import remove_macros,clean_title,derived_settings
-from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
+from MrPackMod.error   import isnull,nonnull,error_abort,\
+    nonzero_keyword,abort_on_zero_keyword,zero_keyword
 from MrPackMod.names   import package_names,family_names,package_prerequisites,\
     mode_is_core
 from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script,\
@@ -302,7 +303,8 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
             modulestoload,modulescomment = modules_to_load( **kwargs )
             scriptfile.write( "\n"+modulescomment+"\n" )
             for m in modulestoload.split():
-                scriptfile.write( f"modulecommand \"load {m}\" \"load {m}\"\n" )
+                scriptfile.write( f"modulecommand \"load\" \"load {m}\"\n" )
+                scriptfile.write( f"modulecommand \"confirm\" \"show {m}\" 1\n" )
 
         # actual script
         scriptfile.write( f"\n# Now follows script: {title}\n" )

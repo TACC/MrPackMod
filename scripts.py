@@ -146,11 +146,14 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
         loadscript += f"""
 echo .... Load packages \"{modules_to_load}\" {redirect}
         """
-        for mod in modules_to_load.split(" "):
-            if nonnull( ver := module_version_from_env( mod,**kwargs ) ):
-                modver = f"{mod}/{ver}"
-            else:
-                modver = mod
+        for modver in modules_to_load.split(" "):
+            if not re.match( r'^([^/]+)/([^/]+)$',modver ):
+                # no version required, let's see if the environment has one
+                version = module_version_from_env( modver,**kwargs )
+                if nonnull( version ):
+                    modver = f"{module}/{version}"
+                # no environment version, so keep original modver
+            # if there was a slash, keep original mod+ver
             loadscript += f"""
 modulecommand "load module: {modver}" "load {modver}"
             """
