@@ -148,6 +148,8 @@ echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for modver in modules_to_load.split(" "):
             if not re.match( r'^([^/]+)/([^/]+)$',modver ):
+                # no slash, let's see if we can find a version
+                module : str = modver
                 # no version required, let's see if the environment has one
                 version = module_version_from_env( modver,**kwargs )
                 if nonnull( version ):
