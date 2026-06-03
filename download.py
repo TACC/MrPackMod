@@ -10,10 +10,10 @@ from typing import Any
 #
 # my own modules
 #
-from MrPackMod.process import process_execute
-from MrPackMod.tracing import echo_string,trace_string
+from MrPackMod.basics  import echo_string,trace_string
 from MrPackMod.error   import nonzero_keyword,abort_on_zero_keyword
 import MrPackMod.names as names
+from MrPackMod.process import process_execute
 
 def download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):

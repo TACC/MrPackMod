@@ -11,7 +11,7 @@ from typing import Any
 # my own modules
 #
 import MrPackMod.names as names
-from MrPackMod.tracing import echo_string
+from MrPackMod.basics  import echo_string
 from MrPackMod.error   import error_abort,abort_on_zero_keyword
 
 

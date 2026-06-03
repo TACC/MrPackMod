@@ -3,6 +3,7 @@ import re
 import subprocess
 from typing import Any,Optional,TypedDict
 
+from MrPackMod.basics     import echo_string,trace_string,echo_warning
 from MrPackMod.error      import nonnull,nonzero_keyword,error_abort,isnull
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
@@ -12,7 +13,6 @@ from MrPackMod.process    import process_execute, process_initiate, process_term
 #    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
 from MrPackMod.process    import open_logfile,close_logfile
 from MrPackMod.scripts    import module_proper_script
-from MrPackMod.tracing    import echo_string,trace_string,echo_warning
 
 class OutputDict(TypedDict):
     logfile : str

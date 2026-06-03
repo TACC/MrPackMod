@@ -13,7 +13,8 @@ import re
 import shutil
 from typing import Any, Optional
 
-from MrPackMod.basics  import remove_macros
+from MrPackMod.basics  import remove_macros,\
+    echo_string, trace_string
 from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
     nonzero_keyword, zero_keyword, abort_on_zero_keyword
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
@@ -22,7 +23,6 @@ from MrPackMod.process import process_execute, process_initiate, process_termina
     process_execute_immediate,remove_macros
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script
-from MrPackMod.tracing import echo_string, trace_string
 from MrPackMod.testing import start_test_stage,end_test_stage
 
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:

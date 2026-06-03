@@ -13,8 +13,8 @@ from typing import Any, Optional, Union, cast
 # my own modules
 #
 from MrPackMod.basics  import nonnull,isnull,\
-    zero_keyword,nonzero_keyword
-from MrPackMod.tracing import echo_string,trace_string
+    zero_keyword,nonzero_keyword,\
+    echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     abort_on_zero_keyword,error_abort
 

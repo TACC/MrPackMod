@@ -7,8 +7,8 @@ from typing import Any, Optional, NoReturn
 
 from MrPackMod.basics  import nonzero_env,nonnull,isnull,\
     zero_keyword,nonzero_keyword,nonzero_keyword_or_default,\
-    require_nonzero,unimplemented
-from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
+    require_nonzero,unimplemented,\
+    echo_string,trace_string,echo_warning,trace_var
 
 ## test on string
 def abort_on_null( val: Any, msg: str, **kwargs: Any ) -> Any:

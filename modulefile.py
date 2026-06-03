@@ -12,13 +12,13 @@ from typing import Any, Optional
 #
 # my own modules
 #
-from MrPackMod.error import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
+from MrPackMod.basics import echo_string,trace_string,echo_warning
+from MrPackMod.error  import abort_on_zero_keyword,zero_keyword,nonzero_keyword,\
     nonzero_keyword_or_default,abort_on_zero_env,error_abort,\
     isnull,nonnull
 from  MrPackMod.names import package_names,package_names_nonnull,package_prerequisites,\
     module_names,\
     package_dir_names,prefixdir_name,pathjoin
-from MrPackMod.tracing import echo_string,trace_string,echo_warning
 from MrPackMod.process import version_satisfies,process_execute,\
     get_value_from_loaded
 

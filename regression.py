@@ -11,7 +11,8 @@ import shutil
 import sys
 from typing import Any
 
-from MrPackMod.basics  import clean_title
+from MrPackMod.basics  import clean_title,\
+    echo_string,trace_string,echo_warning,trace_var
 from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names,scriptsdir_name
 from MrPackMod.process import process_execute, process_initiate, \
@@ -20,7 +21,6 @@ from MrPackMod.process import process_execute, process_initiate, \
 from MrPackMod.error   import isnull,nonnull, nonzero_keyword,error_abort,\
     abort_on_zero_keyword
 from MrPackMod.scripts import export_compilers_script
-from MrPackMod.tracing import echo_string,trace_string,echo_warning,trace_var
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
