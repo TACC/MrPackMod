@@ -70,7 +70,7 @@ def scriptsdir_name( **kwargs : Any ) -> str:
         scriptdir  : str = scriptsdir_local( **kwargs )
         return f"{scriptroot}/{scriptdir}"
 
-def scriptdir_root( **kwargs : Any ) -> str:
+def scriptsdir_root( **kwargs : Any ) -> str:
         if bdir := nonzero_keyword( "builddirroot",**kwargs ):
             scriptroot : str =  bdir
         elif startdir := nonzero_keyword( "startdir",**kwargs ):
