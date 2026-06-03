@@ -11,8 +11,7 @@ from typing import Any
 # my own modules
 #
 import MrPackMod.names as names
-from MrPackMod.basics  import echo_string
-from MrPackMod.error   import error_abort,abort_on_zero_keyword
+from MrPackMod.basics  import echo_string,error_abort,abort_on_zero_keyword
 
 
 def list_installations( **kwargs: Any ) -> None:

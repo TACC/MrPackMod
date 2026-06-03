@@ -14,9 +14,10 @@ import shutil
 from typing import Any, Optional
 
 from MrPackMod.basics  import remove_macros,\
-    echo_string, trace_string
-from MrPackMod.error   import error_abort, abort_on_zero_env, nonnull,\
-    nonzero_keyword, zero_keyword, abort_on_zero_keyword
+    echo_string, trace_string,\
+    abort_on_zero_keyword,error_abort
+from MrPackMod.error   import abort_on_zero_env, nonnull,\
+    nonzero_keyword, zero_keyword
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path_and_name
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\

@@ -33,11 +33,24 @@ def zero_keyword( var: str, **kwargs: Any ) -> bool:
 # Test first environment because it can override configuration vars
 #
 def nonzero_keyword( var : str,**kwargs : Any ) -> Optional[str]:
-    if res := nonzero_env( var,**kwargs ):
-        return res
-    else:
-        return nonzero_keyword_from_args( var,**kwargs )
+    envres = nonzero_env( var,**kwargs )
+    keyres = nonzero_keyword_from_args( var,**kwargs )
+    #print( f"testing key={var} env:{envres} key:{keyres}" )
+    # if nonnull(envres) and nonnull(keyres):
+    #     echo_warning( f"Got both key and env values for {var}, using env",**kwargs )
+    if nonnull(envres): return envres
+    if nonnull(keyres): return keyres
+    return None
 
+def abort_on_zero_keyword( keyword: str, **kwargs: Any ) -> Optional[str]:
+    if nonnull( val := nonzero_keyword( keyword,**kwargs ) ):
+        return val
+    else:
+        error_abort( f"must have non-null keyword: {keyword}",**kwargs )
+
+#
+# local helpers
+#
 def nonzero_keyword_from_args( var: str, **kwargs: Any ) -> Any:
     if nonnull( val := kwargs.get(var) ):
         return val
@@ -87,6 +100,15 @@ def clean_title( title : str,**kwargs : Any ) -> str:
     clean : str = re.sub("/",'-',re.sub(' ','_',title))
     clean = remove_macros( clean,kwargs )
     return clean
+
+####
+#### Error handling
+####
+def error_abort( string: str, **kwargs: Any ) -> NoReturn:
+    echo_string( f"\nERROR {string}\n\ntraceback:",**kwargs )
+    traceback.print_stack()
+    sys.exit(1)
+
 
 ####
 #### Error tracing

@@ -8,9 +8,10 @@ from typing import Any, Tuple
 #
 # my modules
 #
-from MrPackMod.basics     import echo_string,trace_string,echo_warning
+from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
+    abort_on_zero_keyword,error_abort
 from MrPackMod.modulefile import loaded_modules
-from MrPackMod.error      import nonnull,nonzero_env,abort_on_zero_keyword,error_abort
+from MrPackMod.error      import nonnull,nonzero_env
 from MrPackMod.names      import srcdir_name,builddir_name,prefixdir_name
 from MrPackMod.process    import line_strip_conditionals,remove_macros
 from MrPackMod.testing    import start_test_stage,end_test_stage,\
@@ -108,6 +109,7 @@ def add_settings_from_config(
             else:
                 saving = False # time to add a value to the dict
                 if key in derived_setting_triggers:
+                    #print( f"derived settings because key={key}\nsettings so far: {config_dict}" )
                     set_derived_settings( config_dict,**output )
                 if envval := nonzero_env( key,**config_dict ):
                     # override with environment if specified
@@ -261,7 +263,7 @@ def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) ->
                 config_dict[macro] = val
 
 def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
-    system   = abort_on_zero_keyword( "SYSTEM",**config_dict )
+    system   = config_dict.get( "SYSTEM" )
     compiler = config_dict.get( "COMPILER" )
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."

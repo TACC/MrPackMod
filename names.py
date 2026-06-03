@@ -13,10 +13,9 @@ from typing import Any, Optional, Union, cast
 # my own modules
 #
 from MrPackMod.basics  import nonnull,isnull,\
-    zero_keyword,nonzero_keyword,\
+    zero_keyword,nonzero_keyword,abort_on_zero_keyword,error_abort,\
     echo_string,trace_string
-from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
-    abort_on_zero_keyword,error_abort
+from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env    
 
 ####
 #### General names
@@ -30,9 +29,9 @@ from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env
 # version can be null-string if we are using the default
 #
 def package_names( **kwargs: Any ) -> tuple[str, str]:
-    package : str = abort_on_zero_keyword( "PACKAGE",**kwargs)
+    package : str = nonzero_keyword( "PACKAGE",**kwargs)
     # when do we allow null versions
-    version : str = kwargs.get( "PACKAGEVERSION","" )
+    version = nonzero_keyword( "PACKAGEVERSION",**kwargs )
     return package,version
 
 def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:

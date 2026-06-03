@@ -4,7 +4,7 @@ import subprocess
 from typing import Any,Optional,TypedDict
 
 from MrPackMod.basics     import echo_string,trace_string,echo_warning
-from MrPackMod.error      import nonnull,nonzero_keyword,error_abort,isnull
+from MrPackMod.error      import nonnull,nonzero_keyword,isnull
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
     package_prerequisites

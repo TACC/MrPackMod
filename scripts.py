@@ -7,8 +7,9 @@
 import re
 
 from MrPackMod.basics  import module_version_from_env,\
-    trace_string,echo_string,echo_warning,trace_var
-from MrPackMod.error   import isnull,nonnull,error_abort,nonzero_keyword,abort_on_zero_keyword
+    trace_string,echo_string,echo_warning,trace_var,\
+    abort_on_zero_keyword
+from MrPackMod.error   import isnull,nonnull,nonzero_keyword
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core
 
