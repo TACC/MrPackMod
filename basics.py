@@ -26,9 +26,17 @@ def nonzero_env( envvar: str, **kwargs: Any ) -> str:
 def zero_keyword( var: str, **kwargs: Any ) -> bool:
     return not nonzero_keyword( var,**kwargs )
 
-# return value or false
-def nonzero_keyword( var: str, **kwargs: Any ) -> Any:
-    #print( f"test {var}: {kwargs.get(var)}" )
+#
+# Return keyword value or false
+# Test first environment because it can override configuration vars
+#
+def nonzero_keyword( var : str,**kwargs : Any ) -> Optional[str]:
+    if res := nonzero_env( var,**kwargs ):
+        return res
+    else:
+        return nonzero_keyword_from_args( var,**kwargs )
+
+def nonzero_keyword_from_args( var: str, **kwargs: Any ) -> Any:
     if nonnull( val := kwargs.get(var) ):
         return val
     return False

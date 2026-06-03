@@ -12,7 +12,8 @@ from typing import Any, Optional, Union, cast
 #
 # my own modules
 #
-from MrPackMod.basics  import zero_keyword,nonzero_keyword,zero_keyword,nonnull,isnull
+from MrPackMod.basics  import nonnull,isnull,\
+    zero_keyword,nonzero_keyword
 from MrPackMod.tracing import echo_string,trace_string
 from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env,\
     abort_on_zero_keyword,error_abort
@@ -177,7 +178,12 @@ def srcdir_local_name( **kwargs: Any ) -> str:
 
 def gitdir_local_name( **kwargs: Any ) -> str:
     packagebasename,_ = package_names( **kwargs )
-    packageversion = "git"
+    packageversion : str = "git"
+    if stamp := nonzero_keyword( "GITDATE",**kwargs):
+        if stamp=="today":
+            packageversion += str( datetime.date.today() ).replace('-','')
+        else:
+            packageversion += stamp
     return f"{packagebasename}-{packageversion}"
 
 ##

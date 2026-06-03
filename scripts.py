@@ -147,17 +147,9 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for modver in modules_to_load.split(" "):
-            if not re.match( r'^([^/]+)/([^/]+)$',modver ):
-                # no slash, let's see if we can find a version
-                module : str = modver
-                # no version required, let's see if the environment has one
-                version = module_version_from_env( modver,**kwargs )
-                if nonnull( version ):
-                    modver = f"{module}/{version}"
-                # no environment version, so keep original modver
-            # if there was a slash, keep original mod+ver
+            module,slash,version = module_and_version_to_load(modver,**kwargs )
             loadscript += f"""
-modulecommand "load module: {modver}" "load {modver}"
+modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
             """
     else:
         echo_warning( "not loading any modules",**kwargs )
@@ -166,6 +158,22 @@ echo Module listing:
 modulelist
     """
     return loadscript
+
+def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
+    if modslshver := re.match( r'^([^/]+)(/)([^/]+)$',modver ):
+        # if there was a slash, keep original mod+ver
+        return modslshver.groups()
+    else:
+        # no slash, let's see if we can find a version
+        module : str = modver
+        # no version required, let's see if the environment has one
+        version = module_version_from_env( modver,**kwargs )
+        if nonnull( version ):
+            return module,"/",version
+            modver = f"{module}/{version}"
+        else:
+            # no slash and no environment version, so load default
+            return module,"",""
 
 modulelonglist : str = """
 function modulelist ()
