@@ -47,20 +47,6 @@ def package_prerequisites( **kwargs : Any ) -> str:
 # name of a logfile
 # the "logstage" typically contains the package name
 # 
-def scriptsdir_name( **kwargs : Any ) -> str:
-    if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
-        return scriptsdir
-    else:
-        if bdir := nonzero_keyword( "builddirroot",**kwargs ):
-            scriptroot : str =  bdir
-        elif startdir := nonzero_keyword( "startdir",**kwargs ):
-            scriptroot : str = startdir
-        else: # this should 
-            raise Exception( f"should have startdir or builddirroot for scripts" )
-        if not os.access( scriptroot,os.W_OK ):
-            raise Exception( f"scrptroot {scriptroot} not writable" )
-        return f"{scriptroot}/mpmscripts"
-
 def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
     scriptsdir : str = scriptsdir_name( **kwargs )
@@ -76,6 +62,30 @@ def logfile_name(
     logfilename = f"{scriptsdir}/{logfileshortname}"
     return logfilename,logfileshortname,scriptsdir
 
+def scriptsdir_name( **kwargs : Any ) -> str:
+    if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
+        return scriptsdir
+    else:
+        scriptroot : str = scriptsdir_root( **kwargs )
+        scriptdir  : str = scriptsdir_local( **kwargs )
+        return f"{scriptroot}/{scriptdir}"
+
+def scriptdir_root( **kwargs : Any ) -> str:
+        if bdir := nonzero_keyword( "builddirroot",**kwargs ):
+            scriptroot : str =  bdir
+        elif startdir := nonzero_keyword( "startdir",**kwargs ):
+            scriptroot : str = startdir
+        else: # this should 
+            raise Exception( f"should have startdir or builddirroot for scripts" )
+        if not os.access( scriptroot,os.W_OK ):
+            raise Exception( f"scrptroot {scriptroot} not writable" )
+        return scriptroot
+
+def scriptsdir_local( **kwargs : Any ) -> str:
+    local : str = "mpmscripts"
+    if ext := nonzero_keyword( "SCRIPTSDIREXTRA",**kwargs ):
+        local += f"-{ext}"
+    return local
 #
 # Create a directory for either building or install
 #
