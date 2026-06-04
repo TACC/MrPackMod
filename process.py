@@ -15,13 +15,12 @@ from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 
 from MrPackMod.basics  import remove_macros,clean_title,derived_settings,\
     trace_string,echo_string,echo_warning,trace_var,\
-    abort_on_zero_keyword,error_abort
-from MrPackMod.error   import isnull,nonnull,\
-    nonzero_keyword,zero_keyword
+    abort_on_zero_keyword,nonzero_keyword,zero_keyword,\
+    isnull,nonnull,error_abort
 from MrPackMod.names   import package_names,family_names,package_prerequisites,\
     mode_is_core
-from MrPackMod.scripts import export_compilers_script,load_compiler_and_mpi_script,\
-    export_flags
+from MrPackMod.scripts import export_compilers_script,export_flags,\
+    load_compiler_and_mpi_and_modules_script
 
 ##
 ## File handling
@@ -288,7 +287,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         # prerequisites or package
         modulestoload,loadcomment = modules_to_load( **kwargs )
         # compiler modules, in core mode this only resets
-        compilermpi,_ = load_compiler_and_mpi_script\
+        compilermpi,_ = load_compiler_and_mpi_and_modules_script\
             ( modulestoload, redirect=redirect, **kwargs )
         scriptfile.write( compilermpi+"\n" )
 
@@ -301,14 +300,6 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         # stuff
         for s in derived_settings:
             scriptfile.write( f"export {s}={kwargs[s]}\n" )
-
-        # load  modules:  package (for testing) or prereq (for installing)
-        if not kwargs.get("skipmodules"):
-            modulestoload,modulescomment = modules_to_load( **kwargs )
-            scriptfile.write( "\n"+modulescomment+"\n" )
-            for m in modulestoload.split():
-                scriptfile.write( f"modulecommand \"load\" \"load {m}\"\n" )
-                scriptfile.write( f"modulecommand \"confirm\" \"show {m}\" 1\n" )
 
         # actual script
         scriptfile.write( f"\n# Now follows script: {scripttitle}\n" )

@@ -11,8 +11,7 @@ from typing import Any
 # my own modules
 #
 from MrPackMod.basics  import echo_string,trace_string,\
-    abort_on_zero_keyword
-from MrPackMod.error   import nonzero_keyword
+    abort_on_zero_keyword,nonzero_keyword
 import MrPackMod.names as names
 from MrPackMod.process import process_execute
 

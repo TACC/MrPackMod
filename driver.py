@@ -16,9 +16,9 @@ from MrPackMod import install
 from MrPackMod import names 
 from MrPackMod.process import process_initiate,process_terminate,process_execute,\
     ensure_dir
-from MrPackMod.basics  import echo_string,echo_warning,error_abort
-from MrPackMod.error   import nonnull, nonzero_keyword, zero_keyword,\
-    abort_on_failure_result
+from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
+    nonnull, nonzero_keyword, zero_keyword
+from MrPackMod.error   import abort_on_failure_result
 from MrPackMod.testing import do_config_tests,report_success_failure
 from MrPackMod import regression
 

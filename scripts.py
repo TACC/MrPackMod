@@ -8,8 +8,8 @@ import re
 
 from MrPackMod.basics  import module_version_from_env,\
     trace_string,echo_string,echo_warning,trace_var,\
-    abort_on_zero_keyword
-from MrPackMod.error   import isnull,nonnull,nonzero_keyword
+    abort_on_zero_keyword,nonzero_keyword,zero_keyword
+from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core
 
@@ -50,11 +50,11 @@ if [ $? -gt 0 ] ; then
 fi
 echo where {val}=${{whichcomp}}
             """
-    return script,"Compiler settings"
+    return script,"Export compiler settings"
 
 # this routine is called through the above two wrappers
 # from `start_test_stage'
-def load_compiler_and_mpi_script( modules_to_load : str,**kwargs: Any ) -> str:
+def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> str:
     title : str = f"Load compiler and mpi and modules: {modules_to_load}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
@@ -143,7 +143,7 @@ modulecommand "load blas" "load {blas}"
         loadscript += f"""
 modulecommand "Load mpi" "load {mpi}/{mpiversion}"
         """
-    if nonnull( modules_to_load ):
+    if nonnull( modules_to_load ) and zero_keyword( "skipmodules",**kwargs ):
         loadscript += f"""
 echo .... Load packages \"{modules_to_load}\" {redirect}
         """

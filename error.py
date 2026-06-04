@@ -6,7 +6,6 @@ import traceback
 from typing import Any, Optional, NoReturn
 
 from MrPackMod.basics  import nonzero_env,nonnull,isnull,\
-    zero_keyword,nonzero_keyword,nonzero_keyword_or_default,\
     require_nonzero,unimplemented,\
     echo_string,trace_string,echo_warning,trace_var,error_abort
 

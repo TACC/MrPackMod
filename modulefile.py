@@ -12,9 +12,8 @@ from typing import Any, Optional
 #
 # my own modules
 #
-from MrPackMod.basics import echo_string,trace_string,echo_warning,error_abort
-from MrPackMod.error  import zero_keyword,nonzero_keyword,\
-    nonzero_keyword_or_default,\
+from MrPackMod.basics import echo_string,trace_string,echo_warning,error_abort,\
+    zero_keyword,nonzero_keyword,nonzero_keyword_or_default,\
     isnull,nonnull
 from  MrPackMod.names import package_names,package_names_nonnull,package_prerequisites,\
     module_names,\
