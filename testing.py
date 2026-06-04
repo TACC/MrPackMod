@@ -33,9 +33,6 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
     retval : str = get_value_from_virgin(
         module_proper_script,moduleslist,**kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
-    # print( f"config test return: {retval}" )
-    # print( f"config test success: {success}" )
-    # print( f"config test failure: {failure}" )
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:

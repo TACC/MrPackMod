@@ -157,6 +157,7 @@ modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{vers
     loadscript += f"""
 echo Module listing:
 modulelist
+echo -e \"End of module proper testing\n"
     """
     return loadscript
 
@@ -195,7 +196,7 @@ function modulelist ()
         """
 
 def module_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
-    script : str = ""
+    script : str = f"echo \"Testing module proper for: {moduleslist}\"\n"
     if  nonzero_keyword("installing",**kwargs ):
         srcdir = srcdir_name( **kwargs )
         script += f"""
@@ -223,4 +224,5 @@ for e in BIN LIB INC ; do
     fi
 done
         """
+    script += f"\necho End of module proper testing\n"
     return script,f"test modules"
