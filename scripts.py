@@ -195,7 +195,8 @@ function modulelist ()
         """
 
 def module_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
-    title : str = f"Module proper testing for {moduleslist}"
+    modulestring : str = ','.join(moduleslist)
+    title : str = f"Module proper testing for {modulestring}"
     script : str = f""
     if  nonzero_keyword("installing",**kwargs ):
         srcdir = srcdir_name( **kwargs )
