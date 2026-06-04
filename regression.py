@@ -125,7 +125,7 @@ fi
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
     program,programprint,cmakebuilddir,cmakeprefixdir = args
-    programprint = programprint.replace( r'\$\{.+\}/','' )
+    programprint = re.sub( r'\${(.+)}/',r'\1',programprint )
     scriptsdir : str = scriptsdir_name( **kwargs )
     lddout = f"{scriptsdir}/ldd_{programprint}.out"
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
