@@ -67,6 +67,9 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     #
     loadscript += f"""
 # Non-redirected return code reporting
+# $1 : error code
+# $2 : title
+# $3 : actual command
 function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2
@@ -74,7 +77,13 @@ if [ $1 -gt 0 ] ; then
     exit
 else
     echo SUCCESS module command succeeded: $2
-    echo Now loaded: && modulelist
+    cmd="$3"
+    # echo "cmd was <<$cmd>>"
+    echo "Now loaded:"
+    if [[ $cmd =~ load* ]] ; then
+        module -t show ${{cmd##load}}
+    fi 
+    modulelist
 fi {redirect}
 }}
     """
@@ -196,7 +205,10 @@ function modulelist ()
 }
         """
 
-def module_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
+#
+# This gets called only from do_config_tests
+#
+def modules_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modulestring : str = ','.join(moduleslist)
     title : str = f"Module proper testing for {modulestring}"
     script : str = f""
@@ -222,23 +234,37 @@ modulecommand "load {modver}" "load {modver}"
 # Assuming a module has been loaded,
 # these lines test that the module is proper
 #
-def one_module_proper_script( modver : list[str],**kwargs : Any ) -> tuple[str,str]:
+def one_module_proper_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    modver : str = modverlist[0]
     title : str = f"test proper of module {modver}"
     module,_    = f"{modver}/".split("/",maxsplit=1)
     script : str = f"""
+echo \">>>> Test proper of module {modver}\"
 nam=TACC_{module.upper()}_DIR
-eval dir=\\${{$nam}}
-if [ ! -d "${{dir}}" ] ; then
-    echo "FAILURE: package dir $nam=$dir does not exist"
+eval pkgdir=\\${{$nam}}
+if [ ! -d "${{pkgdir}}" ] ; then
+    echo "FAILURE: package dir $nam=$pkgdir does not exist"
 else
-    echo "SUCCESS: package {modver} is at $dir"
+    echo "SUCCESS: package {modver} is at $pkgdir"
 fi
 for e in BIN LIB INC ; do
     nam=TACC_{module.upper()}_${{e}}
-    eval dir=\\${{$nam}}
-    if [ ! -z "${{dir}}" -a ! -d "${{dir}}" ] ; then 
-        echo "FAILURE: variable $nam set but dir $dir does not exist"
+    eval cmpdir=\\${{$nam}}
+    if [ ! -z "${{cmpdir}}" -a ! -d "${{cmpdir}}" ] ; then 
+        echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
     fi
 done
+    """
+    if nonzero_keyword( "pkgconfig",**kwargs ):
+        script += f"""
+echo " .. Finding pc files:"
+find ${{pkgdir}} -name \\*.pc
+echo "where PKG_CONFIG_PATH="
+echo ${{PKG_CONFIG_PATH}} | tr ':' '\\n'
+        """
+    if nonzero_keyword( "cmakeconfig",**kwargs ):
+        script += f"echo \" .. Finding cmake files:\"\nfind ${{pkgdir}} -name \\*.cmake\n"
+    script += f"""
+echo \"<<<< end of test proper of module {modver}\"
     """
     return script,title

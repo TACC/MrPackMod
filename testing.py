@@ -12,7 +12,7 @@ from MrPackMod.process    import process_execute, process_initiate, process_term
     get_value_from_loaded,get_value_from_virgin
 #    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
 from MrPackMod.process    import open_logfile,close_logfile
-from MrPackMod.scripts    import module_proper_script
+from MrPackMod.scripts    import modules_proper_script
 
 class OutputDict(TypedDict):
     logfile : str
@@ -31,7 +31,7 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
         start_test_stage( "moduleconfig",kwargs,
                           installing=installing,terminal="suppress" )
     retval : str = get_value_from_virgin(
-        module_proper_script,moduleslist,**kwargs,**output )
+        modules_proper_script,moduleslist,**kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
     for s in success:
         echo_string(s,**kwargs)

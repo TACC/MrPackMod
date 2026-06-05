@@ -287,7 +287,9 @@ def do_cmake_test(
             title=f"{title}, cmake/make stage",
             package=name,**test_options )
     res : str = get_value_from_loaded(
-        cmake_configure_script,prog_and_dirs,**kwargs,**output )
+        cmake_configure_script,prog_and_dirs,
+        **kwargs,**output,
+        pkgconfig="yes",cmakeconfig="yes" )
     failed : bool = ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
