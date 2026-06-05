@@ -323,6 +323,7 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
         ( "configure",configuration_dict,
           skipmodules=True,linedisplay=trace_string,
           scriptsdir=f"{os.getcwd()}/mpmscripts_config",
+          **kwargs # pass in temporary options
          )
 
     rc_name = ".mrpackmodrc"
@@ -344,4 +345,3 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
                   **configuration_dict,**output )
     # close log file and test success/failure
     success,failure = end_test_stage( [],[],configuration_dict,output )
-    return configuration_dict

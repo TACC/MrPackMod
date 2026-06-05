@@ -28,15 +28,13 @@ from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env
 # Result: pair package,version
 # version can be null-string if we are using the default
 #
-def package_names( **kwargs: Any ) -> tuple[str, str]:
-    package : str = nonzero_keyword( "PACKAGE",**kwargs)
-    # when do we allow null versions
-    version = nonzero_keyword( "PACKAGEVERSION",**kwargs )
-    return package,version
+def package_names( **kwargs: Any ) -> tuple[Optional[str], Optional[str]]:
+    return nonzero_keyword( "PACKAGE",**kwargs),nonzero_keyword( "PACKAGEVERSION",**kwargs )
 
 def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
     p,v = package_names( **kwargs )
     abort_on_null( v,"package version is null/unspecified",**kwargs )
+    abort_on_null( p,"package is null/unspecified",**kwargs )
     return p,v
 
 def package_prerequisites( **kwargs : Any ) -> str:
@@ -50,9 +48,11 @@ def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
     scriptsdir : str = scriptsdir_name( **kwargs )
     
-    _,moduleversion = module_names( **kwargs )
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
-    logfileshortname : str = f"{logstage}-{moduleversion}"
+    logfileshortname : str = logstage
+    if ( modnamever := module_names( **kwargs ) ) is not None:
+        _,moduleversion = modnamever
+        logfileshortname += f"-{moduleversion}"
     if nonnull(compiler):
         logfileshortname += f"_{compiler}-{cversion}"
     if mode := nonzero_keyword( "MODE",**kwargs ):
@@ -126,17 +126,19 @@ def family_names( **kwargs: Any ) -> Union[
     mversion = kwargs.get("MPIVERSION")
     return system,compiler,cversion,cshortv,mpi,mversion
 
+def get_mode( **kwargs ) -> str:
+    if ( has := nonzero_keyword( "MODE",**kwargs ) ) is None:
+        raise Exception( "Need MODE parameter" )
+    return has
+
 def mode_has_mpi( **kwargs ) -> bool:
-    has : str = abort_on_zero_keyword( "MODE",**kwargs )
-    return has in [ "mpi","hybrid", ]
+    return get_mode(**kwargs) in [ "mpi","hybrid", ]
 
 def mode_has_seq( **kwargs ) -> bool:
-    has : str = abort_on_zero_keyword( "MODE",**kwargs )
-    return has in [ "seq", "omp", ]
+    return get_mode(**kwargs) in [ "seq", "omp", ]
 
 def mode_is_core( **kwargs ) -> bool:
-    has : str = abort_on_zero_keyword( "MODE",**kwargs )
-    return has == "core"
+    return get_mode(**kwargs) == "core"
 
 def compilers_names( **kwargs: Any ) -> dict[str, str]:
     compilers = { 'CC':"unknown_cc", 'CXX':"unknown_cxx", 'FC':"unknown_fc", }
@@ -312,7 +314,13 @@ def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
         return f"{modulepath}/{modulename}",f"{moduleversion}.lua",False
 
 def module_names( **kwargs: Any ) -> tuple[str, str]:
-    package,packageversion = package_names( **kwargs )
+    nam,ver = package_names( **kwargs )
+    if nam:
+        package = nam
+    else: package = "nopackage"
+    if ver:
+        packageversion = ver
+    else: packageversion = "0"
     modulename = kwargs.get( "MODULENAME",package )
     if alt := nonzero_keyword( "MODULENAMEALT" ):
         modulename = alt

@@ -38,7 +38,7 @@ def export_compilers_script( dummy : list[str],**kwargs: Any ) -> tuple[str,str]
     if mode_is_core( **kwargs ): return "","No compilers in core mode"
     trace_string( "Exporting compilers",**kwargs )
     compilers = compilers_names( **kwargs )
-    script = ""; cont = ""
+    script : str = "\necho \"Now exporting compilers for cmake and such\""
     for key,val in compilers.items():
         trace_string( f" .. Setting compiler: {key}={val}",**kwargs )
         script += f"""
@@ -149,8 +149,10 @@ echo .... Load packages \"{modules_to_load}\" {redirect}
         """
         for modver in modules_to_load.split(" "):
             module,slash,version = module_and_version_to_load(modver,**kwargs )
+            modulepropertest,_ = one_module_proper_script( [modver],**kwargs )
             loadscript += f"""
 modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
+{modulepropertest}
             """
     else:
         echo_warning( "not loading any modules",**kwargs )
@@ -208,9 +210,22 @@ fi
         """
     for modver in moduleslist:
         # strip any version number
-        module,_ = f"{modver}/".split("/",maxsplit=1)
+        onemodulescript,_ = one_module_proper_script( [modver],**kwargs )
         script += f"""
 modulecommand "load {modver}" "load {modver}"
+{onemodulescript}
+        """
+    script += f"\necho End of module proper testing\n"
+    return script,title
+
+#
+# Assuming a module has been loaded,
+# these lines test that the module is proper
+#
+def one_module_proper_script( modver : list[str],**kwargs : Any ) -> tuple[str,str]:
+    title : str = f"test proper of module {modver}"
+    module,_    = f"{modver}/".split("/",maxsplit=1)
+    script : str = f"""
 nam=TACC_{module.upper()}_DIR
 eval dir=\\${{$nam}}
 if [ ! -d "${{dir}}" ] ; then
@@ -220,10 +235,10 @@ else
 fi
 for e in BIN LIB INC ; do
     nam=TACC_{module.upper()}_${{e}}
+    eval dir=\\${{$nam}}
     if [ ! -z "${{dir}}" -a ! -d "${{dir}}" ] ; then 
         echo "FAILURE: variable $nam set but dir $dir does not exist"
     fi
 done
-        """
-    script += f"\necho End of module proper testing\n"
+    """
     return script,title

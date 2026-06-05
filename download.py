@@ -14,7 +14,8 @@ from MrPackMod.basics  import echo_string,trace_string,\
     abort_on_zero_keyword,nonzero_keyword
 import MrPackMod.names as names
 from MrPackMod.process import get_value_from_loaded,process_execute
-from MrPackMod.testing import start_test_stage,end_test_stage
+from MrPackMod.testing import start_test_stage,end_test_stage,\
+    OutputDict
 
 def download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
@@ -30,7 +31,8 @@ def cd_download_path( **kwargs: Any ) -> None:
     os.chdir( downloadpath )
     
 def download_from_url( **kwargs: Any ) -> None:
-    url = abort_on_zero_keyword( "DOWNLOADURL",**kwargs )
+    if ( url := nonzero_keyword( "DOWNLOADURL",**kwargs ) ) is None:
+        raise Exception( f"No download url given" )
     downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
     cd_download_path( **kwargs,logfile=downloadlog )
     echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
@@ -116,9 +118,11 @@ def pull_from_url( **kwargs: Any ) -> None:
     process_execute( cmdline,**kwargs,logfile=gitlog )
 
 def clone_pull_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    url = abort_on_zero_keyword( "GITREPO",** kwargs )
+    if ( url := nonzero_keyword( "GITREPO",** kwargs ) ) is None:
+        raise Exception( "No git repo url given for clone" )
     downloadpath : str = download_path( **kwargs )
-    action : str = abort_on_zero_keyword( "gitaction",**kwargs )
+    if ( action := nonzero_keyword( "gitaction",**kwargs ) ) is None:
+        raise Exception( "Need git action" )
     script : str = f"""
 echo change dir for clone to {downloadpath}
 cd {downloadpath}

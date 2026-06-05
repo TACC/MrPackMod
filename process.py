@@ -61,11 +61,14 @@ from MrPackMod.names import logfile_name
 ##
 def open_logfile(
         logstage : str, terminal : str = "", **kwargs   : Any, ) -> tuple[str,str]:
-    if nonnull( package := kwargs.get("program") ):
-        logname : str = f"{package}_{logstage}"
-    else:
-        packagename,_  = package_names( **kwargs )
-        logname = f"{packagename}_{logstage}"
+    # if nonnull( package := kwargs.get("program") ):
+    #     logname : str = f"{package}_{logstage}"
+    # elif kwargs.get("PACKAGE") and kwargs.get("PACKAGEVERSION"):
+    #     # this case is needed for the initial config test, prior to mpm actions
+    #     packagename,_  = package_names( **kwargs )
+    #     logname = f"{packagename}_{logstage}"
+    # else:
+    #     logname = logstage
 
     # get global name, ignore local name
     logname,_,scriptsdir = logfile_name( logstage,**kwargs )

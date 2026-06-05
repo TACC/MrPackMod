@@ -24,7 +24,8 @@ from MrPackMod.process import process_execute, process_initiate, process_termina
     process_execute_immediate,remove_macros
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script
-from MrPackMod.testing import start_test_stage,end_test_stage
+from MrPackMod.testing import start_test_stage,end_test_stage,\
+    OutputDict
 
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
@@ -101,14 +102,14 @@ def nonzero_exports( **kwargs : Any ) -> Optional[str]:
         export_cmdline : str = " && ".join(exports)
         trace_string( f"Using exports: {export_cmdline}",**kwargs )
         return export_cmdline
-    else: return False
+    else: return None
 
 def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
     if unsets := nonzero_keyword( "unsets",**kwargs ):
         unset_cmdline : str = " && ".join(unsets)
         trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
         return unset_cmdline
-    else: return False
+    else: return None
 
 def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
     program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
@@ -277,7 +278,7 @@ fi
         prefixoption = option # pdtoolkit
     else: prefixoption = "--prefix"
     if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
-        flags : str = f" {flags}"
+        flags = f" {flags}"
     else: flags = ""
     configure_script : str = f"""
 ./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
@@ -460,7 +461,7 @@ def petsc_build( **kwargs : Any ) -> str:
 
 def post_install_actions_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
     # if we get here, we already know there are actions
-    cptoinstall :str = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
+    cptoinstall : Optional[str] = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
     srcdir,prefixdir = plist
     trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
                   **kwargs )
@@ -528,7 +529,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
         modvars : str = f"\n{vars}"
     else: modvars = ""
     if nonnull( depends := modulefile.dependency_clauses( **kwargs,**output ) ):
-        depends : str = f"\n{depends}"
+        depends = f"\n{depends}"
     else: depends = ""
 
     #

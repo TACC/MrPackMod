@@ -74,7 +74,9 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
     read_config( configuration,configfile,
                  nowarn=nowarn,
-                 no_home=not_create_home,
+                 # test_stage mechanism is used here, but is missing some info
+                 # so we set dummy values
+                 no_home=not_create_home,PACKAGE="setup",PACKAGEVERSION="0.0"
                 )
     # make sure we have triggered derived settings
     if not any( [ nonnull(configuration.get(key)) for key in derived_setting_triggers ] ):
@@ -151,8 +153,8 @@ utility_actions : {utility_actions}
         elif action in [ "install", "configure", "build", "module", "public", ]:
             abort_on_failure_result(
                 do_config_tests( installing=True,**configuration ),**configuration )
-            success = []
-            failure = []
+            success : list[str] = []
+            failure : list[str] = []
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
                     install.cmake_configure( **configuration )
@@ -190,7 +192,7 @@ utility_actions : {utility_actions}
                     clean_targets += " "+t
             os.system( f"rm -rf {clean_targets}" )
         elif action=="regression":
-            package : str = configuration.get("PACKAGE")
+            package : str = str( configuration.get("PACKAGE") ) # str only for mypy
             echo_warning( f"Need better test for package actually being loaded",**configuration )
             # if not loaded_module_version( package,**configuration ):
             #     error_abort( f"Module {package} needs to be loaded for regression testing",

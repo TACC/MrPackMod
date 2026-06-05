@@ -247,7 +247,7 @@ def extra_vars( **kwargs ) -> Optional[str]:
             settings += f"\nsetenv( \"{k}\", \"{v}\" )"
         settings += "\n"
         return  settings
-    else: return False
+    else: return None
 
 def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modver : str = modverlist[0]
@@ -258,7 +258,7 @@ def module_loaded_script( modverlist : list[str],**kwargs : Any ) -> tuple[str,s
         mod = modver; ver = ""
     else:
         echo_warning( f"Testing loaded with null modver",**kwargs )
-        return
+        return "",""
     modvar : str = f"TACC_{mod.upper()}_DIR"
     script : str = f"""
 if [ -z \"${modvar}\" ] ; then 

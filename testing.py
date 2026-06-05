@@ -53,7 +53,6 @@ def start_test_stage(
         package     : Optional[str] = "",
         installing  : Optional[bool] = True,
         linedisplay : Optional[Any]  = echo_string,
-        scriptsdir  : Optional[str] = None,
         **test_options    : dict[str,Any],
         ) -> OutputDict:
 
@@ -61,9 +60,9 @@ def start_test_stage(
     # note: kwargs does not contain "scriptsdir",
     # test_options is allowed to not contain it either,
     # then logfile will go to default dir
-    scriptsdir : str = scriptsdir_name( **kwargs ) # test_options.get("scriptsdir")
+    scriptsdir : str = scriptsdir_name( **kwargs, )
     logname,loghandle,scriptsdir = \
-        open_logfile( stage.replace(' ','_'),**kwargs,scriptsdir=scriptsdir, ) 
+        open_logfile( stage.replace(' ','_'),**kwargs, ) 
     kwargs["logfiles"][logname] = loghandle
 
     # Create a process for the commands of this test stage
