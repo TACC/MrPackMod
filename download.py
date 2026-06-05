@@ -13,7 +13,8 @@ from typing import Any
 from MrPackMod.basics  import echo_string,trace_string,\
     abort_on_zero_keyword,nonzero_keyword
 import MrPackMod.names as names
-from MrPackMod.process import process_execute
+from MrPackMod.process import get_value_from_loaded,process_execute
+from MrPackMod.testing import start_test_stage,end_test_stage
 
 def download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
@@ -110,4 +111,45 @@ def pull_from_url( **kwargs: Any ) -> None:
     cmdline = f"cd {gitdir_local} && git pull"
     if branch := nonzero_keyword( "BRANCH",**kwargs ):
         cmdline += f" && git checkout {branch}"
+    if commit := nonzero_keyword( "GITCOMMIT",**kwargs ):
+        cmdline += f" && git checkout {commit}"
     process_execute( cmdline,**kwargs,logfile=gitlog )
+
+def clone_pull_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    url = abort_on_zero_keyword( "GITREPO",** kwargs )
+    downloadpath : str = download_path( **kwargs )
+    action : str = abort_on_zero_keyword( "gitaction",**kwargs )
+    script : str = f"""
+echo change dir for clone to {downloadpath}
+cd {downloadpath}
+    """
+    gitdir_local : str = names.gitdir_local_name( **kwargs )
+    if action=="clone":
+        script += f"""
+if [ -d \"{gitdir_local}\" ] ; then
+    echo \" .... removing previous clone f{gitdir_local}\"
+    rm -rf {gitdir_local}
+fi
+git clone {url} {gitdir_local}
+        """
+    script += f"\ncd {gitdir_local} && git pull\n"
+    if branch := nonzero_keyword( "BRANCH",**kwargs ):
+        script += f"""
+echo \"Switching to branch {branch}\"
+git checkout {branch}
+        """
+    if commit := nonzero_keyword( "GITCOMMIT",**kwargs ):
+        script += f"""
+echo \"Checkout specific commit {commit}\"
+git checkout {commit}
+        """
+    return script,"clone pull repo"
+
+def clone_or_pull( **kwargs: Any ) -> str:
+    output : OutputDict = \
+        start_test_stage( "git",kwargs,title="git clone pull",installing=True )
+    retval : str = get_value_from_loaded(
+        clone_pull_script,[],**kwargs,**output, )
+    success,failure = end_test_stage( [],[],kwargs,output )
+    return retval
+

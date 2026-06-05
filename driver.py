@@ -145,10 +145,8 @@ utility_actions : {utility_actions}
             download.unpack_from_url( srcdir=srcdir_local,**configuration )
         elif action=="retar":
             download.retar_to_standard_name( **configuration )
-        elif action=="clone":
-            download.clone_from_url( **configuration )
-        elif action=="pull":
-            download.pull_from_url( **configuration )
+        elif action in [ "clone","pull" ]:
+            download.clone_or_pull( **configuration,gitaction=action )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
             abort_on_failure_result(
