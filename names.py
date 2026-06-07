@@ -50,7 +50,7 @@ def logfile_name(
     
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
     logfileshortname : str = logstage
-    if ( modnamever := module_names( **kwargs ) ) is not None:
+    if ( modnamever := module_name_and_version( **kwargs ) ) is not None:
         _,moduleversion = modnamever
         logfileshortname += f"-{moduleversion}"
     if nonnull(compiler):
@@ -283,21 +283,21 @@ def package_dir_names( **kwargs: Any ) -> tuple[str, str, str, str]:
     else: bindir = ""
     return prefixdir,libdir,incdir,bindir
 
-def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
+def modulefile_path( **kwargs: Any ) -> tuple[str, bool]:
     abort_on_nonzero_env( "MODULEDIRSET" )
     package,packageversion = package_names_nonnull( **kwargs )
-    modulename,moduleversion = module_names( **kwargs )
+    modulename,_ = module_name_and_version( **kwargs )
     #
     # construct module path
     #
     if existing := nonzero_keyword( "modulediradd",**kwargs ):
         # in jail we can get an explicit, already-existing path (see netcdf/netcdff)
         modulepath = existing
-        return f"{modulepath}",f"{moduleversion}.lua",True
+        return f"{modulepath}",True
     elif nonnull( dirset := kwargs.get("moduledir") ):
         # in jail we get an explicit path
         modulepath = dirset
-        return f"{modulepath}",f"{moduleversion}.lua",False
+        return f"{modulepath}",False
     else:
         # otherwise we build the path from system & compiler info
         modulepath = abort_on_zero_keyword( "moduleroot",**kwargs )
@@ -311,9 +311,9 @@ def modulefile_path_and_name( **kwargs: Any ) -> tuple[str, str,Any]:
             elif mode in [ "seq","omp", ]:
                 modulepath += f"/Compiler/{compilercode}/{compilerversion}"
             else: error_abort( f"Unknown mode: {mode}" )
-        return f"{modulepath}/{modulename}",f"{moduleversion}.lua",False
+        return f"{modulepath}/{modulename}",False
 
-def module_names( **kwargs: Any ) -> tuple[str, str]:
+def module_name_and_version( **kwargs: Any ) -> tuple[str, str]:
     nam,ver = package_names( **kwargs )
     if nam:
         package = nam
@@ -322,11 +322,14 @@ def module_names( **kwargs: Any ) -> tuple[str, str]:
         packageversion = ver
     else: packageversion = "0"
     modulename = kwargs.get( "MODULENAME",package )
-    if alt := nonzero_keyword( "MODULENAMEALT" ):
-        modulename = alt
+    # VLE I don't like this alt stuff
+    # if alt := nonzero_keyword( "MODULENAMEALT" ):
+    #     modulename = alt
+
     # package version can be null, so module version can be null
-    moduleversion = packageversion
-    if mx := nonzero_keyword( "MODULEVERSIONEXTRA",**kwargs ):
+    if ( moduleversion := nonzero_keyword( "MODULEVERSION",**kwargs ) ) is None:
+        moduleversion = packageversion
+    if ( mx := nonzero_keyword( "MODULEVERSIONEXTRA",**kwargs ) ) is not None:
         moduleversion += f"-{mx}"
     return modulename,moduleversion
 

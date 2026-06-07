@@ -322,7 +322,6 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     output : OutputDict = start_test_stage\
         ( "configure",configuration_dict,
           skipmodules=True,linedisplay=trace_string,
-          scriptsdir=f"{os.getcwd()}/mpmscripts_config",
           **kwargs # pass in temporary options
          )
 

@@ -16,7 +16,7 @@ from MrPackMod.basics import echo_string,trace_string,echo_warning,error_abort,\
     zero_keyword,nonzero_keyword,nonzero_keyword_or_default,\
     isnull,nonnull
 from  MrPackMod.names import package_names,package_names_nonnull,package_prerequisites,\
-    module_names,\
+    module_name_and_version,\
     package_dir_names,prefixdir_name,pathjoin
 from MrPackMod.process import version_satisfies,process_execute,\
     get_value_from_loaded
@@ -39,7 +39,7 @@ def mod_ver( m : str,**kwargs : Any ) -> tuple[str, str]:
 
 def module_help_string( **kwargs: Any ) -> str:
     package,packageversion   = package_names_nonnull( **kwargs )
-    modulename,moduleversion = module_names( **kwargs )
+    modulename,moduleversion = module_name_and_version( **kwargs )
 
     about = kwargs.get( "ABOUT", f"The {package} package" )
     about += "\n"
@@ -84,7 +84,7 @@ The {package} modulefile defines the following variables:
 
 def package_info( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
-    modulename,moduleversion = module_names( **kwargs )
+    modulename,moduleversion = module_name_and_version( **kwargs )
     return \
 f"""\
 whatis( "Name: {modulename}" )
@@ -93,7 +93,7 @@ whatis( "Version: {moduleversion}" )
 
 def path_settings( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
-    modulename,moduleversion = module_names( **kwargs )
+    modulename,moduleversion = module_name_and_version( **kwargs )
     modulenamealt = kwargs.get("modulenamealt","").lower()
 
     paths = ""

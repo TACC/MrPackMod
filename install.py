@@ -19,7 +19,7 @@ from MrPackMod.basics  import remove_macros,\
     nonnull,nonzero_keyword, zero_keyword
 from MrPackMod.error   import abort_on_zero_env
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
-    compilers_names,modulefile_path_and_name
+    compilers_names,modulefile_path,module_name_and_version
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     process_execute_immediate,remove_macros
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
@@ -535,7 +535,8 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     #
     # write
     #
-    modulefilepath,luaversion,existing = modulefile_path_and_name( **kwargs )
+    modulefilepath,existing = modulefile_path( **kwargs )
+    _,moduleversion = module_name_and_version( **kwargs )
     # maybe create moduledir
     if not ( hasdir := os.path.isdir(modulefilepath) ):
         if existing:
@@ -545,8 +546,9 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
             # create directories recursively
             os.makedirs( modulefilepath,exist_ok=True )
     # now write
-    echo_string( f"Writing modulefile: {modulefilepath}/{luaversion}" )
-    with open( f"{modulefilepath}/{luaversion}","w" ) as lua_out:
+    modulefilefullname : str = f"{modulefilepath}/{moduleversion}.lua"
+    echo_string( f"Writing modulefile: {modulefilefullname}" )
+    with open( modulefilefullname,"w" ) as lua_out:
         modulecontents = f"""\
 {help_string}
 
