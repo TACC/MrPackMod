@@ -564,7 +564,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     return success,failure
 
 def public_module( **kwargs: Any ) -> None:
-    modulefilepath,_,_ = modulefile_path_and_name( **kwargs )
+    modulefilepath,_ = modulefile_path( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
 

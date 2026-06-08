@@ -189,10 +189,10 @@ f"""\
 def module_version_script( pkgl : list[str],**kwargs : Any ) -> tuple[str,str]:
     pkg : str = pkgl[0]
     return f"""
-if [ ! -z \"$TACC_{pkg.upper()}_VERSION\" ] ; then
-    echo $TACC_{pkg.upper()}_VERSION
-elif [ ! -z \"$TACC_{pkg.upper()}_VER\" ] ; then
-    echo $TACC_{pkg.upper()}_VER
+if [ ! -z \"${{TACC_{pkg.upper()}_VERSION}}\" ] ; then
+    echo ${{TACC_{pkg.upper()}_VERSION}}
+elif [ ! -z \"${{TACC_{pkg.upper()}_VER}}\" ] ; then
+    echo ${{TACC_{pkg.upper()}_VER}}
 else
     echo FAILURE No VER or VERSION macro for package {pkg}
 fi
@@ -207,10 +207,12 @@ def ensure_module_version_loaded( pkg : str,**kwargs : Any ) -> str:
 def get_module_version( pkg : str,**kwargs : Any ) -> str:
     if nonzero_keyword( "installing",**kwargs ):
         # this happens in "dependency_clauses"
-        return get_value_from_loaded( module_version_script,[pkg],**kwargs, )
+        version : str =  get_value_from_loaded( module_version_script,[pkg],**kwargs, )
+        return version
     else:
         # does this ever happen?
-        return get_value_from_loaded( module_version_script,[pkg],**kwargs,installing=True )
+        version = get_value_from_loaded( module_version_script,[pkg],**kwargs,installing=True )
+        return version
 
 ##
 ## Construct the modulefile string

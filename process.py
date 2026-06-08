@@ -311,7 +311,8 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         # footer
         if doredirect:
             scriptfile.write( "exec 3>&-\n" )
-        scriptfile.write( f"echo \"End script: {scripttitle}\"\n" )
+        # VLE nope: this conflicts with getting the version
+        #  scriptfile.write( f"echo \"End script: {scripttitle}\"\n" )
 
     trace_string( f"Script for {scripttitle} in: {scriptfilename}",**kwargs )
     value = process_execute_immediate\
