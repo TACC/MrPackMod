@@ -55,12 +55,11 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     arguments  = parser.parse_args( argument_list )
     # convert argparse namespace to dictionary
     arguments_dict : dict = vars(arguments)
-    #print( arguments_dict )
     arguments_dict["do_run"]  = arguments.run or arguments.run_in_dir
     arguments_dict["dirtype"] = arguments.dir
     arguments_dict["program"] = arguments.program[0]
 
-    print( f"Test: "+arguments_dict["title"] )
+    ##print( f"Test: "+arguments_dict["title"] )
     trace_string( f" .. parameters: {arguments_dict}",**kwargs )
     return arguments_dict
 
@@ -124,10 +123,10 @@ fi
     return grep_output_file
 
 def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
-    program,programprint,cmakebuilddir,cmakeprefixdir = args
-    programprint = re.sub( r'\${(.+)}/',r'\1',programprint )
+    program,programdir,cmakebuilddir,cmakeprefixdir = args
+    programdir = re.sub( r'\${(.+)}/',r'\1',programdir )
     scriptsdir : str = scriptsdir_name( **kwargs )
-    lddout = f"{scriptsdir}/ldd_{programprint}.out"
+    lddout = f"{scriptsdir}/ldd_{programdir}_{program}.out"
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
     trace_string( f"Generate ldd script for file={program} in dir={where}",**kwargs )
     script = f"""
@@ -135,9 +134,9 @@ cd {where}
 rm -f {lddout}
 
 if [ -f \"{program}\" ] ; then
-    ldd {program} 2>&1 | tee {lddout} ; 
+    ldd {program} 2>&1 | tee {lddout}
 else
-    touch {lddout} ; 
+    touch {lddout}
 fi
 
 if [ -f \"{program}\" ] ; then
@@ -151,38 +150,31 @@ else
     echo FAILURE: could not find program={program} to run ldd on
 fi
     """
-    return script,f"ldd test on {programprint}"
+    return script,f"ldd test on {programdir}/{program}"
 
 ##
 ## Run a program
 ##
-def execute_run_script( program : str,run_config : dict,**kwargs ) -> None:
-    tracestring : str = f"run program={program}"
-    if nonnull( prefix := run_config["run_prefix"] ):
+def execute_run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,prefix,rundir,args = runstuff 
+    title : str = f"run program={program}"
+    if nonnull( prefix ):
         cmdline :str = f"{prefix}{program}"
     else:
         cmdline = f"./{program}"
-    if nonnull( run_config["run_in_dir"] ):
-        dir = run_config["run_dir"]
-        tracestring += f" in dir: {dir}"
-        cmdline = f"cd {dir} && {cmdline}"
-    if nonnull( args:=run_config["run_args"] ):
-        tracestring += f" with args={args}"
+    if nonnull( rundir ):
+        cmdline = f"cd {rundir} && {cmdline}"
+    if nonnull( args ):
         cmdline += args
-    trace_string( tracestring,**kwargs )
-    trace_string( f" .. cmdline: {cmdline}",**kwargs )
-    logdir : str = kwargs["logdir"]
-    runout = f"{logdir}/run.out"
-    process_execute( f"""
-{cmdline} >{runout} 2>&1 &&
+    script : str = f"""
+{cmdline}
 if [ $? -eq 0 ] ; then 
-    echo SUCCESS: running {program} ;
+    echo SUCCESS: running {program}
 else
-    echo FAILURE: running {program} ;
+    echo FAILURE: running {program}
 fi 
-echo "Run output"
-cat {runout}
-    """,**kwargs )
+    """
+    return script,title
 
 def do_existence_test(
         test_definition: str, test_options : dict[str,Any], **kwargs: Any,
@@ -262,18 +254,19 @@ def do_cmake_test(
         program = run_config["program"]
         title   = run_config["title"]
         do_run  = run_config["do_run"]
+        value   = run_config.get("test_value")
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
-    if name_ext := re.search( r'^(.+)\.(.+)$',program ):
-        name,ext = name_ext.groups()
+    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+        programname,programext = name_ext.groups()
     else:
         error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
-    logdir : str = ensure_dir( "logfiles",**kwargs )
-    cmakesrcdir    : str = os.getcwd()+"/"+ext
-    cmakebuilddir  : str = create_dir( "build",**kwargs )
+
+    programsrcdir    : str = os.getcwd()+"/"+programext
+    programbuilddir  : str = create_dir( "build",**kwargs )
     cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
-    prog_and_dirs : list[str] = [name,cmakesrcdir,cmakebuilddir,cmakeprefixdir]
+    prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,cmakeprefixdir]
 
     success : list[str] = []
     failure : list[str] = []
@@ -285,7 +278,7 @@ def do_cmake_test(
         start_test_stage(
             "cmake build and make",kwargs, # note dict
             title=f"{title}, cmake/make stage",
-            package=name,**test_options )
+            package=programname,**test_options )
     res : str = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,
         **kwargs,**output,
@@ -300,25 +293,32 @@ def do_cmake_test(
     #
     # Check library dependencies satisfied & run
     #
-    if not failed:
+    output = start_test_stage(
+        "ldd",kwargs,title=f"{title}, ldd/run stage",
+        package=programname,**test_options )
+    # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
+    prog_and_dirs[1] = programext
+    res = get_value_from_loaded(
+        ldd_script,prog_and_dirs,**kwargs,**output )
+    success,failure = end_test_stage( success,failure,kwargs,output )
+
+    #
+    # Run
+    #
+    if nonnull( do_run ):
         output = start_test_stage(
-            "exec",kwargs,
-            title=f"{title}, ldd/run stage",
-            package=name,**test_options )
-        # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
+            "run",kwargs,title=f"{title}, run",
+            package=programname,**test_options )
+        rundata = [ programname,
+                    run_config["run_prefix"],run_config["run_in_dir"],run_config["run_args"] ]
         res = get_value_from_loaded(
-            ldd_script,prog_and_dirs,**kwargs,**output )
-        if nonnull( do_run ):
-            execute_run_script( name,run_config,**kwargs,**output )
-        failed = ( re.match( 'FAILURE',res ) is not None )
+            execute_run_script,rundata,**kwargs,**output )
         success,failure = end_test_stage( success,failure,kwargs,output )
 
     return success,failure
 
 def do_make_test(
-    test_definition: str,
-    **kwargs: Any,
-) -> tuple[list[str], list[str]]:
+        test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
     failure : list[str] = []; success : list[str] = []
     run_config : dict = parse_command( test_definition,**kwargs )
     try :
