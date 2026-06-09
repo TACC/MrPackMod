@@ -320,9 +320,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
 chmod +x {scriptfilename}
 set -o pipefail
 {scriptfilename} 2>&1 | tee {outputfilename}
-        """+"""
-if [ ${PIPESTATUS[0]} -gt 0 ] ; then
-        """+f"""
+if [ ${{PIPESTATUS[0]}} -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
 fi
         """,

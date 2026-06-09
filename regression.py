@@ -155,24 +155,27 @@ fi
 ##
 ## Run a program
 ##
-def execute_run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,prefix,rundir,args = runstuff 
-    title : str = f"run program={program}"
+def run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,prefix,builddir,rundir,args = runstuff 
+    title : str = f"run program {program}"
     if nonnull( prefix ):
         cmdline :str = f"{prefix}{program}"
     else:
         cmdline = f"./{program}"
     if nonnull( rundir ):
-        cmdline = f"cd {rundir} && {cmdline}"
+        cdir = rundir
+    else: cdir = builddir
     if nonnull( args ):
-        cmdline += args
+        cmdline += f" {args}"
     script : str = f"""
-{cmdline}
+cd {cdir}
+result=$( {cmdline} {args} )
 if [ $? -eq 0 ] ; then 
-    echo SUCCESS: running {program}
+    echo "SUCCESS: running {program} with output [${{result}}]"
 else
-    echo FAILURE: running {program}
+    echo "FAILURE: running {program}"
 fi 
+#echo ${{output}}
     """
     return script,title
 
@@ -251,10 +254,10 @@ def do_cmake_test(
     #parsed_options
     run_config : dict = parse_command( test_definition,**kwargs )
     try :
-        program = run_config["program"]
-        title   = run_config["title"]
-        do_run  = run_config["do_run"]
-        value   = run_config.get("test_value")
+        program   = run_config["program"]
+        title     = run_config["title"]
+        do_run    = run_config["do_run"]
+        testvalue = run_config.get("test_value")
     except KeyError:
         error_abort( "Did not find program/title/do_run",**kwargs )
 
@@ -310,10 +313,16 @@ def do_cmake_test(
             "run",kwargs,title=f"{title}, run",
             package=programname,**test_options )
         rundata = [ programname,
-                    run_config["run_prefix"],run_config["run_in_dir"],run_config["run_args"] ]
+                    run_config["run_prefix"],programbuilddir,
+                    run_config["run_in_dir"],run_config["run_args"] ]
         res = get_value_from_loaded(
-            execute_run_script,rundata,**kwargs,**output )
+            run_script,rundata,**kwargs,**output )
         success,failure = end_test_stage( success,failure,kwargs,output )
+        if returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ):
+            outputval = returnval.groups()[0]
+            #print( f"success output: {outputval}" )
+            if testvalue:
+                print( f"Comparing output={outputval} against {testvalue}" )
 
     return success,failure
 
