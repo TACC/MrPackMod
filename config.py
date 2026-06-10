@@ -3,6 +3,7 @@
 ##
 import re
 import os
+import sys
 from typing import Any, Tuple
 
 #
@@ -61,7 +62,6 @@ def add_settings_from_config(
         saving: bool = False
         for line in configuration_file.readlines():
             line = line.strip()
-            if re.match( r'exit',line ) or re.match( r'return',line ): break
             if re.match( r'let ',line ):
                 error_abort( f"obsolete syntax: <<{line}>>",**config_dict,**output )
             # ignore comments and blank lines
@@ -72,6 +72,12 @@ def add_settings_from_config(
             if not accept: continue
             if False:
                 continue
+            elif re.match( r'exit',line ): break
+            elif re.match( r'return',line ): break
+            elif callitaday := re.match( r'\s*abort\s+(.*)$',line ):
+                if nonnull( msg := callitaday.groups()[0] ):
+                    print( f"\n{msg}\n" )
+                sys.exit(1)
             elif include := re.search( r'^\s*include\s+(.+)$',line ):
                 includefile = include.groups()[0]
                 trace_string( f"Include file: {includefile}",**config_dict,**output )
@@ -108,6 +114,7 @@ def add_settings_from_config(
                 continue
             else:
                 saving = False # time to add a value to the dict
+                if re.match( r'exit',line ) or re.match( r'return',line ): break
                 if key in derived_setting_triggers:
                     #print( f"derived settings because key={key}\nsettings so far: {config_dict}" )
                     set_derived_settings( config_dict,**output )
