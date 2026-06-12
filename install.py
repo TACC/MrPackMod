@@ -379,8 +379,8 @@ def make_configure( **kwargs : Any ) -> str:
     success,failure = end_test_stage( [],[],kwargs,output )
     return retval
 
-def make_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir  : str = srcdir_name( **kwargs )
+def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir,prefixdir = srcpfx
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
     trace_string( f"making targets: {targets}",**kwargs )
@@ -388,16 +388,26 @@ def make_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
 cd {srcdir}
 make -j {jcount} {targets}
     """
+
     if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
-        trace_string( f"postmake: {postmake}",**kwargs )
+        # this does DESTDIR and such
+        # maybe should have a better name?
+        trace_string( f"post make: {postmake}",**kwargs )
         script += f"\n{postmake}\n"
-    return script,"Make build"
+
+    if postinstall := nonzero_keyword( "POSTINSTALL",**kwargs ):
+        trace_string( f"post install: {postinstall}",**kwargs )
+        script += f"\ncd {prefixdir} && {postinstall}\n"
+
+    return script,"Make build install"
 
 def make_build( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage( "build",kwargs,title="make build",installing=True )
+    srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
-        make_build_script,[],**kwargs,**output )
+        make_build_script,[ srcdir,prefixdir],
+        **kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
     return retval
 
