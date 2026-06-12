@@ -346,7 +346,12 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     config_from_rc_files ( configuration_dict,**output )
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
-    add_settings_from_config( configfile,configuration_dict,**output )
+    # this may try to make the src dir, which should not if we are testing
+    no_home : bool = kwargs.get("no_home",False)
+    print( f"no home: {no_home}" )
+    add_settings_from_config(
+        configfile,configuration_dict,no_home=no_home,
+        **output )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure
