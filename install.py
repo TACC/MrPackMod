@@ -21,7 +21,7 @@ from MrPackMod.error   import abort_on_zero_env
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path,module_name_and_version
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    process_execute_immediate,remove_macros
+    process_execute_immediate
 from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
@@ -512,10 +512,9 @@ def recursive_rx( path: str ) -> None:
         # set perms on sub-directories  
         for momo in dirs:
             os.chmod(os.path.join(root, momo), perm_dir )
-
-    # set perms on files
-    for momo in files:
-        os.chmod(os.path.join(root, momo), perm_file )
+        # set perms on files
+        for momo in files:
+            os.chmod(os.path.join(root, momo), perm_file )
 
 def public_installation( **kwargs: Any ) -> None:
     prefixdir = prefixdir_name( **kwargs )

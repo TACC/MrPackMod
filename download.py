@@ -49,7 +49,7 @@ def unpack_from_url( **kwargs: Any ) -> None:
     cd_download_path( **kwargs,logfile=downloadlog )
     echo_string( f"Unpacking in {os.getcwd()}",logfile=downloadlog )
     file = re.sub( r'.*/','',url )
-    if re.match( file,r'^[ \t]*$' ):
+    if re.match( r'^[ \t]*$',file ):
         raise Exception( f"Unpack {url} gives empty file name" )
     if not os.path.isfile( f"./{file}" ):
         raise Exception( f"No such file {file} in directory {os.getcwd()}" )

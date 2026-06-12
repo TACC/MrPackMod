@@ -20,7 +20,7 @@ def compilers_flags( **kwargs: Any ) -> dict[str, str]:
     if cflags := nonzero_keyword( "cflags",**kwargs ):
         flags["CFLAGS"] = cflags
     if cxxflags := nonzero_keyword( "cxxflags",**kwargs ):
-        flags["CCXXFLAGS"] = cxxflags
+        flags["CXXFLAGS"] = cxxflags
     if fflags := nonzero_keyword( "fflags",**kwargs ):
         flags["FFLAGS"] = fflags
     return flags
@@ -142,7 +142,7 @@ modulecommand "Load compiler" "load {compiler}/{compilerversion}"
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
             if comp=="gcc": blas : str = "mkl"
-            if comp=="nvidia" : bas = "nvpl"
+            if comp=="nvidia" : blas = "nvpl"
             if nonnull(blas):
                 loadscript += f"""
 echo "Load blas/lapack library: {blas}"

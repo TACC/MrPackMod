@@ -20,13 +20,10 @@ def nonnull( val: Any ) -> bool:
 def isnull( val: Any ) -> bool:
     return not nonnull( val )
 
-def nonzero_env( envvar: str, **kwargs: Any ) -> str:
+def nonzero_env( envvar: str, **kwargs: Any ) -> Optional[str]:
     if nonnull( val := os.getenv( envvar ) ):
         return val
-    else: return False
-
-def zero_keyword( var: str, **kwargs: Any ) -> bool:
-    return not nonzero_keyword( var,**kwargs )
+    else: return None
 
 #
 # Return keyword value or false
@@ -41,6 +38,9 @@ def nonzero_keyword( var : str,**kwargs : Any ) -> Optional[str]:
     if nonnull(envres): return envres
     if nonnull(keyres): return keyres
     return None
+
+def zero_keyword( var: str, **kwargs: Any ) -> bool:
+    return nonzero_keyword( var,**kwargs ) is None
 
 def abort_on_zero_keyword( keyword: str, **kwargs: Any ) -> Optional[str]:
     if nonnull( val := nonzero_keyword( keyword,**kwargs ) ):
