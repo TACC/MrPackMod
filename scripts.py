@@ -107,6 +107,29 @@ function modulecommand () {{
     modulereport $? "$1" "$2"
 }}
     """
+    loadscript += """
+# Test whether modver is properly loaded
+function testmoduleproper () {
+    local modver=$1
+    local module=${modver%%/*}
+    local MODULE=$( echo $module | tr a-z A-Z )
+    local nam=TACC_${MODULE}_DIR
+    eval pkgdir=\\${$nam}
+    if [ ! -d "${pkgdir}" ] ; then
+        echo "FAILURE: package dir $nam=$pkgdir does not exist"
+    else
+        echo "SUCCESS: package ${modver} is at $pkgdir"
+    fi
+    for e in BIN LIB INC ; do
+        nam=TACC_${MODULE}_${e}
+        eval cmpdir=\\${$nam}
+        if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
+            echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
+        fi
+    done
+}
+    """
+
     #
     # Now the actual script
     #
@@ -240,22 +263,9 @@ def one_module_proper_script( modverlist : list[str],**kwargs : Any ) -> tuple[s
     module,_    = f"{modver}/".split("/",maxsplit=1)
     script : str = f"""
 echo \">>>> Test proper of module {modver}\"
-nam=TACC_{module.upper()}_DIR
-eval pkgdir=\\${{$nam}}
-if [ ! -d "${{pkgdir}}" ] ; then
-    echo "FAILURE: package dir $nam=$pkgdir does not exist"
-else
-    echo "SUCCESS: package {modver} is at $pkgdir"
-fi
-for e in BIN LIB INC ; do
-    nam=TACC_{module.upper()}_${{e}}
-    eval cmpdir=\\${{$nam}}
-    if [ ! -z "${{cmpdir}}" -a ! -d "${{cmpdir}}" ] ; then 
-        echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
-    fi
-done
+testmoduleproper {modver}
     """
-    if nonzero_keyword( "pkgconfig",**kwargs ):
+    if nonzero_keyword( "pkgconfig",**kwargs ) or nonzero_keyword( "pkgconfiglib",**kwargs ):
         script += f"""
 echo " .. Finding pc files:"
 find ${{pkgdir}} -name \\*.pc
@@ -268,3 +278,18 @@ echo ${{PKG_CONFIG_PATH}} | tr ':' '\\n'
 echo \"<<<< end of test proper of module {modver}\"
     """
     return script,title
+
+# nam=TACC_{module.upper()}_DIR
+# eval pkgdir=\\${{$nam}}
+# if [ ! -d "${{pkgdir}}" ] ; then
+#     echo "FAILURE: package dir $nam=$pkgdir does not exist"
+# else
+#     echo "SUCCESS: package {modver} is at $pkgdir"
+# fi
+# for e in BIN LIB INC ; do
+#     nam=TACC_{module.upper()}_${{e}}
+#     eval cmpdir=\\${{$nam}}
+#     if [ ! -z "${{cmpdir}}" -a ! -d "${{cmpdir}}" ] ; then 
+#         echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
+#     fi
+# done

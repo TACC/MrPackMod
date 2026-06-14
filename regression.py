@@ -156,7 +156,7 @@ fi
 ## Run a program
 ##
 def run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,prefix,rundir,args,_ = runstuff 
+    program,prefix,rundir,args = runstuff 
     title : str = f"run program {program}"
     if nonnull( prefix ):
         cmdline :str = f"{prefix}{program}"
@@ -235,12 +235,11 @@ def do_existence_test(
     #
     # run and ldd
     #
+    filedir,file_to_test,file_to_report = \
+        file_to_exist_names(
+            package,dirtype,program,**{ **kwargs,"installing":False } )
     do_run,ldd = run_config["do_run"],run_config["ldd"]
     if ldd:
-        filedir,file_to_test,file_to_report = \
-            file_to_exist_names(
-                package,dirtype,program,**{ **kwargs,"installing":False } )
-        #print( f"ldd filedir: {filedir}" )
         output = \
             start_test_stage(
                 "exec",
@@ -260,7 +259,7 @@ def do_existence_test(
         rundata : RundataDict = {
             "programname":program, 
             "runprefix"  : run_config["run_prefix"],
-            "rundir"     : run_config["run_in_dir"],
+            "rundir"     : filedir if run_config["run_in_dir"] else None,
             "runargs"    : run_config["run_args"],
             "builddir"   : None
         }
@@ -277,7 +276,10 @@ def do_run_test( title : str,rundata : RundataDict,
         "run",
         **{ **kwargs,"title":f"{title}, run","package":programname } )
     res = get_value_from_loaded(
-        run_script,rundata, **{ **kwargs,**output } )
+        run_script,
+        # VLE so what's the point of having this dct?
+        [ rundata["programname"],rundata["runprefix"],rundata["rundir"],rundata["runargs"] ],
+        **{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     if returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ):
         outputval = returnval.groups()[0]
@@ -448,7 +450,6 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
     return False
 
 def do_tests( **kwargs: Any ) -> None:
-    #test_options : dict = {'linedisplay':trace_string,'installing':False }
 
     #
     # existence tests
