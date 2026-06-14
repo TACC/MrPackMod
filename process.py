@@ -79,13 +79,13 @@ Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
     return logname,loghandle,scriptsdir
 
-def close_logfile( logname: str, kwargs: dict[str, Any] ) -> None:
-    try :
-        loghandle = kwargs["logfiles"][logname]
-    except KeyError:
-        error_abort( f"Can not find logfile to close: {logname}",**kwargs )
-    kwargs["logfiles"].pop(logname)
-    loghandle.close()
+# VLE this function is simple, needs to be inlined
+# def close_logfile( output : OutputDict,**kwargs : dict[str,Any] ) -> None:
+#     # logname: str, kwargs: dict[str, Any] ) -> None:
+#     if ( loghandle := output.get("logfiles") ) is None:
+#         error_abort( f"Can not find logfile to close: {logname}",**kwargs )
+#     #kwargs["logfiles"].pop(logname)
+#     loghandle.close()
 
 
 ##
@@ -258,7 +258,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
 ## return: value, or FAILURE string
 ##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
-                           args : list[str],**kwargs : Any ) -> str:
+                           args : list[Optional[str]],**kwargs : Any ) -> str:
     # This is the meat of the script
     mainscript,scripttitle = script_function(args,**kwargs)
     scripttitle = remove_macros( scripttitle,kwargs )
@@ -383,7 +383,7 @@ def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) ->
         dirvar : str = dir_variable(package,dirtype)
         filedir_to_report :str = f"${{{dirvar}}}"
     else:
-        filedir_to_report = f"${{TACC_{package.upper()}_DIR/{dirtype}}}"
+        filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
     filedir        : str = remove_macros( filedir_to_report,kwargs )
     file_to_test   : str = f"{filedir}/{program}"
     file_to_report : str = f"{filedir_to_report}/{program}"

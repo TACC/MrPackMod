@@ -22,7 +22,7 @@ from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_nam
     compilers_names,modulefile_path,module_name_and_version
 from MrPackMod.process import process_execute, process_initiate, process_terminate,\
     process_execute_immediate
-from MrPackMod.process import open_logfile,close_logfile,get_value_from_loaded
+from MrPackMod.process import open_logfile,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     OutputDict
@@ -146,7 +146,10 @@ fi
 
 def cmake_configure( **kwargs: Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "configure",kwargs,title="cmake configure",installing=True )
+        start_test_stage(
+            "configure",
+            **{ **kwargs,"title":"cmake configure","installing":True }
+            )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
@@ -203,7 +206,9 @@ def cmake_build( **kwargs: Any ) -> str:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage( "build",kwargs,title="cmake build",installing=True )
+        start_test_stage(
+            "build",
+            **{ **kwargs,"title":"cmake build","installing":True } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
@@ -288,7 +293,9 @@ fi
     
 def autotools_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "configure",kwargs,title="autotools configure",installing=True )
+        start_test_stage(
+            "configure",
+            **{ **kwargs,"title":"autotools configure","installing":True } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
@@ -346,7 +353,9 @@ def autotools_build( **kwargs : Any ) ->str:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage( "build",kwargs,title="autotools build",installing=True )
+        start_test_stage(
+            "build",
+            **{ **kwargs,"title":"autotools build","installing":True } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
@@ -372,7 +381,9 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
 
 def make_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "configure",kwargs,title="make configure",installing=True )
+        start_test_stage(
+            "configure",
+            **{ **kwargs,"title":"make configure","installing":True } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
@@ -403,7 +414,9 @@ make -j {jcount} {targets}
 
 def make_build( **kwargs : Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "build",kwargs,title="make build",installing=True )
+        start_test_stage(
+            "build",
+            **{ **kwargs,"title":"make build","installing":True } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         make_build_script,[ srcdir,prefixdir],
@@ -433,7 +446,9 @@ python3 ./configure \
 
 def petsc_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "configure",kwargs,title="petsc configure",installing=True )
+        start_test_stage(
+            "configure",
+            **{ **kwargs,"title":"petsc configure","installing":True } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
@@ -457,7 +472,9 @@ make -j {jcount} install
 
 def petsc_build( **kwargs : Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "build",kwargs,title="make build",installing=True )
+        start_test_stage(
+            "build",
+            **{ **kwargs,"title":"make build","installing":True } )
     retval : str = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
@@ -489,7 +506,9 @@ def post_install_actions( **kwargs ) -> str:
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
         srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
         output : OutputDict = \
-            start_test_stage( "actions",kwargs,title="post-install actions",installing=True )
+            start_test_stage(
+                "actions",
+                **{ **kwargs,"title":"post-install actions","installing":True } )
         retval : str = get_value_from_loaded(
             post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
         success,failure = end_test_stage( [],[],kwargs,output )
@@ -525,7 +544,9 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     from  MrPackMod import  modulefile
     # we don't actually use the process that's created here;
     # module versions are found in a separate process_execute 
-    output = start_test_stage( "module",kwargs,linedisplay=trace_string,installing=True )
+    output = start_test_stage(
+        "module",
+        **{ **kwargs,"linedisplay":trace_string,"installing":True } )
 
     #
     # module contents

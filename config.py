@@ -327,9 +327,9 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     # create test process, open logfile;
     # note that we are not interested in modules here
     output : OutputDict = start_test_stage\
-        ( "configure",configuration_dict,
-          skipmodules=True,linedisplay=trace_string,
-          **kwargs # pass in temporary options
+        ( "configure",
+          **{ **configuration_dict,**kwargs,
+              "skipmodules":True,"linedisplay":trace_string }
          )
 
     rc_name = ".mrpackmodrc"
@@ -355,4 +355,4 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure
-    success,failure = end_test_stage( [],[],configuration_dict,output )
+    success,failure = end_test_stage( [],[],output,**configuration_dict )

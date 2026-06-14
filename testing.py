@@ -1,7 +1,7 @@
 import os
 import re
 import subprocess
-from typing import Any,Optional,TypedDict
+from typing import Any,Optional,TextIO,TypedDict
 
 from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     nonnull,nonzero_keyword,isnull
@@ -11,25 +11,18 @@ from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,packag
 from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
     get_value_from_loaded,get_value_from_virgin
 #    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
-from MrPackMod.process    import open_logfile,close_logfile
+from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
-
-class OutputDict(TypedDict):
-    logfile : str
-    logdir : str
-    terminal : Optional[str]
-    #process : Any
-    installing  : bool
-    linedisplay : Any
-    scriptsdir : str
 
 def do_config_tests( installing : bool,**kwargs : Any ) -> str:
     allgood : bool = True
     modulestring : str = package_prerequisites( **kwargs )
     moduleslist  : list[str] = modulestring.split()
     output : OutputDict  = \
-        start_test_stage( "moduleconfig",kwargs,
-                          installing=installing,terminal="suppress" )
+        start_test_stage(
+            "moduleconfig",
+            **{ **kwargs, "installing":installing,"terminal":"suppress" }
+            )
     retval : str = get_value_from_virgin(
         modules_proper_script,moduleslist,**kwargs,**output )
     success,failure = end_test_stage( [],[],kwargs,output )
@@ -46,48 +39,63 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
 ## Start test stage:
 ## open logfile, start process, load modules
 ##
+class OutputDict(TypedDict):
+    logfile : str
+    loghandle : TextIO
+    logdir : str
+    terminal : Optional[str]
+    #process : Any
+    installing  : bool
+    linedisplay : Any
+    # scriptsdir : str
+
 def start_test_stage(
         stage: str,
-        kwargs: dict[str, Any],
-        title       : Optional[str] = None,
-        package     : Optional[str] = "",
-        installing  : Optional[bool] = True,
-        linedisplay : Optional[Any]  = echo_string,
-        **test_options    : dict[str,Any],
+        **kwargs: dict[str, Any],
         ) -> OutputDict:
+
+    title      : str  = kwargs.get("title","notitle")
+    package    : str  = kwargs.get("package","nopackage")
+    linedisplay = kwargs.pop("linedisplay",echo_string)
+    installing : bool = kwargs.pop("installing",True)
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
     # note: kwargs does not contain "scriptsdir",
-    # test_options is allowed to not contain it either,
     # then logfile will go to default dir
-    scriptsdir : str = scriptsdir_name( **kwargs, )
+
+    # scriptsdir : str = scriptsdir_name( **kwargs, )
     logname,loghandle,scriptsdir = \
         open_logfile( stage.replace(' ','_'),**kwargs, ) 
-    kwargs["logfiles"][logname] = loghandle
 
     # Create a process for the commands of this test stage
-    ## shell  : subprocess.Popen[str] = process_initiate()
     output : OutputDict = {
-        "logfile":logname, # full path, so we don't need logdir separately
-        "terminal":test_options.get("terminal",""), # actual terminal, or `suppress'
-        "linedisplay":linedisplay, # either echo_string or trace_string, used in process_terminate
-        "installing":installing,   # default True, make sure to unset in regression
-        "scriptsdir":scriptsdir,
+        "logfile"     : logname, # full path, so we don't need logdir separately
+        "loghandle"   : loghandle,
+        "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
+        "linedisplay" : linedisplay,
+        "installing"  : installing,   # default True, make sure to unset in regression
+        "scriptsdir"  : scriptsdir,
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )
     else:
         trace_string( f"Starting stage",**kwargs )
-    linedisplay( f"see logfile: {logname}",**kwargs,**output )
+    linedisplay( f"see logfile: {logname}",**{ **kwargs,**output } )
     return output
 
 def end_test_stage(
         success : list[str], failure : list[str],
-        kwargs : dict[str, Any], output : OutputDict,
+        output : OutputDict,
+        **kwargs : dict[str, Any], 
         ) -> tuple[list[str], list[str]]:
-    # close log file and pop from the list of active logs
-    logfile = output["logfile"]
-    close_logfile( logfile,kwargs )
+    # close the log file to finish all writes
+    if ( loghandle := output.get("loghandle") ) is None:
+        error_abort( "Need logfile handle",**kwargs )
+    loghandle.close()
+    #close_logfile( output,**kwargs )
+    # then analyze the now completed log file
+    if ( logfile := output.get("logfile") ) is None:
+        error_abort( "Need logfile name",**kwargs )
     success,failure = success_failure_in_logfile\
         ( logfile,success=success,failure=failure,**kwargs )
     return success,failure

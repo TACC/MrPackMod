@@ -9,13 +9,13 @@ import re
 import pdb
 import shutil
 import sys
-from typing import Any
+from typing import Any,Optional,TypedDict
 
 from MrPackMod.basics  import clean_title,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword
 from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
-from MrPackMod.names   import package_names,scriptsdir_name
+from MrPackMod.names   import package_names,scriptsdir_name,builddir_name
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded,\
     line_strip_conditionals,file_to_exist_names
@@ -156,7 +156,7 @@ fi
 ## Run a program
 ##
 def run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,prefix,builddir,rundir,args = runstuff 
+    program,prefix,rundir,args,_ = runstuff 
     title : str = f"run program {program}"
     if nonnull( prefix ):
         cmdline :str = f"{prefix}{program}"
@@ -164,7 +164,9 @@ def run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
         cmdline = f"./{program}"
     if nonnull( rundir ):
         cdir = rundir
-    else: cdir = builddir
+    else:
+        builddir = builddir_name(**kwargs)
+        cdir = builddir
     if nonnull( args ):
         cmdline += f" {args}"
     script : str = f"""
@@ -179,21 +181,32 @@ fi
     """
     return script,title
 
+class RundataDict(TypedDict):
+    programname : str
+    runprefix  : Optional[str]
+    rundir     : Optional[str]
+    builddir   : Optional[str]
+    runargs    : Optional[str]
+
 def do_existence_test(
-        test_definition: str, test_options : dict[str,Any], **kwargs: Any,
+        test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    package,_ = package_names( **kwargs )
+    if ( package := package_names( **kwargs )[0] ) is None:
+        error_abort( "Expected package name",**kwargs )
     run_config : dict = parse_command( test_definition,**kwargs )
     trace_string( f"Existence test options: {run_config}",**kwargs )
-    program = run_config["program"]
-    title   = run_config.pop("title")
+    if ( program := run_config.get("program") ) is None:
+        error_abort( "Need program parameter",**kwargs )
+    title   = run_config.pop("title") # need to remove because we pass a new title below
     dirtype = run_config.get("dirtype","")
-    grep    = run_config.get("grep","")
-    executable = run_config.get("executable","")
+    grep    = run_config.get("grep")
+    executable = run_config.get("executable")
 
-    filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
-    run_config["run_dir"] = filedir
+    # VLE these lines are also in file_to_exist_script
+    # filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
+    # run_config["run_dir"] = filedir
+
     run_config["chdir"]   = create_dir( "build",**kwargs )
 
     success  : list[str] = []
@@ -203,63 +216,88 @@ def do_existence_test(
     # existence
     #
     # program can contain a path
-    program_clean = re.sub( '/','',program )
+    if program:
+        program_clean : str = re.sub( '/','',program )
+    else: program_clean = "program"
     cleantitle = clean_title( title )
     run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
     output : OutputDict = \
-        start_test_stage( "exists",kwargs, # note dict
-                          title=f"{title}, existence test",**run_config,
-                          package=program_clean,**test_options,
-                         )
+        start_test_stage(
+            "exists",
+            **{ **kwargs,**run_config, # weird construct to placate mypy
+                "title":f"{title}, existence test","package":program_clean, }
+            )
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep,executable],
-        **kwargs,**output )
-
-    # if nonnull( grep := run_config["grep"] ):
-    #     grepfile : str = execute_grep( package,dirtype,program,grep,**kwargs,**output )
-    # else:
-    #     grepfile = ""
-
-    success,failure = end_test_stage( success,failure,kwargs,output )
-
-    # if nonnull(grepfile):
-    #     success = add_grep_lines( f"{grepfile}",success,**kwargs,**output )
+        **{ **kwargs,**output} )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
     # run and ldd
     #
     do_run,ldd = run_config["do_run"],run_config["ldd"]
-    if do_run or ldd:
+    if ldd:
         filedir,file_to_test,file_to_report = \
-            file_to_exist_names(package,dirtype,program,**kwargs,installing=False )
+            file_to_exist_names(
+                package,dirtype,program,**{ **kwargs,"installing":False } )
         #print( f"ldd filedir: {filedir}" )
         output = \
-            start_test_stage( "exec",kwargs, # dict!
-                              title=f"{title}, run/ldd test",**run_config,
-                              package=program_clean,linedisplay=trace_string,installing=False ) 
-        if ldd:
-            # are library dependencies satisfied?
-            prog_and_dirs : list[str] = [file_to_test,file_to_report,".",filedir]
-            res = get_value_from_loaded(
-                ldd_script,prog_and_dirs,**kwargs,**output )
-        # run!
-        if do_run:
-            execute_run_script( program,run_config,**kwargs,**output )
-        success,failure = end_test_stage( success,failure,kwargs,output )
+            start_test_stage(
+                "exec",
+                **{**kwargs,**run_config,
+                   "title":f"{title}, run/ldd test","package":program_clean, },
+                )
+        # are library dependencies satisfied?
+        prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
+        res = get_value_from_loaded(
+            ldd_script,prog_and_dirs,**{ **kwargs,**output } )
+        success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    #
+    # run!
+    #
+    if do_run:
+        rundata : RundataDict = {
+            "programname":program, 
+            "runprefix"  : run_config["run_prefix"],
+            "rundir"     : run_config["run_in_dir"],
+            "runargs"    : run_config["run_args"],
+            "builddir"   : None
+        }
+        success,failure = do_run_test(
+            title,rundata,
+            success,failure,**kwargs, )
+    return success,failure
+
+def do_run_test( title : str,rundata : RundataDict,
+                 success : list[str],failure : list[str],**kwargs : Any
+                ) -> tuple[list[str],list[str]]:
+    programname : str = rundata["programname"]
+    output = start_test_stage(
+        "run",
+        **{ **kwargs,"title":f"{title}, run","package":programname } )
+    res = get_value_from_loaded(
+        run_script,rundata, **{ **kwargs,**output } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+    if returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ):
+        outputval = returnval.groups()[0]
+        #print( f"success output: {outputval}" )
+        if testvalue := kwargs.get("testvalue"):
+            print( f"Comparing output={outputval} against {testvalue}" )
     return success,failure
 
 def do_cmake_test(
-        test_definition: str, test_options,**kwargs: Any, ) -> tuple[list[str], list[str]]:
+        test_definition: str, **kwargs: Any,
+        ) -> tuple[list[str], list[str]]:
 
     #parsed_options
     run_config : dict = parse_command( test_definition,**kwargs )
-    try :
-        program   = run_config["program"]
-        title     = run_config["title"]
-        do_run    = run_config["do_run"]
-        testvalue = run_config.get("test_value")
-    except KeyError:
-        error_abort( "Did not find program/title/do_run",**kwargs )
+    trace_string( f"Existence test options: {run_config}",**kwargs )
+    if ( program  := run_config.get("program") ) is None:
+        error_abort( "Expecting program parameter",**kwargs )
+    title     = run_config.pop("title") # need to remove because we pass a new title below
+    do_run    = run_config.get("do_run")
+    testvalue = run_config.get("test_value")
 
     if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
         programname,programext = name_ext.groups()
@@ -279,9 +317,10 @@ def do_cmake_test(
     #
     output : OutputDict = \
         start_test_stage(
-            "cmake build and make",kwargs, # note dict
-            title=f"{title}, cmake/make stage",
-            package=programname,**test_options )
+            "cmake build and make",
+            **{ **kwargs,
+                "title":f"{title}, cmake/make stage","package":programname, }
+            )
     res : str = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,
         **kwargs,**output,
@@ -291,39 +330,36 @@ def do_cmake_test(
         res = get_value_from_loaded(
             cmake_build_script,prog_and_dirs,**kwargs,**output )
         failed = ( re.match( 'FAILURE',res ) is not None )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
     # Check library dependencies satisfied & run
     #
     output = start_test_stage(
-        "ldd",kwargs,title=f"{title}, ldd/run stage",
-        package=programname,**test_options )
+        "ldd",
+        **{ **kwargs,**test_options,
+            "title":f"{title}, ldd/run stage","package":programname }
+        )
     # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
     prog_and_dirs[1] = programext
     res = get_value_from_loaded(
         ldd_script,prog_and_dirs,**kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
     # Run
     #
     if nonnull( do_run ):
-        output = start_test_stage(
-            "run",kwargs,title=f"{title}, run",
-            package=programname,**test_options )
-        rundata = [ programname,
-                    run_config["run_prefix"],programbuilddir,
-                    run_config["run_in_dir"],run_config["run_args"] ]
-        res = get_value_from_loaded(
-            run_script,rundata,**kwargs,**output )
-        success,failure = end_test_stage( success,failure,kwargs,output )
-        if returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ):
-            outputval = returnval.groups()[0]
-            #print( f"success output: {outputval}" )
-            if testvalue:
-                print( f"Comparing output={outputval} against {testvalue}" )
-
+        rundata : RundataDict = {
+            "programname":programname,
+            "prefixdir"  : run_config["run_prefix"],
+            "builddir"   : programbuilddir,
+            "run_in_dir" : run_config["run_in_dir"],
+            "run_args"   : run_config["run_args"],
+        }
+        success,failure = do_run_test(
+            title,rundata,
+            success,failure,**kwargs,**test_options )
     return success,failure
 
 def do_make_test(
@@ -348,8 +384,11 @@ def do_make_test(
     # compilation
     #
     output : OutputDict = \
-        start_test_stage( "compile",kwargs, # note dict
-                          package=name,installing=False, )
+        start_test_stage(
+            "compile",
+            **{ **kwargs,
+                "package":name,"installing":False, }
+            )
     # set up for make
     compiler_exports,_ = export_compilers_script( [],**kwargs,**output )
     cmakeflags = cmake_options( **kwargs )
@@ -357,7 +396,7 @@ def do_make_test(
         ( f"{compiler_exports} && make -f ../{ext}/Makefile SRCDIR=../{ext} PROJECTNAME={name} {name}",
           **kwargs,**output )
     process_execute( f"make", **kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
     if os.path.exists( f"{builddir}/{name}" ):
         success.append( f"executable <<{name}>> created" )
     else:
@@ -366,14 +405,17 @@ def do_make_test(
     #
     # execution
     #
-    output = start_test_stage( "exec",kwargs,
-                               package=name,installing=False, )
+    output = start_test_stage(
+        "exec",
+        **{ **kwargs,
+            "package":name,"installing":False, }
+        )
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!
     if do_run:
         process_execute( f"./{name}",**kwargs,**output )
-    success,failure = end_test_stage( success,failure,kwargs,output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
 
     return success,failure
 
@@ -406,7 +448,8 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
     return False
 
 def do_tests( **kwargs: Any ) -> None:
-    test_options : dict = {'linedisplay':trace_string,'installing':False }
+    #test_options : dict = {'linedisplay':trace_string,'installing':False }
+
     #
     # existence tests
     #
@@ -414,7 +457,7 @@ def do_tests( **kwargs: Any ) -> None:
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_existence_test(
-                    test,test_options,**kwargs, )
+                    test,**kwargs,installing=False )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -427,7 +470,7 @@ def do_tests( **kwargs: Any ) -> None:
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_cmake_test(
-                    test,test_options,**kwargs, )
+                    test,**kwargs,installing=False )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -439,7 +482,8 @@ def do_tests( **kwargs: Any ) -> None:
     if tests := kwargs.get( "MAKETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_make_test( test,**kwargs )
+                success,failure = do_make_test( 
+                    test,**kwargs,installing=False )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:

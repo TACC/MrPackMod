@@ -151,7 +151,10 @@ git checkout {commit}
 
 def clone_or_pull( **kwargs: Any ) -> str:
     output : OutputDict = \
-        start_test_stage( "git",kwargs,title="git clone pull",installing=True )
+        start_test_stage(
+            "git",
+            **{ **kwargs, "title":"git clone pull","installing":True }
+            )
     retval : str = get_value_from_loaded(
         clone_pull_script,[],**kwargs,**output, )
     success,failure = end_test_stage( [],[],kwargs,output )
