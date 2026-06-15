@@ -315,17 +315,28 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         #  scriptfile.write( f"echo \"End script: {scripttitle}\"\n" )
 
     trace_string( f"Script for {scripttitle} in: {scriptfilename}",**kwargs )
-    value = process_execute_immediate\
-        ( f"""
+    execute_script_script : str = f"""
 chmod +x {scriptfilename}
 set -o pipefail
-# {scriptfilename} 2>&1 | tee {outputfilename}
-{scriptfilename} > {outputfilename} 2>&1
+    """
+    if nonzero_keyword( "immediate_output",**kwargs ):
+        execute_script_script += f"""
+{scriptfilename} 2>&1 | tee {outputfilename}
 if [ ${{PIPESTATUS[0]}} -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
 fi
-        """,
-          **kwargs,title=scripttitle, )
+        """
+    else:
+        execute_script_script += f"""
+{scriptfilename} > {outputfilename} 2>&1
+if [ $? -gt 0 ] ; then
+    echo FAILURE running script {scriptfilename}
+fi
+        """
+    value = process_execute_immediate( execute_script_script,**kwargs,title=scripttitle )
+    #
+    # Parse script output for success/failure
+    #
     msg : str = f"""\
 UNEXPECTED: {outputfilename} has no success/failure lines
     """

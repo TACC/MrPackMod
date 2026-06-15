@@ -157,23 +157,23 @@ utility_actions : {utility_actions}
             failure : list[str] = []
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_configure( **configuration )
+                    install.cmake_configure( **configuration,immediate_output=True )
                 elif system == "autotools":
-                    install.autotools_configure( **configuration )
+                    install.autotools_configure( **configuration,immediate_output=True )
                 elif system == "make":
-                    install.make_configure( **configuration )
+                    install.make_configure( **configuration,immediate_output=True )
                 elif system == "petsc":
-                    install.petsc_configure( **configuration )
+                    install.petsc_configure( **configuration,immediate_output=True )
                 else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
             if action in [ "install", "build", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_build( **configuration )
+                    install.cmake_build( **configuration,immediate_output=True )
                 elif system == "autotools":
-                    install.autotools_build( **configuration )
+                    install.autotools_build( **configuration,immediate_output=True )
                 elif system == "make":
-                    install.make_build( **configuration )
+                    install.make_build( **configuration,immediate_output=True )
                 elif system == "petsc":
-                    install.petsc_build( **configuration )
+                    install.petsc_build( **configuration,immediate_output=True )
                 else: raise Exception\
                     ( f"Can only build for cmake/autotools/make, not: {system}" )
                 install.post_install_actions( **configuration )
