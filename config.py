@@ -348,7 +348,6 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     # this may try to make the src dir, which should not if we are testing
     no_home : bool = kwargs.get("no_home",False)
-    print( f"no home: {no_home}" )
     add_settings_from_config(
         configfile,configuration_dict,no_home=no_home,
         **output )

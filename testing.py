@@ -18,6 +18,8 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
     allgood : bool = True
     modulestring : str = package_prerequisites( **kwargs )
     moduleslist  : list[str] = modulestring.split()
+    if len(moduleslist)==0:
+        return "SUCCESS: no modules to be tested"
     output : OutputDict  = \
         start_test_stage(
             "moduleconfig",
@@ -25,7 +27,7 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
             )
     retval : str = get_value_from_virgin(
         modules_proper_script,moduleslist,**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:

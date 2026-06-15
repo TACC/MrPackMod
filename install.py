@@ -153,7 +153,7 @@ def cmake_configure( **kwargs: Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
@@ -212,7 +212,7 @@ def cmake_build( **kwargs: Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 ################################################################
@@ -299,7 +299,7 @@ def autotools_configure( **kwargs : Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 def original_autotools_configure():
@@ -359,7 +359,7 @@ def autotools_build( **kwargs : Any ) ->str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 ################################################################
@@ -387,7 +387,7 @@ def make_configure( **kwargs : Any ) -> str:
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
@@ -421,7 +421,7 @@ def make_build( **kwargs : Any ) -> str:
     retval : str = get_value_from_loaded(
         make_build_script,[ srcdir,prefixdir],
         **kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 ################################################################
@@ -452,7 +452,7 @@ def petsc_configure( **kwargs : Any ) -> str:
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
@@ -477,7 +477,7 @@ def petsc_build( **kwargs : Any ) -> str:
             **{ **kwargs,"title":"make build","installing":True } )
     retval : str = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 ################################################################
@@ -511,7 +511,7 @@ def post_install_actions( **kwargs ) -> str:
                 **{ **kwargs,"title":"post-install actions","installing":True } )
         retval : str = get_value_from_loaded(
             post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
-        success,failure = end_test_stage( [],[],kwargs,output )
+        success,failure = end_test_stage( [],[],output,**kwargs )
         return retval
     else: return "SUCCESS: no cp-to-install"
     
@@ -590,7 +590,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
 """
         trace_string( f"Module contents:\n{modulecontents}",**kwargs )
         lua_out.write( modulecontents )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return success,failure
 
 def public_module( **kwargs: Any ) -> None:

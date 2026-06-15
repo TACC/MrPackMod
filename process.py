@@ -259,7 +259,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
 ##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[Optional[str]],**kwargs : Any ) -> str:
-    # This is the meat of the script
+    # Generate the meat of the script
     mainscript,scripttitle = script_function(args,**kwargs)
     scripttitle = remove_macros( scripttitle,kwargs )
 
@@ -319,16 +319,35 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
         ( f"""
 chmod +x {scriptfilename}
 set -o pipefail
-{scriptfilename} 2>&1 | tee {outputfilename}
+# {scriptfilename} 2>&1 | tee {outputfilename}
+{scriptfilename} > {outputfilename} 2>&1
 if [ ${{PIPESTATUS[0]}} -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
 fi
         """,
           **kwargs,title=scripttitle, )
-    if re.match( 'FAILURE',value ):
-        return f"FAILURE: {scripttitle}; see: {outputfilename}"
-    else:
-        return value
+    msg : str = f"""\
+UNEXPECTED: {outputfilename} has no success/failure lines
+    """
+    with open(outputfilename,"r") as results:
+        for line in results:
+            line = line.strip()
+            if fail := re.match( r'FAILURE[:\s]*(.*)',line ):
+                msg = fail.groups()[0]
+                print( f"""\
+FAILURE: {scripttitle}; 
+failed with: {msg}
+see for details: {outputfilename}
+                """ )
+                return None
+            elif fine := re.match( r'SUCCESS[:\s]*(.*)',line ):
+                msg = fine.groups()[0]
+    print( f"""\
+SUCCEEDED: {scripttitle}
+with: {msg}
+see for details: {outputfilename}
+                """ )
+    return value
     
 def get_value_from_virgin( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str], **kwargs : Any ) -> str:
