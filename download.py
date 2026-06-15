@@ -157,6 +157,6 @@ def clone_or_pull( **kwargs: Any ) -> str:
             )
     retval : str = get_value_from_loaded(
         clone_pull_script,[],**kwargs,**output, )
-    success,failure = end_test_stage( [],[],kwargs,output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
