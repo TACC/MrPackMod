@@ -379,7 +379,7 @@ if [ ${{PIPESTATUS[0]}} -gt 0 ] ; then
 fi
         """
     else:
-        execute_script_script += f"""
+        script += f"""
 {scriptfilename} > {outputfilename} 2>&1
 if [ $? -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
