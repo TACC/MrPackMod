@@ -10,7 +10,6 @@ from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,packag
     package_prerequisites
 from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
     get_value_from_loaded,get_value_from_virgin
-#    load_compiler_and_mpi_and_prereqs,load_compiler_and_mpi_and_package,\
 from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 

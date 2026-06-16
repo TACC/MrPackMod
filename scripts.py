@@ -52,8 +52,6 @@ echo where {val}=${{whichcomp}}
             """
     return script,"Export compiler settings"
 
-# this routine is called through the above two wrappers
-# from `start_test_stage'
 def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> str:
     title : str = f"Load compiler and mpi and modules: {modules_to_load}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
