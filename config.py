@@ -10,11 +10,12 @@ from typing import Any, Tuple
 # my modules
 #
 from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
-    abort_on_zero_keyword,error_abort
+    abort_on_zero_keyword,error_abort,\
+    line_strip_conditionals
 from MrPackMod.modulefile import loaded_modules
 from MrPackMod.error      import nonnull,nonzero_env
 from MrPackMod.names      import srcdir_name,builddir_name,prefixdir_name
-from MrPackMod.process    import line_strip_conditionals,remove_macros
+from MrPackMod.process    import remove_macros
 from MrPackMod.testing    import start_test_stage,end_test_stage,\
     OutputDict
 

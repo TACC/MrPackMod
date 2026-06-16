@@ -165,3 +165,43 @@ def module_version_from_env( mod,**kwargs : Any ) -> Optional[str]:
         return ""
 
 derived_settings : list[str] = [ "SRCDIR","BUILDDIR","PREFIXDIR" ]
+
+##
+## Parsing tools
+##
+
+#
+# return stripped line, and bool result of any prefixed test
+#
+def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]:
+    """ returns: line,accept """
+    trace_string( f"Test line for conditions: {line}",**config_dict )
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+|"")\s+(.*)$',line ):
+        value1,comparison,value2,line = condition_split( test,**config_dict )
+        trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
+                      **config_dict )
+        if ( comparison=="==" and value1!=value2 ) or \
+           ( comparison=="!=" and value1==value2 ):
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
+            return line,False
+        else: 
+            trace_string( f" .. accept because {value1}{comparison}{value2}",
+                          **config_dict )
+            return line_strip_conditionals( line,**config_dict )
+    else:
+        trace_string( f" .. accept because no conditionals detected: {line}",
+                      **config_dict )
+        return line,True
+
+def condition_split(
+        cond : re.Match[str],**config_dict : Any,
+        ) -> Tuple[Any, str, Any, str]:
+    field1,op,field2,line = cond.groups()
+    value1 = config_dict.get(field1,field1)
+    value2 = config_dict.get(field2,field2)
+    # bit of a hack: we want to allow module tests like
+    # KEY!=""
+    if value2=="\"\"": value2 = ""
+    return value1,op,value2,line
+
