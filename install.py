@@ -376,7 +376,12 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
         if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
             redirect : str = "1>&3" # This is copied from process.py. Generalize?
         else: redirect = ""
-        script += f"\n( {premake} ) {redirect}\n"
+        startdir = kwargs.get("startdir")
+        script += f"""\n
+cd {startdir}
+echo "Doing premake in $(pwd)"
+( {premake} ) {redirect}
+        """
     return script,"Make setup"
 
 def make_configure( **kwargs : Any ) -> str:
