@@ -327,7 +327,7 @@ def write_script_file(
         **kwargs ) -> None:
     
     immediate : str = "| tee /dev/tty" \
-        if nonzero_keyword( "immediate_output",**kwargs ) else {}
+        if nonzero_keyword( "immediate_output",**kwargs ) else ""
     with open(scriptfilename,"w") as scriptfile:
         # header
         scriptfile.write( f"""\
