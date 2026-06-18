@@ -59,10 +59,14 @@ def unpack_from_url( **kwargs: Any ) -> None:
         ext = "" # gnuplot downloads to `download' with no extension
     echo_string( f"Unpacking file: <<{file}>> ext: <<{ext}>>",logfile=downloadlog )
     if ext in [ "gz","tgz", "", ]: 
-        unpackdir = process_execute( f"tar ftz {file} | head -n 1" )
+        unpackdir : str = process_execute( f"tar ftz {file} | head -n 1" )
+        unpackdir = unpackdir.rstrip("/")
+        echo_string( f"Packed file contains directory: {unpackdir}",**kwargs )
+        if dotslash := re.match( r'^\./(.*)$',unpackdir):
+            echo_string( " .. removing dot-slash",**kwargs )
+            unpackdir = dotslash.groups()[0]
         # the `.*' is only needed for gmsh which has `.clang-tidy' on the 1st line
-        unpackdir = re.sub( r'/.*$','',unpackdir )
-        echo_string( f"Packed file contains directory: {unpackdir}")
+        # unpackdir = re.sub( r'/.*$','',unpackdir )
         process_execute( f"rm -rf {unpackdir}" )
         process_execute( f"tar fxz {file}" )
     elif ext in [ "xz", "txz", ] :
@@ -79,7 +83,7 @@ def unpack_from_url( **kwargs: Any ) -> None:
     else: raise Exception(f"Cannot unpack {file}")
     if srcdir:
         if unpackdir.lstrip("./") != srcdir:
-            echo_string( f"Moving unpacked dir to srcdir: {srcdir}" )
+            echo_string( f"Moving unpacked dir <<{unpackdir}>> to srcdir <<{srcdir}>>" )
             process_execute( f"rm -rf {srcdir}" )
             process_execute( f"mv {unpackdir} {srcdir}" )
         else:
