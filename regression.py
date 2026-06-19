@@ -153,6 +153,28 @@ fi
     """
     return script,f"ldd test on {programdir}/{program}"
 
+def do_ldd_test(
+        title : str,
+        package : str, dirtype : str, program : str,
+        success : list[str],failure : list[str],**kwargs : Any,
+        ) -> tuple[list[str],list[str]]:
+
+    filedir,file_to_test,file_to_report = \
+        file_to_exist_names(
+            package,dirtype,program,**kwargs )
+    program_clean : str = re.sub( '/','',program )
+    output = \
+        start_test_stage(
+            "exec",
+            **{ "title":f"{title}, ldd test","package":program_clean,**kwargs },
+            )
+    # are library dependencies satisfied?
+    prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
+    res = get_value_from_loaded(
+        ldd_script,prog_and_dirs,**{ **kwargs,**output } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+    return success,failure
+
 ##
 ## Run a program
 ##
@@ -197,9 +219,9 @@ def do_existence_test(
         error_abort( "Expected package name",**kwargs )
     run_config : dict = parse_command( test_definition,**kwargs )
     trace_string( f"Existence test options: {run_config}",**kwargs )
-    if ( program := run_config.get("program") ) is None:
+    if ( program := run_config.pop("program") ) is None:
         error_abort( "Need program parameter",**kwargs )
-    title   = run_config.pop("title") # need to remove because we pass a new title below
+    testtitle   = run_config.pop("title") # need to remove because we pass a new title below
     dirtype = run_config.get("dirtype","")
     grep    = run_config.get("grep")
     executable = run_config.get("executable")
@@ -220,13 +242,13 @@ def do_existence_test(
     if program:
         program_clean : str = re.sub( '/','',program )
     else: program_clean = "program"
-    cleantitle = clean_title( title )
+    cleantitle = clean_title( testtitle )
     run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
     output : OutputDict = \
         start_test_stage(
             "exists",
             **{ **kwargs,**run_config, # weird construct to placate mypy
-                "title":f"{title}, existence test","package":program_clean, }
+                "title":f"{testtitle}, existence test","package":program_clean, }
             )
     res : str = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep,executable],
@@ -236,22 +258,16 @@ def do_existence_test(
     #
     # run and ldd
     #
-    filedir,file_to_test,file_to_report = \
-        file_to_exist_names(
-            package,dirtype,program,**{ **kwargs,"installing":False } )
+
+    # filedir,file_to_test,file_to_report = \
+    #     file_to_exist_names(
+    #         package,dirtype,program,**{ **kwargs,"installing":False } )
+
     do_run,ldd = run_config["do_run"],run_config["ldd"]
-    if ldd:
-        output = \
-            start_test_stage(
-                "exec",
-                **{**kwargs,**run_config,
-                   "title":f"{title}, run/ldd test","package":program_clean, },
-                )
-        # are library dependencies satisfied?
-        prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
-        res = get_value_from_loaded(
-            ldd_script,prog_and_dirs,**{ **kwargs,**output } )
-        success,failure = end_test_stage( success,failure,output,**kwargs )
+    if run_config.get("ldd"):
+        success,failure = do_ldd_test(
+            testtitle, package,dirtype,program,
+            success,failure, **{ **kwargs,"installing":False } )
 
     #
     # run!
@@ -265,7 +281,7 @@ def do_existence_test(
             "builddir"   : None
         }
         success,failure = do_run_test(
-            title,rundata,
+            testtitle,rundata,
             success,failure,**kwargs, )
     return success,failure
 

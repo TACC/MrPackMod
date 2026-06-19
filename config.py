@@ -36,7 +36,7 @@ def add_new_dict_item(
     except for keys that are additive such as DEPENDSON, or if `assign' is `+='
     """
     newval = newval.strip('\n').strip(' ')
-    newval = remove_macros( newval,config_dict )
+    newval = remove_macros( newval,**config_dict )
     if ( newkey in additive_keys or assign in ["+=","*="] ) :
         if newkey in config_dict.keys() :
             if assign=="*=":
@@ -84,11 +84,11 @@ def add_settings_from_config(
                 trace_string( f"Include file: {includefile}",**config_dict,**output )
                 add_settings_from_config( includefile,config_dict )
             elif export := re.search( r'export\s+(.+)$',line ):
-                line = remove_macros( line,config_dict )
+                line = remove_macros( line,**config_dict )
                 trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
                 config_dict["exports"].append(line)
             elif unset := re.search( r'unset\s+(.+)$',line ):
-                line = remove_macros( line,config_dict )
+                line = remove_macros( line,**config_dict )
                 trace_string( f"Adding unset: <<{line}>>",**config_dict,**output )
                 config_dict["unsets"].append(line)
             elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):

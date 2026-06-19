@@ -125,6 +125,9 @@ utility_actions : {utility_actions}
             except:
                 print( f"No configuration variable: {displayvar}" )
         elif action=="test":
+            if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
+                echo_warning( "Source directory {srcdir} does not exist (yet)",
+                              **configuration )
             abort_on_failure_result(
                 do_config_tests( installing=True,**configuration ),**configuration )
         elif action=="listmodules":

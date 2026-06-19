@@ -261,7 +261,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
                            args : list[Optional[str]],**kwargs : Any ) -> str:
     # Generate the meat of the script
     mainscript,scripttitle = script_function(args,**kwargs)
-    scripttitle = remove_macros( scripttitle,kwargs )
+    scripttitle = remove_macros( scripttitle,**kwargs )
 
     # Script location
     scriptsdir : str = abort_on_zero_keyword( "scriptsdir",**kwargs )
@@ -279,7 +279,6 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     write_script_file( scriptfilename,outputfilename,
                        scripttitle,cleantitle,mainscript,**kwargs )
 
-    trace_string( f"Script for {scripttitle} in: {scriptfilename}",**kwargs )
     value = process_execute_immediate(
         execute_execute_script( scriptfilename,outputfilename,**kwargs ),
         **kwargs,title=scripttitle )
@@ -328,6 +327,8 @@ def write_script_file(
     
     immediate : str = "| tee /dev/tty" \
         if nonzero_keyword( "immediate_output",**kwargs ) else ""
+    trace_string( f"Write script for <<{scripttitle}>> into <<{scriptfilename}>>",
+                  **kwargs )
     with open(scriptfilename,"w") as scriptfile:
         # header
         scriptfile.write( f"""\
@@ -382,7 +383,7 @@ def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) ->
         filedir_to_report :str = f"${{{dirvar}}}"
     else:
         filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
-    filedir        : str = remove_macros( filedir_to_report,kwargs )
+    filedir        : str = remove_macros( filedir_to_report,**kwargs )
     file_to_test   : str = f"{filedir}/{program}"
     file_to_report : str = f"{filedir_to_report}/{program}"
     return filedir,file_to_test,file_to_report
