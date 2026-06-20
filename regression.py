@@ -60,7 +60,6 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     arguments_dict["dirtype"] = arguments.dir
     arguments_dict["program"] = arguments.program[0]
 
-    ##print( f"Test: "+arguments_dict["title"] )
     trace_string( f" .. parameters: {arguments_dict}",**kwargs )
     return arguments_dict
 
@@ -222,6 +221,7 @@ def do_existence_test(
     if ( program := run_config.pop("program") ) is None:
         error_abort( "Need program parameter",**kwargs )
     testtitle   = run_config.pop("title") # need to remove because we pass a new title below
+    echo_string( f"\nTEST: {testtitle}",**kwargs )
     dirtype = run_config.get("dirtype","")
     grep    = run_config.get("grep")
     executable = run_config.get("executable")

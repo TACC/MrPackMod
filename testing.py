@@ -64,7 +64,7 @@ def start_test_stage(
     # note: kwargs does not contain "scriptsdir",
     # then logfile will go to default dir
 
-    # scriptsdir : str = scriptsdir_name( **kwargs, )
+    # VLE this log file is more or less empty. Get rid?
     logname,loghandle,scriptsdir = \
         open_logfile( stage.replace(' ','_'),**kwargs, ) 
 
@@ -81,7 +81,7 @@ def start_test_stage(
         trace_string( f"Starting stage for: {title}",**kwargs )
     else:
         trace_string( f"Starting stage",**kwargs )
-    linedisplay( f"see logfile: {logname}",**{ **kwargs,**output } )
+    # linedisplay( f"see logfile: {logname}",**{ **kwargs,**output } )
     return output
 
 def end_test_stage(

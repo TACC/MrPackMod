@@ -63,102 +63,17 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     #
     # Start by defining some functions
     #
-    loadscript += f"""
-# Non-redirected return code reporting
-# $1 : error code
-# $2 : title
-# $3 : actual command
-function modulereport () {{
-if [ $1 -gt 0 ] ; then
-    echo FAILURE module command failed: $2
-    echo Output: && module -t $3
-    exit
-else
-    echo SUCCESS module command succeeded: $2
-    cmd="$3"
-    # echo "cmd was <<$cmd>>"
-    echo "Now loaded:"
-    if [[ $cmd =~ load* ]] ; then
-        module -t show ${{cmd##load}}
-    fi 
-    modulelist
-fi {redirect}
-}}
-    """
-    loadscript += """
-# Single line module listing
-function modulelist ()
-{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
-}
-        """
-    loadscript += f"""
-# Execute a module command and report result:
-# $1 : title, $2 actual command, $3 nonzero to display, otherwise redirected
-function modulecommand () {{
-    echo
-    echo .... $1 : module $2 {redirect}
-    if [ -z "$3" ] ; then 
-      module -t $2 2>/dev/null {redirect}
-    else
-      module -t $2 {redirect}
-    fi
-    modulereport $? "$1" "$2"
-}}
-    """
-    loadscript += """
-# Test whether modver is properly loaded
-function testmoduleproper () {
-    local modver=$1
-    local module=${modver%%/*}
-    local MODULE=$( echo $module | tr a-z A-Z )
-    local nam=TACC_${MODULE}_DIR
-    eval pkgdir=\\${$nam}
-    if [ ! -d "${pkgdir}" ] ; then
-        echo "FAILURE: package dir $nam=$pkgdir does not exist"
-    else
-        echo "SUCCESS: package ${modver} is at $pkgdir"
-    fi
-    for e in BIN LIB INC ; do
-        nam=TACC_${MODULE}_${e}
-        eval cmpdir=\\${$nam}
-        if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
-            echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
-        fi
-    done
-}
-    """
+    loadscript += modulereportfunction( redirect )
+    loadscript += modulelistfunction()
+    loadscript += modulecommandfunction( redirect )
+    loadscript += moduleproperfunction()
 
     #
     # Now the actual script
     #
-    loadscript += f"""
-echo
-echo Module setup starts here {redirect}
-
-modulecommand "module purge" "purge"
-
-export LMOD_SYSTEM_DEFAULT_MODULES=TACC
-
-modulecommand "reset" "reset"
-    """
+    loadscript += modulepurgefunction()
     if not mode_is_core( **kwargs ):
-        loadscript += f"""
-if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
-  modulecommand "unload mpi" "-f unload ${{TACC_FAMILY_MPI}}"
-fi
-
-modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
-
-echo .... After reset: {redirect}
-modulelist {redirect}
-
-echo .... Set modulepath {redirect}
-export MODULEPATH={modulepath}
-echo MODULEPATH=${{MODULEPATH}} {redirect}
-modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" display
-
-modulecommand "Load compiler" "load {compiler}/{compilerversion}"
-    """
+        loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
@@ -170,20 +85,9 @@ echo "Load blas/lapack library: {blas}"
 modulecommand "load blas" "load {blas}"
                 """
     if mode_has_mpi( **kwargs ):
-        loadscript += f"""
-modulecommand "Load mpi" "load {mpi}/{mpiversion}"
-        """
+        loadscript += mpiloadfunction( mpi,mpiversion )
     if nonnull( modules_to_load ) and zero_keyword( "skipmodules",**kwargs ):
-        loadscript += f"""
-echo .... Load packages \"{modules_to_load}\" {redirect}
-        """
-        for modver in modules_to_load.split(" "):
-            module,slash,version = module_and_version_to_load(modver,**kwargs )
-            modulepropertest,_ = one_module_proper_script( [modver],**kwargs )
-            loadscript += f"""
-modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
-{modulepropertest}
-            """
+        loadscript += modulesloadscript( modules_to_load,**kwargs )
     else:
         echo_warning( "not loading any modules",**kwargs )
     loadscript += f"""
@@ -277,17 +181,129 @@ echo \"<<<< end of test proper of module {modver}\"
     """
     return script,title
 
-# nam=TACC_{module.upper()}_DIR
-# eval pkgdir=\\${{$nam}}
-# if [ ! -d "${{pkgdir}}" ] ; then
-#     echo "FAILURE: package dir $nam=$pkgdir does not exist"
-# else
-#     echo "SUCCESS: package {modver} is at $pkgdir"
-# fi
-# for e in BIN LIB INC ; do
-#     nam=TACC_{module.upper()}_${{e}}
-#     eval cmpdir=\\${{$nam}}
-#     if [ ! -z "${{cmpdir}}" -a ! -d "${{cmpdir}}" ] ; then 
-#         echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
-#     fi
-# done
+##
+## Some long literals,
+## to make function above more readable
+##
+def modulereportfunction( redirect="" ) -> str:
+    return f"""
+# Non-redirected return code reporting
+# $1 : error code
+# $2 : title
+# $3 : actual command
+function modulereport () {{
+if [ $1 -gt 0 ] ; then
+    echo FAILURE module command failed: $2
+    echo Output: && module -t $3
+    exit
+else
+    echo SUCCESS module command succeeded: $2
+    local cmd="$3"
+    # echo "cmd was <<$cmd>>"
+    echo "Now loaded:"
+    if [[ $cmd =~ load* ]] ; then
+        module -t show ${{cmd##load}}
+    fi 
+    modulelist
+fi {redirect}
+}}
+    """
+
+def modulelistfunction() -> str:
+    return """
+# Single line module listing
+function modulelist ()
+{ module -t list 2>&1 | sort | tr '\n' ' ' && echo
+}
+        """
+
+def modulecommandfunction( redirect="" ) -> str:
+    return f"""
+# Execute a module command and report result:
+# $1 : title, $2 actual command, $3 nonzero to display, otherwise redirected
+function modulecommand () {{
+    echo
+    echo .... $1 : module $2 {redirect}
+    if [ -z "$3" ] ; then 
+      module -t $2 2>/dev/null {redirect}
+    else
+      module -t $2 {redirect}
+    fi
+    modulereport $? "$1" "$2"
+}}
+    """
+
+def moduleproperfunction() -> str:
+    return """
+# Test whether modver is properly loaded
+function testmoduleproper () {
+    local modver=$1
+    local module=${modver%%/*}
+    local MODULE=$( echo $module | tr a-z A-Z )
+    local nam=TACC_${MODULE}_DIR
+    eval pkgdir=\\${$nam}
+    if [ ! -d "${pkgdir}" ] ; then
+        echo "FAILURE: package dir $nam=$pkgdir does not exist"
+    else
+        echo "SUCCESS: package ${modver} is at $pkgdir"
+    fi
+    for e in BIN LIB INC ; do
+        nam=TACC_${MODULE}_${e}
+        eval cmpdir=\\${$nam}
+        if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
+            echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
+        fi
+    done
+}
+    """
+
+def modulepurgefunction( redirect="" ) -> str:
+    return f"""
+echo
+echo Module setup starts here {redirect}
+
+modulecommand "module purge" "purge"
+
+export LMOD_SYSTEM_DEFAULT_MODULES=TACC
+
+modulecommand "reset" "reset"
+    """
+
+def compilerloadfunction( modulepath : str,compiler : str,compilerversion : str,
+                          redirect="" ) -> str:
+    return f"""
+if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
+  modulecommand "unload mpi" "-f unload ${{TACC_FAMILY_MPI}}"
+fi
+
+modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
+
+echo .... After reset: {redirect}
+modulelist {redirect}
+
+echo .... Set modulepath {redirect}
+export MODULEPATH={modulepath}
+echo MODULEPATH=${{MODULEPATH}} {redirect}
+modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" display
+
+modulecommand "Load compiler" "load {compiler}/{compilerversion}"
+    """
+
+def mpilocalfunction( mpi : str,mpiversion : str ) -> str:
+    return f"""
+modulecommand "Load mpi" "load {mpi}/{mpiversion}"
+    """
+
+def modulesloadscript( modules_to_load : str,**kwargs ) -> str:
+    redirect : str = kwargs.get( "redirect","" )
+    loadscript : str = f"""
+echo .... Load packages \"{modules_to_load}\" {redirect}
+    """
+    for modver in modules_to_load.split(" "):
+        module,slash,version = module_and_version_to_load(modver,**kwargs )
+        modulepropertest,_ = one_module_proper_script( [modver],**kwargs )
+        loadscript += f"""
+modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
+{modulepropertest}
+        """
+    return loadscript
