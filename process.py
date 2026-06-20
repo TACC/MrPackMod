@@ -16,7 +16,8 @@ from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 from MrPackMod.basics  import remove_macros,clean_title,derived_settings,\
     trace_string,echo_string,echo_warning,trace_var,\
     abort_on_zero_keyword,nonzero_keyword,zero_keyword,\
-    isnull,nonnull,error_abort
+    isnull,nonnull,error_abort,\
+    ModuleLoadStrategy
 from MrPackMod.names   import package_names,family_names,package_prerequisites,\
     mode_is_core
 from MrPackMod.scripts import export_compilers_script,export_flags,\
@@ -239,20 +240,26 @@ def version_satisfies(
             return False
     return True
 
+#
+# This is called indirectly through get_value which is used everywhere
+# Hence we need the case where no strategy is defined (yet)
+#
 def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
-    if nonzero_keyword("installing",**kwargs):
-        modulestoload : str = package_prerequisites( **kwargs )
-        loadcomment : str = f"# Loading environment for prerequisites: {modulestoload}"
-    else:
-        package,packageversion =  package_names( **kwargs )
-        if nonnull(packageversion):
-            modulestoload = f"{package}/{packageversion}"
-            loadcomment = f"# Loading environment for package: {package}/{packageversion}"
-        else:
-            modulestoload = package
-            loadcomment = f"#Loading environment for package: {package}"
-    return modulestoload,loadcomment
-
+    if ( strategy := kwargs.get("moduleloadstrategy") ) is not None:
+        if strategy==ModuleLoadStrategy.prerequisites:
+            modulestoload : str = package_prerequisites( **kwargs )
+            loadcomment : str = f"# Loading environment for prerequisites: {modulestoload}"
+        elif strategy==ModuleLoadStrategy.package:
+            package,packageversion =  package_names( **kwargs )
+            if nonnull(packageversion):
+                modulestoload = f"{package}/{packageversion}"
+                loadcomment = f"# Loading environment for package: {package}/{packageversion}"
+            else:
+                modulestoload = package
+                loadcomment = f"#Loading environment for package: {package}"
+        return modulestoload,loadcomment
+    else: 
+        return "",""
 ##
 ## Execute a script in the context of compiler and modules
 ## return: value, or FAILURE string
@@ -278,12 +285,10 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     # make a script that outputs to explicit file & terminal
     write_script_file( scriptfilename,outputfilename,
                        scripttitle,cleantitle,mainscript,**kwargs )
-
-    print( "get_value before immediate" )
     value = process_execute_immediate(
         execute_execute_script( scriptfilename,outputfilename,**kwargs ),
         **kwargs,title=scripttitle )
-    print( "get_value after immediate" )
+
     #
     # Parse script output for success/failure
     #

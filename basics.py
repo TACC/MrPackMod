@@ -217,3 +217,7 @@ def condition_split(
     if value2=="\"\"": value2 = ""
     return value1,op,value2,line
 
+from enum import Enum,auto
+class ModuleLoadStrategy(Enum):
+    prerequisites = auto()
+    package = auto()

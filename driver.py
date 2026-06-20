@@ -17,7 +17,8 @@ from MrPackMod import names
 from MrPackMod.process import process_initiate,process_terminate,process_execute,\
     ensure_dir
 from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
-    nonnull, nonzero_keyword, zero_keyword
+    nonnull, nonzero_keyword, zero_keyword,\
+    ModuleLoadStrategy
 from MrPackMod.error   import abort_on_failure_result
 from MrPackMod.testing import do_config_tests,report_success_failure
 from MrPackMod import regression
@@ -154,39 +155,52 @@ utility_actions : {utility_actions}
             download.clone_or_pull( **configuration,gitaction=action )
         # build stuff
         elif action in [ "install", "configure", "build", "module", "public", ]:
+            # VLE the `install' action should really be a loop over recursive calls
+            # to prevent corruption of the install options
+            install_options : dict = {
+                "immediate_output":True,
+                "moduleloadstrategy":ModuleLoadStrategy.prerequisites
+                }
             abort_on_failure_result(
-                do_config_tests( installing=True,**configuration ),**configuration )
+                do_config_tests( **configuration ),**configuration )
             success : list[str] = []
             failure : list[str] = []
             if action in [ "install", "configure", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_configure( **configuration,immediate_output=True )
+                    install.cmake_configure( **{ **configuration,**install_options } )
                 elif system == "autotools":
-                    install.autotools_configure( **configuration,immediate_output=True )
+                    install.autotools_configure( **{ **configuration,**install_options } )
                 elif system == "make":
-                    install.make_configure( **configuration,immediate_output=True )
+                    install.make_configure( **{ **configuration,**install_options } )
                 elif system == "petsc":
-                    install.petsc_configure( **configuration,immediate_output=True )
+                    install.petsc_configure( **{ **configuration,**install_options } )
                 else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
             if action in [ "install", "build", ]:
                 if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_build( **configuration,immediate_output=True )
+                    install.cmake_build( **{ **configuration,**install_options } )
                 elif system == "autotools":
-                    install.autotools_build( **configuration,immediate_output=True )
+                    install.autotools_build( **{ **configuration,**install_options } )
                 elif system == "make":
-                    install.make_build( **configuration,immediate_output=True )
+                    install.make_build( **{ **configuration,**install_options } )
                 elif system == "petsc":
-                    install.petsc_build( **configuration,immediate_output=True )
+                    install.petsc_build( **{ **configuration,**install_options } )
                 else: raise Exception\
                     ( f"Can only build for cmake/autotools/make, not: {system}" )
-                install.post_install_actions( **configuration )
+                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+                install.post_install_actions(
+                    **{ **configuration,**install_options} )
             if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
-                success,failure = install.write_module_file( **configuration )
+                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+                success,failure = install.write_module_file(
+                    **{ **configuration,**install_options } )
                 report_success_failure( success,failure )
             if action in [ "install", "public", ]:
-                install.public_installation( **configuration )
+                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+                install.public_installation( 
+                    **{ **configuration,**install_options } )
                 if zero_keyword( "NOMODULE",**kwargs ):
-                    install.public_module( **configuration )
+                    install.public_module( 
+                        **{ **configuration,**install_options } )
         elif action=="clean":
             clean_targets : str = \
                 "*~ a.out *.log logfiles mpmscripts* *.out build* __pycache__"

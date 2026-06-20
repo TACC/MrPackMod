@@ -13,7 +13,7 @@ from MrPackMod.process    import process_execute, process_initiate, process_term
 from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
-def do_config_tests( installing : bool,**kwargs : Any ) -> str:
+def do_config_tests( **kwargs : Any ) -> str:
     allgood : bool = True
     modulestring : str = package_prerequisites( **kwargs )
     moduleslist  : list[str] = modulestring.split()
@@ -22,7 +22,7 @@ def do_config_tests( installing : bool,**kwargs : Any ) -> str:
     output : OutputDict  = \
         start_test_stage(
             "moduleconfig",
-            **{ **kwargs, "installing":installing,"terminal":"suppress" }
+            **{ **kwargs, "terminal":"suppress" }
             )
     retval : str = get_value_from_virgin(
         modules_proper_script,moduleslist,**kwargs,**output )
@@ -45,8 +45,6 @@ class OutputDict(TypedDict):
     loghandle : TextIO
     logdir : str
     terminal : Optional[str]
-    #process : Any
-    installing  : bool
     linedisplay : Any
     # scriptsdir : str
 
@@ -58,7 +56,6 @@ def start_test_stage(
     title      : str  = kwargs.get("title","notitle")
     package    : str  = kwargs.get("package","nopackage")
     linedisplay = kwargs.pop("linedisplay",echo_string)
-    installing : bool = kwargs.pop("installing",True)
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
     # note: kwargs does not contain "scriptsdir",
@@ -74,7 +71,6 @@ def start_test_stage(
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
-        "installing"  : installing,   # default True, make sure to unset in regression
         "scriptsdir"  : scriptsdir,
     }
     if nonnull(title):
@@ -133,47 +129,8 @@ def report_success_failure( success : list[str],failure : list[str],**kwargs : A
 #### Module tests  through process_execute or get_value_from_loaded
 ####
 
-def test_modules( **kwargs: Any ) -> None:
-    process_execute\
-        ( f"echo Using modulepath:",**kwargs )
-    process_execute\
-        ( f"echo $MODULEPATH  | tr ':' '\n'",**kwargs )
-    if installing := kwargs.get( "installing",False ):
-        if nonnull( modulestotest := package_prerequisites(**kwargs) ):
-            echo_string( f"Test for prereq modules {modulestotest}",**kwargs )
-        else: modulestotest = ""
-    else:
-        modulestotest,_ = package_names( **kwargs )
-        echo_string( f"Test for test module {modulestotest}",**kwargs )
-    if nonnull( modulestotest ):
-        test_loaded_modules( modulestotest,**kwargs )
-    #test_nonmodules( **kwargs )
-
 # are the required modules loaded?
 non_packages: list[str] = [ "blaslapack", "mpi", ] # mkl","nvpl","
-def test_loaded_modules( modules : str,**kwargs: Any ) -> None:
-    for mod in modules.split(" "):
-        if isnull(mod): continue
-        if mod in non_packages:
-            trace_string( f"Skip test for non-package: {mod}",**kwargs )
-            continue
-        test_module_loaded( mod,**kwargs )
-        # if nonnull(ver):
-        #     test_module_version( mod,ver,**kwargs )
-
-# are no nonmodules loaded?
-def test_nonmodules( **kwargs: Any ) -> bool:
-    if not (nonmodules := nonzero_keyword( "NONMODULES",**kwargs ) ):
-        trace_string( "No nonmodules",**kwargs )
-        return True
-    success = True
-    for mod in nonmodules.split(" "):
-        if loaded := test_module_loaded( mod,**kwargs ):
-            echo_string( f"Please unload module: {mod}",**kwargs )
-            success = False
-        else: trace_string( " .. module correctly not loaded",**kwargs )
-    return success
-
 def test_module_loaded( modver : str, **kwargs: Any ) -> str:
     return get_value_from_loaded( module_loaded_script,[modver],**kwargs )
 

@@ -16,7 +16,8 @@ from typing import Any, Optional
 from MrPackMod.basics  import remove_macros,\
     echo_string, trace_string,\
     abort_on_zero_keyword,error_abort,\
-    nonnull,nonzero_keyword, zero_keyword
+    nonnull,nonzero_keyword, zero_keyword,\
+    ModuleLoadStrategy
 from MrPackMod.error   import abort_on_zero_env
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
     compilers_names,modulefile_path,module_name_and_version
@@ -140,7 +141,7 @@ else
     echo FAILURE: cmake failed
 fi
     """
-    # VLE I can' get newlines in this script. Hm.
+    # VLE I can't get newlines in this script. Hm.
     script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
@@ -148,7 +149,7 @@ def cmake_configure( **kwargs: Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "configure",
-            **{ **kwargs,"title":"cmake configure","installing":True }
+            **{ **kwargs,"title":"cmake configure", }
             )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
@@ -171,13 +172,15 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
         makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
     script : str = f"""
 if [ ! -d "{builddir}" ] ; then
-    echo FAILURE: no such build dir: {builddir}
+    echo "FAILURE: no such build dir: {builddir}"
     exit  1
+else
+    echo "entering builddir: {builddir}"
 fi
 cd {builddir}
 
 if [ ! -f makefile -a ! -f Makefile ] ; then
-    echo FAILURE: build dir has no makefile or Makefile
+    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
     exit 1
 fi
 {makeline}
@@ -208,7 +211,7 @@ def cmake_build( **kwargs: Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "build",
-            **{ **kwargs,"title":"cmake build","installing":True } )
+            **{ **kwargs,"title":"cmake build", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
@@ -295,7 +298,7 @@ def autotools_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "configure",
-            **{ **kwargs,"title":"autotools configure","installing":True } )
+            **{ **kwargs,"title":"autotools configure", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
@@ -355,7 +358,7 @@ def autotools_build( **kwargs : Any ) ->str:
     output : OutputDict = \
         start_test_stage(
             "build",
-            **{ **kwargs,"title":"autotools build","installing":True } )
+            **{ **kwargs,"title":"autotools build", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : str = get_value_from_loaded(
         autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
@@ -388,7 +391,7 @@ def make_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "configure",
-            **{ **kwargs,"title":"make configure","installing":True } )
+            **{ **kwargs,"title":"make configure", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
@@ -421,7 +424,7 @@ def make_build( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "build",
-            **{ **kwargs,"title":"make build","installing":True } )
+            **{ **kwargs,"title":"make build", } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         make_build_script,[ srcdir,prefixdir],
@@ -453,7 +456,7 @@ def petsc_configure( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "configure",
-            **{ **kwargs,"title":"petsc configure","installing":True } )
+            **{ **kwargs,"title":"petsc configure", } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : str = get_value_from_loaded(
         petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
@@ -479,7 +482,7 @@ def petsc_build( **kwargs : Any ) -> str:
     output : OutputDict = \
         start_test_stage(
             "build",
-            **{ **kwargs,"title":"make build","installing":True } )
+            **{ **kwargs,"title":"make build", } )
     retval : str = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -513,7 +516,7 @@ def post_install_actions( **kwargs ) -> str:
         output : OutputDict = \
             start_test_stage(
                 "actions",
-                **{ **kwargs,"title":"post-install actions","installing":True } )
+                **{ **kwargs,"title":"post-install actions", } )
         retval : str = get_value_from_loaded(
             post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
         success,failure = end_test_stage( [],[],output,**kwargs )
@@ -551,7 +554,7 @@ def write_module_file( **kwargs: Any ) -> tuple[ list[str],list[str] ]:
     # module versions are found in a separate process_execute 
     output = start_test_stage(
         "module",
-        **{ **kwargs,"linedisplay":trace_string,"installing":True } )
+        **{ **kwargs,"linedisplay":trace_string, } )
 
     #
     # module contents

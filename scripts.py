@@ -63,9 +63,9 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     #
     # Start by defining some functions
     #
-    loadscript += modulereportfunction( redirect )
+    loadscript += modulereportfunction(  )
     loadscript += modulelistfunction()
-    loadscript += modulecommandfunction( redirect )
+    loadscript += modulecommandfunction( )
     loadscript += moduleproperfunction()
 
     #
@@ -111,24 +111,6 @@ def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
         else:
             # no slash and no environment version, so load default
             return module,"",""
-
-modulelonglist : str = """
-function modulelist ()
-{
-    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
-    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
-    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
-    for m in $compiler $mpi cont $modules;
-    do
-        if [ $m = "cont" ]; then
-            echo "----------------";
-        else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
-            echo "$m : $loc";
-        fi;
-    done
-}
-        """
 
 #
 # This gets called only from do_config_tests
@@ -297,9 +279,10 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 def modulesloadscript( modules_to_load : str,**kwargs ) -> str:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
-echo .... Load packages \"{modules_to_load}\" {redirect}
+echo ".... Load packages <<{modules_to_load}>>" {redirect}
     """
     for modver in modules_to_load.split(" "):
+        if isnull(modver): continue
         module,slash,version = module_and_version_to_load(modver,**kwargs )
         modulepropertest,_ = one_module_proper_script( [modver],**kwargs )
         loadscript += f"""
@@ -307,3 +290,22 @@ modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{vers
 {modulepropertest}
         """
     return loadscript
+
+modulelonglist : str = """
+function modulelist ()
+{
+    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
+    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
+    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
+    for m in $compiler $mpi cont $modules;
+    do
+        if [ $m = "cont" ]; then
+            echo "----------------";
+        else
+            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
+            echo "$m : $loc";
+        fi;
+    done
+}
+        """
+

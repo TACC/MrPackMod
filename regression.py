@@ -14,7 +14,7 @@ from typing import Any,Optional,TypedDict
 from MrPackMod.basics  import clean_title,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword,\
-    line_strip_conditionals
+    line_strip_conditionals,ModuleLoadStrategy
 from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name
 from MrPackMod.process import process_execute, process_initiate, \
@@ -356,8 +356,7 @@ def do_cmake_test(
     #
     output = start_test_stage(
         "ldd",
-        **{ **kwargs,**test_options,
-            "title":f"{title}, ldd/run stage","package":programname }
+        **{ **kwargs,"title":f"{title}, ldd/run stage","package":programname }
         )
     # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
     prog_and_dirs[1] = programext
@@ -475,7 +474,7 @@ def do_tests( **kwargs: Any ) -> None:
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_existence_test(
-                    test,**kwargs,installing=False )
+                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -488,7 +487,7 @@ def do_tests( **kwargs: Any ) -> None:
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_cmake_test(
-                    test,**kwargs,installing=False )
+                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -501,7 +500,7 @@ def do_tests( **kwargs: Any ) -> None:
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_make_test( 
-                    test,**kwargs,installing=False )
+                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
