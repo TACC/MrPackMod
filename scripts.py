@@ -271,7 +271,7 @@ modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" displ
 modulecommand "Load compiler" "load {compiler}/{compilerversion}"
     """
 
-def mpilocalfunction( mpi : str,mpiversion : str ) -> str:
+def mpiloadfunction( mpi : str,mpiversion : str ) -> str:
     return f"""
 modulecommand "Load mpi" "load {mpi}/{mpiversion}"
     """

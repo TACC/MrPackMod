@@ -7,7 +7,7 @@ import argparse
 import os
 import pdb
 import sys
-from typing import Any
+from typing import Any,Optional
 
 from MrPackMod.config import read_config,derived_setting_triggers
 from MrPackMod import download
@@ -166,26 +166,11 @@ utility_actions : {utility_actions}
             success : list[str] = []
             failure : list[str] = []
             if action in [ "install", "configure", ]:
-                if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_configure( **{ **configuration,**install_options } )
-                elif system == "autotools":
-                    install.autotools_configure( **{ **configuration,**install_options } )
-                elif system == "make":
-                    install.make_configure( **{ **configuration,**install_options } )
-                elif system == "petsc":
-                    install.petsc_configure( **{ **configuration,**install_options } )
-                else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
+                if not configure_action( **{ **configuration,**install_options } ):
+                    return
             if action in [ "install", "build", ]:
-                if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
-                    install.cmake_build( **{ **configuration,**install_options } )
-                elif system == "autotools":
-                    install.autotools_build( **{ **configuration,**install_options } )
-                elif system == "make":
-                    install.make_build( **{ **configuration,**install_options } )
-                elif system == "petsc":
-                    install.petsc_build( **{ **configuration,**install_options } )
-                else: raise Exception\
-                    ( f"Can only build for cmake/autotools/make, not: {system}" )
+                if not build_action( **{ **configuration,**install_options } ):
+                    return
                 install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
                 install.post_install_actions(
                     **{ **configuration,**install_options} )
@@ -225,3 +210,25 @@ utility_actions : {utility_actions}
             else:
                 error_abort( f"Unknown action: {action}",**configuration )
                 
+def configure_action( **kwargs : Any ) -> Optional[str]:
+    if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
+        return install.cmake_configure( **kwargs )
+    elif system == "autotools":
+        return install.autotools_configure( **kwargs )
+    elif system == "make":
+        return install.make_configure( **kwargs )
+    elif system == "petsc":
+        return install.petsc_configure( **kwargs )
+    else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
+
+def build_action( **kwargs : Any ) -> Optional[str]:
+    if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
+        return install.cmake_build( **kwargs )
+    elif system == "autotools":
+        return install.autotools_build( **kwargs )
+    elif system == "make":
+        return install.make_build( **kwargs )
+    elif system == "petsc":
+        return install.petsc_build( **kwargs )
+    else: raise Exception\
+        ( f"Can only build for cmake/autotools/make, not: {system}" )
