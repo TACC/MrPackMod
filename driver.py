@@ -65,7 +65,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     configuration: dict[str, Any] = {
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",
-        'tracing':False,
+        'tracing':tracing,
         'exports':[], # vars to set before cmake/configure call
         'unsets':[],  # vars that should not be set, like PETSC_DIR
         'logfiles':{}, # name,handle pairs

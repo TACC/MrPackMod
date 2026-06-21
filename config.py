@@ -69,6 +69,7 @@ def add_settings_from_config(
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
             # detect and strip conditionals, return acceptability & line to process
+            line = remove_macros( line,**config_dict )
             line,accept = line_strip_conditionals( line,**config_dict,**output )
             if not accept: continue
             if False:
@@ -148,6 +149,10 @@ def setting_from_env_or_rc( name: str, env: str, default: str, rc_files: list[st
     trace_string( f"Setting {name}={osval} found in environment.",**kwargs )
     return osval
 
+##
+## Query system
+## this should really only come from the environment
+##
 def system_settings(
     config_dict: dict[str, Any],
     rc_files: list[str],
@@ -180,29 +185,12 @@ def system_settings(
                 "CXX","TACC_CXX","NO_CXX_DEFINED",rc_files,**kwargs ),
             }.items():
         config_dict[k] = v
-    if config_dict["SYSTEM"] == "vista":
-        config_dict['blaslapack_inc'] = setting_from_env_or_rc(
-            "BLASLAPACK_INC","TACC_NVPL_INC","NO_NVPL_INC_SETTING",
-            rc_files,**kwargs )
-        config_dict['blaslapack_lib'] = setting_from_env_or_rc(
-            "BLASLAPACK_LIB","TACC_NVPL_LIB","NO_NVPL_LIB_SETTING",
-            rc_files,**kwargs )
-        config_dict['blaslapack_libs'] = setting_from_env_or_rc(
-            "BLASLAPACK_LIB","nvpl_blas_lp64_seq;nvpl_blas_core",
-            "NO_NVPL_LIBS_SETTING",
-            rc_files,**kwargs )
-    else:
-        config_dict['blaslapack_inc'] = setting_from_env_or_rc(
-            "BLASLAPACK_INC","TACC_MKL_INC","NO_MKL_INC_SETTING",
-            rc_files,**kwargs )
-        config_dict['blaslapack_lib'] = setting_from_env_or_rc(
-            "BLASLAPACK_LIB","TACC_MKL_LIB","NO_MKL_LIB_SETTING",
-            rc_files,**kwargs )
-        config_dict['blaslapack_libs'] = setting_from_env_or_rc(
-            "BLASLAPACK_LIB","mkl_intel_lp64;mkl_sequential;mkl_core;pthread",
-            "NO_MKL_LIBS_SETTING",
-            rc_files,**kwargs )
 
+##
+## High level settings such as
+## - compiler
+## - location of build/install/module files
+##
 def install_settings(
         config_dict : dict[str, Any], rc_files : list[str], **kwargs: Any, ) -> None:
     tracing = kwargs.get("tracing")
@@ -253,7 +241,11 @@ def install_settings(
     }.items():
         config_dict[k] = v
 
-def environment_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
+##
+## Inspect loaded modules for integrity
+## and insert their variables into the configuration dict
+##
+def module_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
     mods : list[str] = \
         [ m for m,_ in
           loaded_modules( **config_dict, ) 
@@ -333,18 +325,39 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
               "skipmodules":True,"linedisplay":trace_string }
          )
 
-    rc_name = ".mrpackmodrc"
-    rc_files = [ rc for rc in [ rc_name, f"../{rc_name}",
-                                f"{os.path.expanduser('~')}/{rc_name}" 
-                               ] if os.path.exists(rc) ]
+    ##
+    ## Context settings: system, compiler, blaslapack
+    ##
+
+    rc_types = [ "" ]
+    rc_files = [ rc for rc in
+                 [ f"{location}/mrpackmod{type}rc"
+                   for type in rc_types
+                   for location in [ ".","..",os.path.expanduser('~') ]
+                   ]
+                 if os.path.exists(rc) ]
     system_settings      ( configuration_dict,rc_files, )
     trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
-    # install paths
+
+    system   = configuration_dict["SYSTEM"]
+    compiler = configuration_dict["COMPILER"]
+    rc_types = [ "",f"_{system}",f"_{compiler}" ]
+    rc_files = [ rc for rc in
+                 [ f"{location}/mrpackmod{type}rc"
+                   for type in rc_types
+                   for location in [ ".","..",os.path.expanduser('~') ]
+                   ]
+                 if os.path.exists(rc) ]
     install_settings     ( configuration_dict,rc_files,**output )
+
     # variables from installed modules
     nowarn  : bool = kwargs.get("nowarn",False)
-    environment_settings ( configuration_dict,nowarn=nowarn )
+    module_settings ( configuration_dict,nowarn=nowarn )
     config_from_rc_files ( configuration_dict,**output )
+
+    ##
+    ## Settings for this package specifically
+    ##
     if not os.path.exists(configfile):
         raise Exception( f"No config file <<{configfile}>> in dir {os.getcwd()}" )
     # this may try to make the src dir, which should not if we are testing
