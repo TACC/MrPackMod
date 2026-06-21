@@ -100,115 +100,120 @@ package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
         # Actual actions
-        if False:
-            continue
-        # auxiliaries
-        elif action=="dependencies":
-            print( configuration['MODULES'] )
-        elif action=="find_string":
-            if args := nonnull( command_arguments ):
-                srcdir = names.srcdir_name( **configuration )
-                process_execute\
-                    ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
-                      **configuration )
-            else:
-                echo_string( f"WARNING: find_string command needs --args",**configuration )
-        elif action=="list":
-            info.list_installations( **configuration )
-        elif action=="logfiles":
-            info.list_logfiles( **configuration )
-        elif action=="configurelog":
-            logfile = info.configurelog_name( **configuration,nowarn=True )
-            print( logfile )
-        elif action=="show":
-            try:
-                print( configuration[displayvar] )
-            except:
-                print( f"No configuration variable: {displayvar}" )
-        elif action=="test":
-            if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
-                echo_warning( "Source directory {srcdir} does not exist (yet)",
-                              **configuration )
-            abort_on_failure_result(
-                do_config_tests( installing=True,**configuration ),**configuration )
-        elif action=="listmodules":
-            if modulelist := configuration.get("MODULES"):
-                print( modulelist )
-        elif action=="url":
-            if url := configuration.get("URL"): print( url )
-            if url := configuration.get("CODEURL"): print( url )
-            if url := configuration.get("DOCURL"): print( url )
-        elif action=="version":
-            v = configuration["PACKAGEVERSION"]
-            if nonnull(v):
-                print( v )
-            else : print( "default" )
-        # download stuff
-        elif action=="download":
-            download.download_from_url( **configuration )
-        elif action in [ "unpack", "untar", ]:
-            srcdir_local = names.srcdir_local_name( **configuration )
-            download.unpack_from_url( srcdir=srcdir_local,**configuration )
-        elif action=="retar":
-            download.retar_to_standard_name( **configuration )
-        elif action in [ "clone","pull" ]:
-            download.clone_or_pull( **configuration,gitaction=action )
-        # build stuff
-        elif action in [ "install", "configure", "build", "module", "public", ]:
-            # VLE the `install' action should really be a loop over recursive calls
-            # to prevent corruption of the install options
-            install_options : dict = {
-                "immediate_output":True,
-                "moduleloadstrategy":ModuleLoadStrategy.prerequisites
-                }
-            abort_on_failure_result(
-                do_config_tests( **configuration ),**configuration )
-            success : list[str] = []
-            failure : list[str] = []
-            if action in [ "install", "configure", ]:
-                if not configure_action( **{ **configuration,**install_options } ):
-                    return
-            if action in [ "install", "build", ]:
-                if not build_action( **{ **configuration,**install_options } ):
-                    return
-                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
-                install.post_install_actions(
-                    **{ **configuration,**install_options} )
-            if action in [ "install", "module", ] and zero_keyword( "NOMODULE",**kwargs ):
-                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
-                success,failure = install.write_module_file(
-                    **{ **configuration,**install_options } )
-                report_success_failure( success,failure )
-            if action in [ "install", "public", ]:
-                install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
-                install.public_installation( 
-                    **{ **configuration,**install_options } )
-                if zero_keyword( "NOMODULE",**kwargs ):
-                    install.public_module( 
-                        **{ **configuration,**install_options } )
-        elif action=="clean":
-            clean_targets : str = \
-                "*~ a.out *.log logfiles mpmscripts* *.out build* __pycache__"
-            if targets := nonzero_keyword( "CLEANTARGET",**configuration ):
-                for t in targets:
-                    clean_targets += " "+t
-            os.system( f"rm -rf {clean_targets}" )
-        elif action=="regression":
-            package : str = str( configuration.get("PACKAGE") ) # str only for mypy
-            echo_warning( f"Need better test for package actually being loaded",**configuration )
-            # if not loaded_module_version( package,**configuration ):
-            #     error_abort( f"Module {package} needs to be loaded for regression testing",
-            #                  **configuration )
-            screen_report_action(action,**configuration)
-            #do_config_tests( installing=False,**configuration,no_home=True )
-            regression.do_tests\
-                ( match=arguments.match,filter=arguments.filter,logdir="./logfiles",
+        mpm_action( action,**configuration )
+def mpm_action( action : str,**configuration ) -> None:
+    if False:
+        return None
+    # auxiliaries
+    elif action=="dependencies":
+        print( configuration['MODULES'] )
+    elif action=="find_string":
+        if args := nonnull( command_arguments ):
+            srcdir = names.srcdir_name( **configuration )
+            process_execute\
+                ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
                   **configuration )
         else:
-            if action in build_actions+context_actions+package_actions+utility_actions:
-                error_abort( f"Action promised in help but not implemented: {action}", **configuration )
-            else:
-                error_abort( f"Unknown action: {action}",**configuration )
+            echo_string( f"WARNING: find_string command needs --args",**configuration )
+    elif action=="list":
+        info.list_installations( **configuration )
+    elif action=="logfiles":
+        info.list_logfiles( **configuration )
+    elif action=="configurelog":
+        logfile = info.configurelog_name( **configuration,nowarn=True )
+        print( logfile )
+    elif action=="show":
+        try:
+            print( configuration[displayvar] )
+        except:
+            print( f"No configuration variable: {displayvar}" )
+    elif action=="test":
+        if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
+            echo_warning( "Source directory {srcdir} does not exist (yet)",
+                          **configuration )
+        abort_on_failure_result(
+            do_config_tests( installing=True,**configuration ),**configuration )
+    elif action=="listmodules":
+        if modulelist := configuration.get("MODULES"):
+            print( modulelist )
+    elif action=="url":
+        if url := configuration.get("URL"): print( url )
+        if url := configuration.get("CODEURL"): print( url )
+        if url := configuration.get("DOCURL"): print( url )
+    elif action=="version":
+        v = configuration["PACKAGEVERSION"]
+        if nonnull(v):
+            print( v )
+        else : print( "default" )
+    # download stuff
+    elif action=="download":
+        download.download_from_url( **configuration )
+    elif action in [ "unpack", "untar", ]:
+        srcdir_local = names.srcdir_local_name( **configuration )
+        download.unpack_from_url( srcdir=srcdir_local,**configuration )
+    elif action=="retar":
+        download.retar_to_standard_name( **configuration )
+    elif action in [ "clone","pull" ]:
+        download.clone_or_pull( **configuration,gitaction=action )
+    # build stuff
+    elif action=="install":
+        for a in ["configure","build","module","public",]:
+            mpm_action(a,**configuration)
+    elif action in [ "configure", "build", "module", "public", ]:
+        # VLE the `install' action should really be a loop over recursive calls
+        # to prevent corruption of the install options
+        install_options : dict = {
+            "immediate_output":True,
+            "moduleloadstrategy":ModuleLoadStrategy.prerequisites
+        }
+        abort_on_failure_result(
+            do_config_tests( **configuration ),**configuration )
+        success : list[str] = []
+        failure : list[str] = []
+        if action=="configure":
+            if not configure_action( **{ **configuration,**install_options } ):
+                return
+        elif action=="build":
+            if not build_action( **{ **configuration,**install_options } ):
+                return
+            install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+            install.post_install_actions(
+                **{ **configuration,**install_options} )
+        elif action=="module" and zero_keyword( "NOMODULE",**kwargs ):
+            install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+            success,failure = install.write_module_file(
+                **{ **configuration,**install_options } )
+            report_success_failure( success,failure )
+        elif action=="public":
+            install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+            install.public_installation( 
+                **{ **configuration,**install_options } )
+            if zero_keyword( "NOMODULE",**kwargs ):
+                install.public_module( 
+                    **{ **configuration,**install_options } )
+    elif action=="clean":
+        clean_targets : str = \
+            "*~ a.out *.log logfiles mpmscripts* *.out build* __pycache__"
+        if targets := nonzero_keyword( "CLEANTARGET",**configuration ):
+            for t in targets:
+                clean_targets += " "+t
+            os.system( f"rm -rf {clean_targets}" )
+    elif action=="regression":
+        package : str = str( configuration.get("PACKAGE") ) # str only for mypy
+        echo_warning( f"Need better test for package actually being loaded",**configuration )
+        # if not loaded_module_version( package,**configuration ):
+        #     error_abort( f"Module {package} needs to be loaded for regression testing",
+        #                  **configuration )
+        screen_report_action(action,**configuration)
+        #do_config_tests( installing=False,**configuration,no_home=True )
+        regression.do_tests\
+            ( match=arguments.match,filter=arguments.filter,logdir="./logfiles",
+              **configuration )
+    else:
+        if action in build_actions+context_actions+package_actions+utility_actions:
+            error_abort( f"Action promised in help but not implemented: {action}", **configuration )
+        else:
+            error_abort( f"Unknown action: {action}",**configuration )
                 
 def configure_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
@@ -222,7 +227,7 @@ def configure_action( **kwargs : Any ) -> Optional[str]:
     else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
 
 def build_action( **kwargs : Any ) -> Optional[str]:
-    if ( system := configuration["BUILDSYSTEM"].lower() ) == "cmake":
+    if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
         return install.cmake_build( **kwargs )
     elif system == "autotools":
         return install.autotools_build( **kwargs )
