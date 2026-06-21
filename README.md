@@ -3,13 +3,21 @@
 Usage:
 
 ``` 
-mpm.py [ -c Configuration ] [ -t ] keywords
+mpm.py [ -c Configuration ] [ -t ] actions
 ```
 
-where keywords: `test download unpack configure build module`, 
+where actions: `test download unpack configure build module public`, 
 or `install` for `configure build module`.
 This can download, configure, install a package, 
 and generate LMod modules.
+
+## Environment
+
+To do anything with MrPackMod, some environment variables need to be set:
+
+- `PACKAGEROOT`: this is where sources are downloaded
+- `INSTALLROOT`: location where packages are installed
+- `MODULEROOT`: location where module files are installed
 
 ## Configuration file
 
@@ -29,6 +37,7 @@ Typical keys are
 PACKAGE = somepackage
 PACKAGEVERSION = 1.0.0
 ABOUT = This package is for something
+MODE = mpi
 BUILDSYSTEM = cmake
 CMAKEFLAGS = \
  -D FOO=ON \
@@ -48,6 +57,8 @@ SYSTEM==legacy SETTING=OFF
 
 with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
+
+A technical point: the `MODE` variable is used in generating log files, so it needs to come fairly high up in the configuration.
 
 ## Global settings
 
@@ -102,8 +113,14 @@ A subsequent `unpack` action unpacks the downloaded file and renames the result 
 
 ## Configure
 
-The `BUILDSYSTEM` setting can be `cmake` or `autotools`.
-Correspondingly, the `CMAKEFLAGS` and `CONFIGUREFLAGS` settings are used.
+The `BUILDSYSTEM` setting can be `cmake` or `autotools` 
+or `make` for packages that are stuck in the 1980s.
+(The setting `petsc` exists, only for the PETSc package.)
+
+Corresponding to the build system,
+the `CMAKEFLAGS` and `CONFIGUREFLAGS` settings are used.
+These should be used for package-specific options;
+a number of standard options are already provided.
 
 - CMake uses a number of default flags such as:
   - `-D CMAKE_BUILD_TYPE=RelWithDebInfo`. Override this with `CMAKEBUILDTYPE`.
@@ -134,7 +151,10 @@ MODULES = zlib hdf5
 ```
 
 where optionally version numbers can be attached: `hdf5/<2` or `hdf5/1.>12`.
-The `configure` and `build` actions tests for these modules to be loaded.
+The `configure` and `build` actions tests for these modules to be loaded
+and their `DIR/INC/LIB` variables to have correct values.
+Example: if `TACC_MYPACKAGE_INC` is set, it is tested
+whether the value is an existing directory.
 
 ### Module file
 
