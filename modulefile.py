@@ -187,12 +187,12 @@ f"""\
     return system_path_settings
 
 def module_version_script( pkgl : list[str],**kwargs : Any ) -> tuple[str,str]:
-    pkg : str = pkgl[0]
+    pkg : str = pkgl[0]; PKG : str = pkg.upper()
     return f"""
-if [ ! -z \"${{TACC_{pkg.upper()}_VERSION}}\" ] ; then
-    echo ${{TACC_{pkg.upper()}_VERSION}}
-elif [ ! -z \"${{TACC_{pkg.upper()}_VER}}\" ] ; then
-    echo ${{TACC_{pkg.upper()}_VER}}
+if [ ! -z "${{TACC_{PKG}_VERSION}}" ] ; then
+    echo ${{TACC_{PKG}_VERSION}}
+elif [ ! -z "${{TACC_{PKG}_VER}}" ] ; then
+    echo ${{TACC_{PKG}_VER}}
 else
     echo FAILURE No VER or VERSION macro for package {pkg}
 fi
@@ -231,7 +231,8 @@ def dependency_clauses( **kwargs: Any ) -> str:
     if curreq  := nonzero_keyword( "DEPENDSONCURRENT",**kwargs ):
         trace_string( f"depends on current versions of: {curreq}" )
         for cur in [ c for c in curreq.split(" ") if nonnull(c) ]:            
-            if isnull( version := get_module_version( cur,**kwargs ) ):
+            if isnull( version := get_module_version(
+                    cur,**kwargs ) ):
                 error_abort( f"Can not determine version of module {cur}",**kwargs )
             #version = ensure_module_version_loaded( cur,**kwargs )
             clauses += f"depends_on( \"{cur}/{version}\" )\n"

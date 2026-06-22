@@ -159,7 +159,7 @@ def mpm_action( action : str,**configuration ) -> None:
     elif action=="install":
         for a in ["configure","build","module","public",]:
             mpm_action(a,**configuration)
-    elif action in [ "configure", "build", "module", "public", ]:
+    elif action in [ "configure", "build", "public", ]:
         # VLE the `install' action should really be a loop over recursive calls
         # to prevent corruption of the install options
         install_options : dict = {
@@ -179,11 +179,6 @@ def mpm_action( action : str,**configuration ) -> None:
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
             install.post_install_actions(
                 **{ **configuration,**install_options} )
-        elif action=="module" and zero_keyword( "NOMODULE",**kwargs ):
-            install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
-            success,failure = install.write_module_file(
-                **{ **configuration,**install_options } )
-            report_success_failure( success,failure )
         elif action=="public":
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
             install.public_installation( 
@@ -191,6 +186,14 @@ def mpm_action( action : str,**configuration ) -> None:
             if zero_keyword( "NOMODULE",**kwargs ):
                 install.public_module( 
                     **{ **configuration,**install_options } )
+    elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
+        install_options : dict = {
+            "immediate_output":True,
+            "moduleloadstrategy":ModuleLoadStrategy.all
+        }
+        success,failure = install.write_module_file(
+            **{ **configuration,**install_options } )
+        report_success_failure( success,failure )
     elif action=="clean":
         clean_targets : str = \
             "*~ a.out *.log logfiles mpmscripts* *.out build* __pycache__"

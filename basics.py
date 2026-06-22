@@ -221,3 +221,4 @@ from enum import Enum,auto
 class ModuleLoadStrategy(Enum):
     prerequisites = auto()
     package = auto()
+    all = auto()

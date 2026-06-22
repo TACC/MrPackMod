@@ -246,18 +246,20 @@ def version_satisfies(
 #
 def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
     if ( strategy := kwargs.get("moduleloadstrategy") ) is not None:
+        package,packageversion =  package_names( **kwargs )
+        if nonnull(packageversion):
+            packagetoload = f"{package}/{packageversion}"
+            loadcomment = f"# Loading environment for package: {package}/{packageversion}"
+        else:
+            packagetoload = package
+            loadcomment = f"#Loading environment for package: {package}"
+        prereqmodules : str = package_prerequisites( **kwargs )
         if strategy==ModuleLoadStrategy.prerequisites:
-            modulestoload : str = package_prerequisites( **kwargs )
-            loadcomment : str = f"# Loading environment for prerequisites: {modulestoload}"
+            return prereqmodules,f"# Loading environment for prerequisites: {modulestoload}"
         elif strategy==ModuleLoadStrategy.package:
-            package,packageversion =  package_names( **kwargs )
-            if nonnull(packageversion):
-                modulestoload = f"{package}/{packageversion}"
-                loadcomment = f"# Loading environment for package: {package}/{packageversion}"
-            else:
-                modulestoload = package
-                loadcomment = f"#Loading environment for package: {package}"
-        return modulestoload,loadcomment
+            return packagetoload,loadcomment
+        elif strategy==ModuleLoadStrategy.all:
+            return f"{prereqmodules} {packagetoload}","Loading pkg and prereqs"
     else: 
         return "",""
 ##
@@ -265,7 +267,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
 ## return: value, or FAILURE string
 ##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
-                           args : list[Optional[str]],**kwargs : Any ) -> str:
+                           args : list[Optional[str]],**kwargs : Any ) -> Optional[str]:
     # Generate the meat of the script
     mainscript,scripttitle = script_function(args,**kwargs)
     scripttitle = remove_macros( scripttitle,**kwargs )
@@ -285,7 +287,8 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     # make a script that outputs to explicit file & terminal
     write_script_file( scriptfilename,outputfilename,
                        scripttitle,cleantitle,mainscript,**kwargs )
-    value = process_execute_immediate(
+    # not sure what this is. ignore?
+    processvalue : str = process_execute_immediate(
         execute_execute_script( scriptfilename,outputfilename,**kwargs ),
         **kwargs,title=scripttitle )
 
@@ -298,6 +301,8 @@ UNEXPECTED: {outputfilename} has no success/failure lines
     with open(outputfilename,"r") as results:
         for line in results:
             line = line.strip()
+            # we want to catch the last line
+            returnvalue : str = line
             if fail := re.match( r'FAILURE[:\s]*(.*)',line ):
                 msg = fail.groups()[0]
                 print( f"""\
@@ -311,9 +316,10 @@ see for details: {outputfilename}
     print( f"""\
 SUCCEEDED: {scripttitle}
 with: {msg}
+returning: {returnvalue}
 see for details: {outputfilename}
                 """ )
-    return value
+    return returnvalue
     
 def get_value_from_virgin( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str], **kwargs : Any ) -> str:
