@@ -255,7 +255,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
             loadcomment = f"#Loading environment for package: {package}"
         prereqmodules : str = package_prerequisites( **kwargs )
         if strategy==ModuleLoadStrategy.prerequisites:
-            return prereqmodules,f"# Loading environment for prerequisites: {modulestoload}"
+            return prereqmodules,f"# Loading environment for prerequisites: {prereqmodules}"
         elif strategy==ModuleLoadStrategy.package:
             return packagetoload,loadcomment
         elif strategy==ModuleLoadStrategy.all:

@@ -183,7 +183,7 @@ def mpm_action( action : str,**configuration ) -> None:
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
             install.public_installation( 
                 **{ **configuration,**install_options } )
-            if zero_keyword( "NOMODULE",**kwargs ):
+            if zero_keyword( "NOMODULE",**configuration ):
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
