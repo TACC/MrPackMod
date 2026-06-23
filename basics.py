@@ -89,24 +89,16 @@ def unimplemented( var: str ) -> None:
 def remove_macros( string : str,**kwargs : Any ) -> str:
     macro_search = re.compile( r'\${([a-zA-Z0-9_-]+)}' )
     while found_one := re.search( macro_search,string ):
-        name : str = found_one.groups()[0]
-        if ( val := kwargs.get(name) ) is not None:
-            string = re.sub( macro_search,str(val),string )
-        elif ( val := os.getenv(name) ) is not None:
-            print( f"got {name} from env as {val}" )
-            string = re.sub( macro_search,str(val),string )
+        macroname : str = found_one.groups()[0]
+        if ( macrovalue := kwargs.get(macroname) ) is not None:
+            string = re.sub( macro_search,str(macrovalue),string,1 )
+        elif ( macrovalue := os.getenv(macroname) ) is not None:
+            trace_string( f"got {macroname} from env as {macrovalue}",**kwargs )
+            string = re.sub( macro_search,str(macrovalue),string )
         else:
-            error_abort( f"No replacement found for <<{name}>> in\n{kwargs}",
+            error_abort( f"No replacement found for <<{macroname}>> in\n{kwargs}",
                          **kwargs )
     return string
-    # for key,val in valdict.items():
-    #     if not type(val) is str: continue
-    #     searchstring : str = f"${{{key}}}"
-    #     oldstring : str = string
-    #     string = re.sub( searchstring,val,string )
-    #     # if oldstring!=string:
-    #     #     trace_string( f"replace: {key} => {val}",**valdict )
-    # return string
 
 def clean_title( title : str,**kwargs : Any ) -> str:
     clean : str = re.sub("/",'-',re.sub(' ','_',title))

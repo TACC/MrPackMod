@@ -374,7 +374,7 @@ def autotools_build( **kwargs : Any ) ->str:
 def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     script : str = ""
     if premake := nonzero_keyword( "PREMAKE",**kwargs ):
-        premake = remove_macros( premake,kwargs )
+        premake = remove_macros( premake,**kwargs )
         trace_string( f"Using premake: {premake}",**kwargs )
         if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
             redirect : str = "1>&3" # This is copied from process.py. Generalize?
