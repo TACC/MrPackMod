@@ -245,12 +245,13 @@ def install_settings(
 ## Inspect loaded modules for integrity
 ## and insert their variables into the configuration dict
 ##
-def module_settings( config_dict: dict[str, Any], nowarn: bool = False ) -> None:
+def module_settings( config_dict: dict[str, Any],  ) -> None:
     mods : list[str] = \
         [ m for m,_ in
           loaded_modules( **config_dict, ) 
           + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
+    nowarn : bool = config_dict.get("nowarn")
     for module in mods:
         trace_string( f" .. settings from module: {module}",**config_dict )
         for ext in [ "dir", "inc", "lib", "bin", ]:
@@ -351,8 +352,7 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     install_settings     ( configuration_dict,rc_files,**output )
 
     # variables from installed modules
-    nowarn  : bool = kwargs.get("nowarn",False)
-    module_settings ( configuration_dict,nowarn=nowarn )
+    module_settings ( configuration_dict, )
     config_from_rc_files ( configuration_dict,**output )
 
     ##

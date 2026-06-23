@@ -56,12 +56,6 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         parser.print_help(); sys.exit(0)
     if tracing:
         print( f"Actions: {actions}" )
-    nowarn = any( [ action in [ "clean","configurelog","dependencies",
-                                "actions", "url", "show",
-                                "listmodules", "modules", "public", "version",
-                               ]
-                    for action in actions ] ) \
-                        or len(actions)==0 # help only
     configuration: dict[str, Any] = {
         'MODULES':"", 'mode':"seq",
         'PACKAGE':"all", 'PACKAGEVERSION':"",
@@ -71,10 +65,14 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'logfiles':{}, # name,handle pairs
         'startdir':os.getcwd(), 
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
+        'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
+                                      "actions", "url", "show",
+                                      "listmodules", "modules", "public", "version",
+                                     ]
+                          for action in actions ] ) or len(actions)==0,
     }
     not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
     read_config( configuration,configfile,
-                 nowarn=nowarn,
                  # test_stage mechanism is used here, but is missing some info
                  # so we set dummy values
                  no_home=not_create_home,PACKAGE="setup",PACKAGEVERSION="0.0"
@@ -120,7 +118,7 @@ def mpm_action( action : str,**configuration ) -> None:
     elif action=="logfiles":
         info.list_logfiles( **configuration )
     elif action=="configurelog":
-        logfile = info.configurelog_name( **configuration,nowarn=True )
+        logfile = info.configurelog_name( **configuration, )
         print( logfile )
     elif action=="show":
         try:

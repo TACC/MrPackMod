@@ -88,6 +88,7 @@ def unimplemented( var: str ) -> None:
 
 def remove_macros( string : str,**kwargs : Any ) -> str:
     macro_search = re.compile( r'\${([a-zA-Z0-9_-]+)}' )
+    nowarn : bool = kwargs.get("nowarn")
     while found_one := re.search( macro_search,string ):
         macroname : str = found_one.groups()[0]
         if ( macrovalue := kwargs.get(macroname) ) is not None:
@@ -96,8 +97,13 @@ def remove_macros( string : str,**kwargs : Any ) -> str:
             trace_string( f"got {macroname} from env as {macrovalue}",**kwargs )
             string = re.sub( macro_search,str(macrovalue),string )
         else:
-            error_abort( f"No replacement found for <<{macroname}>> in\n{kwargs}",
-                         **kwargs )
+            if nowarn:
+                # replace macro by its name.
+                # VLE maybe we should completely avoid this routine
+                string = re.sub( macro_search,macroname,string,1 )
+            else:
+                error_abort( f"No replacement found for <<{macroname}>> in\n{kwargs}",
+                             **kwargs )
     return string
 
 def clean_title( title : str,**kwargs : Any ) -> str:
