@@ -98,18 +98,18 @@ package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
         # Actual actions
-        mpm_action( action,**configuration )
-def mpm_action( action : str,**configuration ) -> None:
+        mpm_action( action,arguments,**configuration )
+def mpm_action( action : str,arguments,**configuration ) -> None:
     if False:
         return None
     # auxiliaries
     elif action=="dependencies":
         print( configuration['MODULES'] )
     elif action=="find_string":
-        if args := nonnull( command_arguments ):
+        if args := nonnull( arguments.args ):
             srcdir = names.srcdir_name( **configuration )
             process_execute\
-                ( f"find {srcdir} -type f -exec grep "+command_arguments+" {} \\; -print",
+                ( f"find {srcdir} -type f -exec grep "+arguments.args+" {} \\; -print",
                   **configuration )
         else:
             echo_string( f"WARNING: find_string command needs --args",**configuration )
@@ -208,8 +208,8 @@ def mpm_action( action : str,**configuration ) -> None:
         screen_report_action(action,**configuration)
         #do_config_tests( installing=False,**configuration,no_home=True )
         regression.do_tests\
-            ( match=arguments.match,filter=arguments.filter,logdir="./logfiles",
-              **configuration )
+            ( match=arguments.match,filter=arguments.filter,
+              logdir="./logfiles",**configuration )
     else:
         if action in build_actions+context_actions+package_actions+utility_actions:
             error_abort( f"Action promised in help but not implemented: {action}", **configuration )
