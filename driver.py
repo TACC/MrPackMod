@@ -83,6 +83,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         if action=="help":
             parser.print_help(); sys.exit(0)
         mpm_action( action,arguments,**configuration )
+
 def mpm_action( action : str,arguments,**configuration ) -> None:
     # what are the possible actions
     file_actions: str = configuration.get( "file_actions" ) or ""
@@ -157,7 +158,7 @@ utility_actions : {utility_actions}
     # build stuff
     elif action=="install":
         for a in ["configure","build","module","public",]:
-            mpm_action(a,**configuration)
+            mpm_action(a,arguments,**configuration)
     elif action in [ "configure", "build", "public", ]:
         # VLE the `install' action should really be a loop over recursive calls
         # to prevent corruption of the install options

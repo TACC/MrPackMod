@@ -221,7 +221,8 @@ def do_existence_test(
     if ( program := run_config.pop("program") ) is None:
         error_abort( "Need program parameter",**kwargs )
     testtitle   = run_config.pop("title") # need to remove because we pass a new title below
-    echo_string( f"\nTEST: {testtitle}",**kwargs )
+    print( f"\nTEST: {testtitle}" )
+    echo_string( f"\nTEST: {testtitle}",**kwargs, )
     dirtype = run_config.get("dirtype","")
     grep    = run_config.get("grep")
     executable = run_config.get("executable")
@@ -344,7 +345,7 @@ def do_cmake_test(
         cmake_configure_script,prog_and_dirs,
         **{ **kwargs,**output,
             'pkgconfig':"yes", 'cmakeconfig':"yes" } )
-    failed : bool = ( re.match( 'FAILURE',res ) is not None )
+    failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
             cmake_build_script,prog_and_dirs,**kwargs,**output )

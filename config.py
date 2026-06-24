@@ -4,7 +4,7 @@
 import re
 import os
 import sys
-from typing import Any, Tuple
+from typing import Any,Optional,Tuple
 
 #
 # my modules
@@ -61,71 +61,86 @@ def add_settings_from_config(
     with open(configfile,"r") as configuration_file:
         trace_string( f"Read configuration: {configfile}",**config_dict,**output )
         saving: bool = False
+        totalline : str = ""
         for line in configuration_file.readlines():
-            line = line.strip()
-            if re.match( r'let ',line ):
-                error_abort( f"obsolete syntax: <<{line}>>",**config_dict,**output )
+            line = line.strip("\n")
+
             # ignore comments and blank lines
             if re.match( r'^\s*#',     line ): continue
             if re.match( r'^[ \t]*$',line ): continue
-            # detect and strip conditionals, return acceptability & line to process
-            line = remove_macros( line,**config_dict )
-            line,accept = line_strip_conditionals( line,**config_dict,**output )
-            if not accept: continue
-            if False:
-                continue
-            elif re.match( r'exit',line ): break
-            elif re.match( r'return',line ): break
-            elif callitaday := re.match( r'\s*abort\s+(.*)$',line ):
-                if nonnull( msg := callitaday.groups()[0] ):
-                    print( f"\n{msg}\n" )
-                sys.exit(1)
-            elif include := re.search( r'^\s*include\s+(.+)$',line ):
-                includefile = include.groups()[0]
-                trace_string( f"Include file: {includefile}",**config_dict,**output )
-                add_settings_from_config( includefile,config_dict )
-            elif export := re.search( r'export\s+(.+)$',line ):
-                line = remove_macros( line,**config_dict )
-                trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
-                config_dict["exports"].append(line)
-            elif unset := re.search( r'unset\s+(.+)$',line ):
-                line = remove_macros( line,**config_dict )
-                trace_string( f"Adding unset: <<{line}>>",**config_dict,**output )
-                config_dict["unsets"].append(line)
-            elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
-                # definition line
-                key,assign,val = keyval.groups()
-                if assign in [ "+=","*=" ]:
-                    trace_string( f" .. addition {key} {assign} {val}",
-                                  **config_dict,**output )
-                else:
-                    trace_string( f" .. assignment {key} {assign} {val}",
-                                  **config_dict,**output )
-            elif saving:
-                # continuation:
-                # we inherit key from the previous iteration
-                # we also inherit val & extend it with the current line
-                trace_string( f" .. building up key={key} with: {line}",**output )
-                val += line
-            else:
-                raise Exception( f"Can not parse: <<{line}>>\nin: {configfile}" )
-            if re.search( r'\\$',val ):
+
+            if saving:
+                trace_string( f" .. building up line with: {line}",**output )
+                totalline += " "+line
+            else: totalline = line
+
+            if re.search( r'\\$',totalline ):
                 # if the, possibly compounded, line is still to be continued:
-                val = val.strip( r'\\' )
+                totalline = totalline.strip( r'\\' )
                 saving = True
                 continue
             else:
-                saving = False # time to add a value to the dict
-                if re.match( r'exit',line ) or re.match( r'return',line ): break
-                if key in derived_setting_triggers:
-                    #print( f"derived settings because key={key}\nsettings so far: {config_dict}" )
-                    set_derived_settings( config_dict,**output )
-                if envval := nonzero_env( key,**config_dict ):
-                    # override with environment if specified
-                    add_new_dict_item( key,assign,envval,config_dict,**output )
-                else:
-                    # use value deduced from file
-                    add_new_dict_item( key,assign,val,config_dict,**output )
+                status : str = process_total_line( totalline,configfile,config_dict,**output )
+                if status is None:
+                    raise Exception( f"Can not parse: <<{line}>>\nin: {configfile}" )
+                elif status=="exit" : break
+                saving = False ; totalline = ""
+
+def process_total_line( line : str,configfile : str,
+                        config_dict : dict[str,Any],**output : Any ) -> Optional[str]:
+    trace_string( f"Processing line  : {line}",**{ **config_dict,**output } )
+    line,accept = line_strip_conditionals( line,**config_dict,**output )
+    if not accept: return "reject"
+    trace_string( f" .. unconditional: {line}",**{ **config_dict,**output } )
+
+    # detect and strip conditionals, return acceptability & line to process
+    line = remove_macros( line,**config_dict )
+    trace_string( f" .. expanded     : {line}",**{ **config_dict,**output } )
+    if re.match( r'exit',line )  : return "exit"
+    if re.match( r'return',line ): return "return"
+    if callitaday := re.match( r'\s*abort\s+(.*)$',line ):
+        if nonnull( msg := callitaday.groups()[0] ):
+            print( f"\n{msg}\n" )
+            sys.exit(1)
+    if include := re.search( r'^\s*include\s+(.+)$',line ):
+        includefile = include.groups()[0]
+        trace_string( f"Include file: {includefile}",**config_dict,**output )
+        add_settings_from_config( includefile,config_dict )
+        return "normal"
+    elif export := re.search( r'export\s+(.+)$',line ):
+        trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
+        config_dict["exports"].append(line)
+        return "normal"
+    elif unset := re.search( r'unset\s+(.+)$',line ):
+        trace_string( f"Adding unset: <<{line}>>",**config_dict,**output )
+        config_dict["unsets"].append(line)
+        return "normal"
+    elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
+        process_key_setting( keyval.groups(),config_dict,**output )
+        return "normal"
+    else: return None
+
+##
+## We have determined a variable assignment
+##
+def process_key_setting( keyval,config_dict,**output ):
+    key,assign,val = keyval
+    if assign in [ "+=","*=" ]:
+        type : str = "addition"
+    else: type = "assignment"
+    trace_string( f" .. {type} {key} {assign} {val}",**{ **config_dict,**output } )
+
+    # start generating compiler/mpi stuff names
+    if key in derived_setting_triggers:
+        #print( f"derived settings because key={key}\nsettings so far: {config_dict}" )
+        set_derived_settings( config_dict,**output )
+
+    if envval := nonzero_env( key,**config_dict ):
+        # override with environment if specified
+        add_new_dict_item( key,assign,envval,config_dict,**output )
+    else:
+        # use value deduced from file
+        add_new_dict_item( key,assign,val,config_dict,**output )
 
 def setting_from_env_or_rc( name: str, env: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
     val : str = ""
