@@ -59,7 +59,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'startdir':os.getcwd(), 
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
         'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
-                                      "actions", "url", "show",
+                                      "actions", "url", "show", "test",
                                       "listmodules", "modules", "public", "version",
                                      ]
                           for action in actions ] ) or len(actions)==0,

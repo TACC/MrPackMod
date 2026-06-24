@@ -83,7 +83,7 @@ def add_settings_from_config(
                 status : str = process_total_line( totalline,configfile,config_dict,**output )
                 if status is None:
                     raise Exception( f"Can not parse: <<{line}>>\nin: {configfile}" )
-                elif status=="exit" : break
+                elif status in ["exit","return"] : break
                 saving = False ; totalline = ""
 
 def process_total_line( line : str,configfile : str,
