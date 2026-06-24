@@ -53,8 +53,8 @@ def start_test_stage(
         **kwargs: dict[str, Any],
         ) -> OutputDict:
 
-    title      : str  = kwargs.get("title","notitle")
-    package    : str  = kwargs.get("package","nopackage")
+    title      : str  = str( kwargs.get("title","notitle") )
+    package    : str  = str( kwargs.get("package","nopackage") )
     linedisplay = kwargs.pop("linedisplay",echo_string)
 
     # Create log file for this test stage, and add it to the stack of logfiles, write header
@@ -68,6 +68,7 @@ def start_test_stage(
     # Create a process for the commands of this test stage
     output : OutputDict = {
         "logfile"     : logname, # full path, so we don't need logdir separately
+        #"logdir"      : scriptsdir,
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,

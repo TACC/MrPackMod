@@ -5,7 +5,7 @@
 #
 import os
 import re
-from typing import Any
+from typing import Any,Optional
 
 #
 # my own modules
@@ -153,13 +153,13 @@ git checkout {commit}
         """
     return script,"clone pull repo"
 
-def clone_or_pull( **kwargs: Any ) -> str:
+def clone_or_pull( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "git",
             **{ **kwargs, "title":"git clone pull","installing":True }
             )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         clone_pull_script,[],**kwargs,**output, )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval

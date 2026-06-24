@@ -145,14 +145,14 @@ fi
     script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
-def cmake_configure( **kwargs: Any ) -> str:
+def cmake_configure( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"cmake configure", }
             )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -205,7 +205,7 @@ fi
         """
     return script,"CMake make and install"
 
-def cmake_build( **kwargs: Any ) -> str:
+def cmake_build( **kwargs: Any ) -> Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
@@ -213,7 +213,7 @@ def cmake_build( **kwargs: Any ) -> str:
             "build",
             **{ **kwargs,"title":"cmake build", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -294,13 +294,13 @@ fi
     return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
 
     
-def autotools_configure( **kwargs : Any ) -> str:
+def autotools_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"autotools configure", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -352,7 +352,7 @@ cd {subdir}
 
     return script,"Autotools make and install"
 
-def autotools_build( **kwargs : Any ) ->str:
+def autotools_build( **kwargs : Any ) ->Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
@@ -360,7 +360,7 @@ def autotools_build( **kwargs : Any ) ->str:
             "build",
             **{ **kwargs,"title":"autotools build", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -387,13 +387,13 @@ echo "Doing premake in $(pwd)"
         """
     return script,"Make setup"
 
-def make_configure( **kwargs : Any ) -> str:
+def make_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"make configure", } )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -420,13 +420,13 @@ make -j {jcount} {targets}
 
     return script,"Make build install"
 
-def make_build( **kwargs : Any ) -> str:
+def make_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "build",
             **{ **kwargs,"title":"make build", } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         make_build_script,[ srcdir,prefixdir],
         **kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -452,13 +452,13 @@ python3 ./configure \
     """
     return script,"Make setup"
 
-def petsc_configure( **kwargs : Any ) -> str:
+def petsc_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"petsc configure", } )
     srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -478,12 +478,12 @@ make -j {jcount} install
     """
     return script,"Make build"
 
-def petsc_build( **kwargs : Any ) -> str:
+def petsc_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
             "build",
             **{ **kwargs,"title":"make build", } )
-    retval : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -510,14 +510,14 @@ cp -r {cptoinstall} {prefixdir}
     """
     return script,"Post-install copy actions"
 
-def post_install_actions( **kwargs ) -> str:
+def post_install_actions( **kwargs ) -> Optional[str]:
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
         srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
         output : OutputDict = \
             start_test_stage(
                 "actions",
                 **{ **kwargs,"title":"post-install actions", } )
-        retval : str = get_value_from_loaded(
+        retval : Optional[str] = get_value_from_loaded(
             post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
         success,failure = end_test_stage( [],[],output,**kwargs )
         return retval

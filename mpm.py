@@ -30,7 +30,7 @@ parser.add_argument( '-A','--args',default="" )
 file_actions: str = "download unpack retar clone pull"
 build_actions: str = "configure build module public"
 context_actions: str = "dependencies listmodules test"
-package_actions: str = "version url configurelog logfiles"
+package_actions: str = "package version url configurelog logfiles"
 utility_actions: str = "actions clean regression"
 parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 

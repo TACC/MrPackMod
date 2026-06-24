@@ -38,16 +38,9 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     dependencies = arguments.dependencies
     find_string  = arguments.find_string
     jcount       = arguments.jcount
-    displayvar   = arguments.var
     tracing      = arguments.trace
     command_arguments = arguments.args
 
-    file_actions: str = kwargs.get( "file_actions" ) or ""
-    build_actions: str = kwargs.get( "build_actions" ) or ""
-    context_actions: str = kwargs.get( "context_actions" ) or ""
-    package_actions: str = kwargs.get( "package_actions" ) or ""
-    utility_actions: str = kwargs.get( "utility_actions" ) or ""
-    
     ##
     ## what actions are we performing?
     ##
@@ -87,22 +80,27 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
     for action in actions:
         if tracing:
             print( f"Action: {action}" )
-        # informative
         if action=="help":
             parser.print_help(); sys.exit(0)
-        elif action=="actions":
-            print( f"""file_actions: {file_actions}
+        mpm_action( action,arguments,**configuration )
+def mpm_action( action : str,arguments,**configuration ) -> None:
+    # what are the possible actions
+    file_actions: str = configuration.get( "file_actions" ) or ""
+    build_actions: str = configuration.get( "build_actions" ) or ""
+    context_actions: str = configuration.get( "context_actions" ) or ""
+    package_actions: str = configuration.get( "package_actions" ) or ""
+    utility_actions: str = configuration.get( "utility_actions" ) or ""
+    
+    # informative
+    if action=="actions":
+        print( f"""\
+file_actions: {file_actions}
 build_actions   : {build_actions}
 context_actions : {context_actions}
 package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
-        # Actual actions
-        mpm_action( action,arguments,**configuration )
-def mpm_action( action : str,arguments,**configuration ) -> None:
-    if False:
-        return None
-    # auxiliaries
+    # Auxiliary actions
     elif action=="dependencies":
         print( configuration['MODULES'] )
     elif action=="find_string":
@@ -113,6 +111,8 @@ def mpm_action( action : str,arguments,**configuration ) -> None:
                   **configuration )
         else:
             echo_string( f"WARNING: find_string command needs --args",**configuration )
+    elif action=="package":
+        print( configuration.get("PACKAGE","PACKAGE variable not set") )
     elif action=="list":
         info.list_installations( **configuration )
     elif action=="logfiles":
@@ -121,6 +121,7 @@ def mpm_action( action : str,arguments,**configuration ) -> None:
         logfile = info.configurelog_name( **configuration, )
         print( logfile )
     elif action=="show":
+        displayvar : str = arguments.displayvar
         try:
             print( configuration[displayvar] )
         except:
@@ -185,7 +186,7 @@ def mpm_action( action : str,arguments,**configuration ) -> None:
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
-        install_options : dict = {
+        install_options = {
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.all
         }

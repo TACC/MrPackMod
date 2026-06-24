@@ -251,7 +251,7 @@ def module_settings( config_dict: dict[str, Any],  ) -> None:
           loaded_modules( **config_dict, ) 
           + [ ["mkl",""], ["nvpl",""] ] ]
     trace_string( f"Setting variables from modules:\n{mods}",**config_dict )
-    nowarn : bool = config_dict.get("nowarn")
+    nowarn : bool = config_dict.get("nowarn") is not None
     for module in mods:
         trace_string( f" .. settings from module: {module}",**config_dict )
         for ext in [ "dir", "inc", "lib", "bin", ]:

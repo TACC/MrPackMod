@@ -169,7 +169,7 @@ def do_ldd_test(
             )
     # are library dependencies satisfied?
     prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
-    res = get_value_from_loaded(
+    res : Optional[str] = get_value_from_loaded(
         ldd_script,prog_and_dirs,**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     return success,failure
@@ -250,7 +250,7 @@ def do_existence_test(
             **{ **kwargs,**run_config, # weird construct to placate mypy
                 "title":f"{testtitle}, existence test","package":program_clean, }
             )
-    res : str = get_value_from_loaded(
+    retval : Optional[str] = get_value_from_loaded(
         file_to_exist_script,[package,dirtype,program,grep,executable],
         **{ **kwargs,**output} )
     success,failure = end_test_stage( success,failure,output,**kwargs )
@@ -275,9 +275,9 @@ def do_existence_test(
     if do_run:
         rundata : RundataDict = {
             "programname":program, 
-            "runprefix"  : run_config["run_prefix"],
-            "rundir"     : filedir if run_config["run_in_dir"] else None,
-            "runargs"    : run_config["run_args"],
+            "runprefix"  : run_config.get("run_prefix"),
+            "rundir"     : run_config.get("run_in_dir"),
+            "runargs"    : run_config.get("run_args"),
             "builddir"   : None
         }
         success,failure = do_run_test(
@@ -292,13 +292,13 @@ def do_run_test( title : str,rundata : RundataDict,
     output = start_test_stage(
         "run",
         **{ **kwargs,"title":f"{title}, run","package":programname } )
-    res = get_value_from_loaded(
+    res : Optional[str] = get_value_from_loaded(
         run_script,
         # VLE so what's the point of having this dct?
         [ rundata["programname"],rundata["runprefix"],rundata["rundir"],rundata["runargs"] ],
         **{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
-    if returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ):
+    if ( res is not None ) and ( returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ) ):
         outputval = returnval.groups()[0]
         #print( f"success output: {outputval}" )
         if testvalue := kwargs.get("testvalue"):
@@ -340,15 +340,15 @@ def do_cmake_test(
             **{ **kwargs,
                 "title":f"{title}, cmake/make stage","package":programname, }
             )
-    res : str = get_value_from_loaded(
+    res : Optional[str] = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,
-        **kwargs,**output,
-        pkgconfig="yes",cmakeconfig="yes" )
+        **{ **kwargs,**output,
+            'pkgconfig':"yes", 'cmakeconfig':"yes" } )
     failed : bool = ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
             cmake_build_script,prog_and_dirs,**kwargs,**output )
-        failed = ( re.match( 'FAILURE',res ) is not None )
+        failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
