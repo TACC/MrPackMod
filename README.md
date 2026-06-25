@@ -28,7 +28,6 @@ The configuration file contains lines:
 ```
 # comment
 key = value
-let keymacro = value
 ```
 
 Typical keys are
@@ -48,6 +47,10 @@ DOWNLOADURL = https://github.com/SomePackage/v${PACKAGEVERSION}.tar.gz
 Each keyword can later be used as a macro,
 as is illustrated here for `PACKAGEVERSION`.
 
+A line can be continued by escaping the line end. 
+Please don't continue a comment line with a non-comment
+or the other way around.
+
 There is a modest conditional facility:
 
 ```
@@ -59,6 +62,26 @@ with equality and inequality the only available tests.
 Both sides of the comparison can be literal or configuration keys.
 
 A technical point: the `MODE` variable is used in generating log files, so it needs to come fairly high up in the configuration.
+
+### Configuration include files
+
+If you have multiple configurations (for instance cpu & gpu variants)
+that have mnany settings in common, you can use an `include` directive:
+
+```
+include Configuration.common
+```
+
+There are more file directives:
+
+- `abort` will abort the MrPackMod process. Example:
+
+```
+COMPILER=gcc abort GCC compilation fails
+```
+
+- `exit` and `return` finish processing the configuration file,
+and return to any outer calling configuration.
 
 ## Global settings
 
@@ -151,10 +174,19 @@ MODULES = zlib hdf5
 ```
 
 where optionally version numbers can be attached: `hdf5/<2` or `hdf5/1.>12`.
-The `configure` and `build` actions tests for these modules to be loaded
+The `configure` and `build` actions test for these modules to be loaded
 and their `DIR/INC/LIB` variables to have correct values.
 Example: if `TACC_MYPACKAGE_INC` is set, it is tested
 whether the value is an existing directory.
+
+The prerequisite modules can be constructed piecemeal:
+
+```
+COMPILER==gcc MODULES += mkl
+```
+
+(In addition to `+=`, there is also `*=` which 
+performs string concatenation without any spaces.
 
 ### Module file
 
@@ -182,7 +214,7 @@ By default, the module will have variables for an include and lib directory.
 
 If the include directory is non-standard, specify `INCLUDELOC = share/include` or so.
 
-Depending on inscrutable cmake mechanisms, the library dir can be `lib` or `lib64`. Mpm searches for either and sets the variable accordingly.
+Depending on inscrutable cmake mechanisms, the library dir can be `lib` or `lib64`. Mpm searches for either and sets the `LIB` variable accordingly.
 
 The `INCLUDE`, `PATH`, `LD_LIBRARY_PATH` variables are updated accordingly.
 
