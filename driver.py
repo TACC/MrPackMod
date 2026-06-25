@@ -188,8 +188,11 @@ utility_actions : {utility_actions}
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
         install_options = {
-            "immediate_output":True,
-            "moduleloadstrategy":ModuleLoadStrategy.all
+            "immediate_output":False,
+            # VLE we need to be able to get the version of prereqs
+            # for dependency clauses. Do we also need to be able to
+            # load the package itself?
+            "moduleloadstrategy":ModuleLoadStrategy.prerequisites #package
         }
         success,failure = install.write_module_file(
             **{ **configuration,**install_options } )
