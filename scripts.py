@@ -234,6 +234,8 @@ function testmoduleproper () {
         eval cmpdir=\\${$nam}
         if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
             echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
+        else
+            echo "${nam}=${cmpdir}"
         fi
     done
 }

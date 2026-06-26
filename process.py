@@ -377,21 +377,3 @@ if [ $? -gt 0 ] ; then
 fi
     """
     return script
-
-##
-## Return directory, actual file name & name with LMOD variable unexpanded
-##
-def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
-    if dirtype in [ "dir","inc","lib","bin", ]:
-        dirvar : str = dir_variable(package,dirtype)
-        filedir_to_report :str = f"${{{dirvar}}}"
-    else:
-        filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
-    filedir        : str = remove_macros( filedir_to_report,**kwargs )
-    file_to_test   : str = f"{filedir}/{program}"
-    file_to_report : str = f"{filedir_to_report}/{program}"
-    return filedir,file_to_test,file_to_report
-
-def dir_variable( package: str, dirtype: str = "dir" ) -> str:
-    return f"TACC_{package.upper()}_{dirtype.upper()}"
-

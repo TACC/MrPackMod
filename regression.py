@@ -11,15 +11,14 @@ import shutil
 import sys
 from typing import Any,Optional,TypedDict
 
-from MrPackMod.basics  import clean_title,\
+from MrPackMod.basics  import clean_title,remove_macros,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword,\
     line_strip_conditionals,ModuleLoadStrategy
 from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name
 from MrPackMod.process import process_execute, process_initiate, \
-    create_dir,ensure_dir,get_value_from_loaded,\
-    file_to_exist_names
+    create_dir,ensure_dir,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
@@ -71,10 +70,12 @@ def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
     title : str = f"Test existence of {package} in {dirtype}"
     filedir,file_to_test,file_to_report = file_to_exist_names(package,dirtype,program,**kwargs)
     script : str = f"""
+echo "{title}"
 if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
     echo ' .. directory {filedir} exists'
 else 
     echo 'FAILURE: {filedir} does not exist'
+    exit 1
 fi
 
 if [ -f \"{file_to_test}\" ] ; then
@@ -102,6 +103,26 @@ if [ -f \"{file_to_test}\" ] ; then
 fi
         """
     return script,title
+
+##
+## Return directory, actual file name & name with LMOD variable unexpanded
+##
+def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
+    if isnull(dirtype) or dirtype=="dir":
+        dirvar : str = dir_variable(package,"dir")
+        filedir_to_report : str = f"${{{dirvar}}}"
+    elif dirtype in [ "inc","lib","bin", ]:
+        dirvar = dir_variable(package,dirtype)
+        filedir_to_report = f"${{{dirvar}}}"
+    else:
+        filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
+    filedir        : str = remove_macros( filedir_to_report,**kwargs )
+    file_to_test   : str = f"{filedir}/{program}"
+    file_to_report : str = f"{filedir_to_report}/{program}"
+    return filedir,file_to_test,file_to_report
+
+def dir_variable( package: str, dirtype: str = "dir" ) -> str:
+    return f"TACC_{package.upper()}_{dirtype.upper()}"
 
 ##
 ## Add lines to a process for testing the existence of a file
@@ -223,13 +244,9 @@ def do_existence_test(
     testtitle   = run_config.pop("title") # need to remove because we pass a new title below
     print( f"\nTEST: {testtitle}" )
     echo_string( f"\nTEST: {testtitle}",**kwargs, )
-    dirtype = run_config.get("dirtype","")
+    dirtype = run_config.get("dirtype")
     grep    = run_config.get("grep")
     executable = run_config.get("executable")
-
-    # VLE these lines are also in file_to_exist_script
-    # filedir,_,_ = file_to_exist_names( package,dirtype,program, **kwargs )
-    # run_config["run_dir"] = filedir
 
     run_config["chdir"]   = create_dir( "build",**kwargs )
 
