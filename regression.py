@@ -15,11 +15,11 @@ from MrPackMod.basics  import clean_title,remove_macros,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword,\
     line_strip_conditionals,ModuleLoadStrategy
-from MrPackMod.install import cmake_options,cmake_configure_script,cmake_build_script
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded
-from MrPackMod.scripts import export_compilers_script
+from MrPackMod.scripts import export_compilers_script,\
+    cmake_configure_script,cmake_build_script,make_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
@@ -242,7 +242,7 @@ def do_existence_test(
     if ( program := run_config.pop("program") ) is None:
         error_abort( "Need program parameter",**kwargs )
     testtitle   = run_config.pop("title") # need to remove because we pass a new title below
-    print( f"\nTEST: {testtitle}" )
+    #print( f"\nTEST: {testtitle}" )
     echo_string( f"\nTEST: {testtitle}",**kwargs, )
     dirtype = run_config.get("dirtype")
     grep    = run_config.get("grep")
@@ -329,7 +329,7 @@ def do_cmake_test(
 
     #parsed_options
     run_config : dict = parse_command( test_definition,**kwargs )
-    trace_string( f"Existence test options: {run_config}",**kwargs )
+    trace_string( f"CMake test options: {run_config}",**kwargs )
     if ( program  := run_config.get("program") ) is None:
         error_abort( "Expecting program parameter",**kwargs )
     title     = run_config.pop("title") # need to remove because we pass a new title below
@@ -346,8 +346,7 @@ def do_cmake_test(
     cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
     prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,cmakeprefixdir]
 
-    success : list[str] = []
-    failure : list[str] = []
+    success : list[str] = []; failure : list[str] = []
 
     #
     # Cmake & compile
@@ -365,7 +364,7 @@ def do_cmake_test(
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
-            cmake_build_script,prog_and_dirs,**kwargs,**output )
+            cmake_build_script,prog_and_dirs,**{ **kwargs,**output } )
         failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
@@ -400,43 +399,41 @@ def do_cmake_test(
 
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
-    failure : list[str] = []; success : list[str] = []
-    run_config : dict = parse_command( test_definition,**kwargs )
-    try :
-        program = run_config["program"]
-        title   = run_config["title"]
-        do_run  = run_config["do_run"]
-    except KeyError:
-        error_abort( "Did not find program/title/do_run",**kwargs )
 
-    if name_ext := re.search( r'^(.+)\.(.+)$',program ):
-        name,ext = name_ext.groups()
+    # parsed options
+    run_config : dict = parse_command( test_definition,**kwargs )
+    trace_string( f"Make test options: {run_config}",**kwargs )
+    if ( program  := run_config.get("program") ) is None:
+        error_abort( "Expecting program parameter",**kwargs )
+    title     = run_config.pop("title") # need to remove because we pass a new title below
+    do_run    = run_config.get("do_run")
+    testvalue = run_config.get("test_value")
+
+    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+        programname,programext = name_ext.groups()
     else:
-        error_abort( f"program <<{program}>> can not be parsed as name.ext",**kwargs )
-    logdir : str = ensure_dir( "logfiles",**kwargs )
-    builddir : str = create_dir( "build",**kwargs )
+        error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+
+    programsrcdir    : str = os.getcwd()+"/"+programext
+    programbuilddir  : str = create_dir( "build",**kwargs )
+    prefixdir        : str = "" # for testing it's enough to have the result in `build'
+    prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,prefixdir]
+
+    success : list[str] = []; failure : list[str] = []
 
     #
-    # compilation
+    # Make compilation
     #
     output : OutputDict = \
         start_test_stage(
-            "compile",
+            "make compile",
             **{ **kwargs,
-                "package":name,"installing":False, }
+                "title":f"{title}, make stage","package":programname, }
             )
-    # set up for make
-    compiler_exports,_ = export_compilers_script( [],**kwargs,**output )
-    cmakeflags = cmake_options( **kwargs )
-    process_execute\
-        ( f"{compiler_exports} && make -f ../{ext}/Makefile SRCDIR=../{ext} PROJECTNAME={name} {name}",
-          **kwargs,**output )
-    process_execute( f"make", **kwargs,**output )
+    res : Optional[str] = get_value_from_loaded(
+        make_build_script,prog_and_dirs,**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
-    if os.path.exists( f"{builddir}/{name}" ):
-        success.append( f"executable <<{name}>> created" )
-    else:
-        failure.append( f"Failed to create executable <<{name}>>" )
+    return success,failure
 
     #
     # execution

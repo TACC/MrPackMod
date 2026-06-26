@@ -4,6 +4,7 @@
 ####
 ################################################################
 
+import os
 import re
 
 from MrPackMod.basics  import module_version_from_env,\
@@ -13,7 +14,7 @@ from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core
 
-from typing import Any
+from typing import Any,Optional
 
 def compilers_flags( **kwargs: Any ) -> dict[str, str]:
     flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
@@ -310,4 +311,210 @@ function modulelist ()
     done
 }
         """
+
+##
+## Now the big scripts!
+##
+
+################################################################
+####
+#### CMake
+####
+################################################################
+
+def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+
+    script : str = ""
+    # setup
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    if unset_cmdline := nonzero_unsets( **kwargs ):
+        script += f"\n{unset_cmdline}\n"
+
+    # cmake
+    cmake = cmake_basic_command( **kwargs )
+    cmakeflags = cmake_options( **kwargs )
+    buildsettings = cmake_build_settings( **kwargs )
+    # set src, build, prefix
+    pathsettings = cmake_paths_settings( cmakedirs,**kwargs )
+    # for the regression case only: define project macro
+    if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
+    script += f"""
+cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
+echo Doing cmake in pwd=${{PWD}}
+echo .... cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
+eval $cmdline
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: configure succeeded
+else
+    echo FAILURE: cmake failed
+fi
+    """
+    # VLE I can't get newlines in this script. Hm.
+    script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
+    return script,"CMake configuring"
+
+def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+    # flags and options
+    jcount          : str = kwargs.get("jcount","6")
+    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
+    makebuildtarget : str = kwargs.get("makebuildtarget","")
+    # execute make & make install
+    trace_string( f"Making in builddir: {builddir}",**kwargs )
+    if ninja := kwargs.get( "CMAKEUSENINJA" ):
+        makeline = f"ninja install"
+    else:
+        makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
+    script : str = f"""
+if [ ! -d "{builddir}" ] ; then
+    echo "FAILURE: no such build dir: {builddir}"
+    exit  1
+else
+    echo "entering builddir: {builddir}"
+fi
+cd {builddir}
+
+if [ ! -f makefile -a ! -f Makefile ] ; then
+    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
+    exit 1
+fi
+{makeline}
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: compilation succeeded
+else
+    echo FAILURE: compilation failed
+fi
+    """
+    if extra_targets := nonzero_keyword( "extrabuildtargets" ):
+        script += f"""
+{make} {extra_targets}
+        """
+    if nonnull(prefixdir) and not ninja:
+        script += f"""
+{make} install
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: installation succeeded
+else
+    echo FAILURE: installation failed
+fi
+        """
+    return script,"CMake make and install"
+
+def cmake_basic_command( **kwargs : Any ) -> str:
+    cmake : str = kwargs.get( "CMAKENAME","cmake" )
+    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
+        cmake = f"{cmake} -G Ninja"
+    return f"TERM=dumb {cmake} -Wno-dev \
+-D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+-D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
+-D CMAKE_VERBOSE_MAKEFILE=ON \
+-D CMAKE_COLOR_MAKEFILE=OFF \
+-D CMAKE_TERM_SUPPORTS_ANSI=OFF"
+
+def cmake_options( **kwargs: Any ) -> str:
+    cmakeflags = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    if standard := kwargs.get("CPPSTANDARD"):
+        cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
+    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
+        cmakeflags += f" -D MPM_CUSTOM_FLAGS=START {flags} "
+    return cmakeflags.lstrip(" ")
+
+def cmake_build_settings( **kwargs ) -> str:
+    if kwargs.get("CMAKEBUILDDEBUG"):
+        defaultbuild = "Debug"
+    else: defaultbuild = "RelWithDebInfo"
+    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
+    if static := kwargs.get("buildstaticlibs"):
+        buildsharedlibs = "OFF"
+    else: buildsharedlibs = "ON"
+    return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
+
+def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
+    srcdir,builddir,prefixdir = cmakedirs
+    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
+        effectivesrcdir : str = f"{srcdir}/{source}"
+    else: effectivesrcdir = srcdir
+    if not os.path.isdir(effectivesrcdir):
+        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+    settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
+    if not os.path.exists( f"{settingsfile}" ):
+        error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
+    cmakepathsetting : str = f"-S {effectivesrcdir} -B {builddir}"
+    if nonnull(prefixdir):
+        cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
+    return cmakepathsetting
+
+################################################################
+####
+#### PETSc
+####
+################################################################
+
+def petsc_configure_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir,prefixdir = plist
+    petscflags : str = kwargs.get("PETSCFLAGS","")
+    script : str = f"\ncd {srcdir}\n"
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
+python3 ./configure \
+    CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
+    {petscflags} \
+    --prefix={prefixdir} 
+    """
+    return script,"Make setup"
+
+def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir  : str = srcdir_name( **kwargs )
+    jcount  : str = kwargs.get("jcount",6)
+    targets : str = kwargs.get( "MAKETARGETS","" )
+    trace_string( f"making targets: {targets}",**kwargs )
+
+    script : str = f"\ncd {srcdir}\n"
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
+make -j {jcount} all
+make -j {jcount} install
+    """
+    return script,"Make build"
+
+################################################################
+####
+#### Make
+####
+################################################################
+
+def make_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+    # flags and options
+    jcount          : str = kwargs.get("jcount","6")
+    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
+    makebuildtarget : str = kwargs.get("makebuildtarget","")
+
+    script : str = f"""
+make -f {srcdir}/Makefile SRCDIR={srcdir} PROJECTNAME={program} {program}
+    """
+    return script,"Make compilation"
+
+#
+# Auxs for the build scripts
+#
+def nonzero_exports( **kwargs : Any ) -> Optional[str]:
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline : str = " && ".join(exports)
+        trace_string( f"Using exports: {export_cmdline}",**kwargs )
+        return export_cmdline
+    else: return None
+
+def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
+    if unsets := nonzero_keyword( "unsets",**kwargs ):
+        unset_cmdline : str = " && ".join(unsets)
+        trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
+        return unset_cmdline
+    else: return None
 
