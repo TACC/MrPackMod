@@ -235,18 +235,12 @@ def do_existence_test(
         test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    if ( package := package_names( **kwargs )[0] ) is None:
-        error_abort( "Expected package name",**kwargs )
-    run_config : dict = parse_command( test_definition,**kwargs )
-    trace_string( f"Existence test options: {run_config}",**kwargs )
-    if ( program := run_config.pop("program") ) is None:
-        error_abort( "Need program parameter",**kwargs )
-    testtitle   = run_config.pop("title") # need to remove because we pass a new title below
-    #print( f"\nTEST: {testtitle}" )
-    echo_string( f"\nTEST: {testtitle}",**kwargs, )
-    dirtype = run_config.get("dirtype")
-    grep    = run_config.get("grep")
-    executable = run_config.get("executable")
+    run_config : dict = test_config( test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+
+    # dirtype = run_config.get("dirtype")
+    # grep    = run_config.get("grep")
+    # executable = run_config.get("executable")
 
     run_config["chdir"]   = create_dir( "build",**kwargs )
 
@@ -256,22 +250,20 @@ def do_existence_test(
     #
     # existence
     #
-    # program can contain a path
-    if program:
-        program_clean : str = re.sub( '/','',program )
-    else: program_clean = "program"
-    cleantitle = clean_title( testtitle )
-    run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
     output : OutputDict = \
         start_test_stage(
             "exists",
             **{ **kwargs,**run_config, # weird construct to placate mypy
-                "title":f"{testtitle}, existence test","package":program_clean, }
+                "title":f"{testtitle}, existence test", }, #"package":program_clean, },
             )
     retval : Optional[str] = get_value_from_loaded(
-        file_to_exist_script,[package,dirtype,program,grep,executable],
+        file_to_exist_script,[
+            run_config["package"],run_config["dirtype"],run_config["program"],
+            run_config["grep"],run_config["executable"],
+        ],
         **{ **kwargs,**output} )
     success,failure = end_test_stage( success,failure,output,**kwargs )
+    return success,failure
 
     #
     # run and ldd
@@ -327,19 +319,18 @@ def do_cmake_test(
         test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    #parsed_options
-    run_config : dict = parse_command( test_definition,**kwargs )
-    trace_string( f"CMake test options: {run_config}",**kwargs )
-    if ( program  := run_config.get("program") ) is None:
-        error_abort( "Expecting program parameter",**kwargs )
-    title     = run_config.pop("title") # need to remove because we pass a new title below
+    run_config : dict = test_config( test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+
     do_run    = run_config.get("do_run")
     testvalue = run_config.get("test_value")
 
+    program : str = run_config["program"]
     if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
         programname,programext = name_ext.groups()
-    else:
-        error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+        run_config["programname"] = programname
+        run_config["programext"]  = programext
+    else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
     programsrcdir    : str = os.getcwd()+"/"+programext
     programbuilddir  : str = create_dir( "build",**kwargs )
@@ -355,7 +346,7 @@ def do_cmake_test(
         start_test_stage(
             "cmake build and make",
             **{ **kwargs,
-                "title":f"{title}, cmake/make stage","package":programname, }
+                "title":f"{testtitle}, cmake/make stage","package":programname, }
             )
     res : Optional[str] = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,
@@ -373,7 +364,7 @@ def do_cmake_test(
     #
     output = start_test_stage(
         "ldd",
-        **{ **kwargs,"title":f"{title}, ldd/run stage","package":programname }
+        **{ **kwargs,"title":f"{testtitle}, ldd/run stage","package":programname }
         )
     # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
     prog_and_dirs[1] = programext
@@ -393,7 +384,7 @@ def do_cmake_test(
             "run_args"   : run_config["run_args"],
         }
         success,failure = do_run_test(
-            title,rundata,
+            testtitle,rundata,
             success,failure,**kwargs,**test_options )
     return success,failure
 
@@ -479,6 +470,31 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
             trace_string( f"Test: {testname} accepted by match: {m}",**kwargs )
             return True
     return False
+
+def test_config( test_definition : str,**kwargs : Any ) -> dict:
+    #parsed_options
+    run_config : dict = parse_command( test_definition,**kwargs )
+    trace_string( f"Test options: {run_config}",**kwargs )
+
+    if ( package := package_names( **kwargs )[0] ) is not None:
+        run_config["package"] = package
+    else: error_abort( "Expected package name",**kwargs )
+
+    if ( program  := run_config.get("program") ) is not None:
+        program_clean : str = re.sub( '/','',program )
+    else: error_abort( "Expecting program parameter",**kwargs )
+
+    testtitle     = run_config.pop("title") # need to remove because we pass a new title below
+    run_config["testtitle"] = testtitle
+    cleantitle = clean_title( testtitle )
+    run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
+
+    echo_string( f"\nTEST: {testtitle}",**kwargs )
+    return run_config
+
+##
+## Test driver
+##
 
 def do_tests( **kwargs: Any ) -> None:
 

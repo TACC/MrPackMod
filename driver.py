@@ -203,7 +203,7 @@ utility_actions : {utility_actions}
         if targets := nonzero_keyword( "CLEANTARGET",**configuration ):
             for t in targets:
                 clean_targets += " "+t
-            os.system( f"rm -rf {clean_targets}" )
+        os.system( f"rm -rf {clean_targets}" )
     elif action=="regression":
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
         echo_warning( f"Need better test for package actually being loaded",**configuration )
