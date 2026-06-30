@@ -238,10 +238,6 @@ def do_existence_test(
     run_config : dict = test_config( test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
 
-    # dirtype = run_config.get("dirtype")
-    # grep    = run_config.get("grep")
-    # executable = run_config.get("executable")
-
     run_config["chdir"]   = create_dir( "build",**kwargs )
 
     success  : list[str] = []
@@ -263,7 +259,6 @@ def do_existence_test(
         ],
         **{ **kwargs,**output} )
     success,failure = end_test_stage( success,failure,output,**kwargs )
-    return success,failure
 
     #
     # run and ldd
@@ -276,7 +271,7 @@ def do_existence_test(
     do_run,ldd = run_config["do_run"],run_config["ldd"]
     if run_config.get("ldd"):
         success,failure = do_ldd_test(
-            testtitle, package,dirtype,program,
+            testtitle, run_config["package"],run_config["dirtype"],run_config["program"],
             success,failure, **{ **kwargs,"installing":False } )
 
     #
@@ -391,19 +386,15 @@ def do_cmake_test(
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    # parsed options
-    run_config : dict = parse_command( test_definition,**kwargs )
-    trace_string( f"Make test options: {run_config}",**kwargs )
-    if ( program  := run_config.get("program") ) is None:
-        error_abort( "Expecting program parameter",**kwargs )
-    title     = run_config.pop("title") # need to remove because we pass a new title below
-    do_run    = run_config.get("do_run")
-    testvalue = run_config.get("test_value")
+    run_config : dict = test_config( test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
 
+    program : str = run_config["program"]
     if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
         programname,programext = name_ext.groups()
-    else:
-        error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+        run_config["programname"] = programname
+        run_config["programext"]  = programext
+    else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
     programsrcdir    : str = os.getcwd()+"/"+programext
     programbuilddir  : str = create_dir( "build",**kwargs )
@@ -419,7 +410,7 @@ def do_make_test(
         start_test_stage(
             "make compile",
             **{ **kwargs,
-                "title":f"{title}, make stage","package":programname, }
+                "title":f"{testtitle}, make stage","package":programname, }
             )
     res : Optional[str] = get_value_from_loaded(
         make_build_script,prog_and_dirs,**{ **kwargs,**output } )
