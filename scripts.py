@@ -12,7 +12,8 @@ from MrPackMod.basics  import module_version_from_env,\
     abort_on_zero_keyword,nonzero_keyword,zero_keyword
 from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
-    mode_has_mpi,mode_has_seq,mode_is_core
+    mode_has_mpi,mode_has_seq,mode_is_core,\
+    DirNamesDict
 
 from typing import Any,Optional
 
@@ -321,8 +322,8 @@ function modulelist ()
 ####
 ################################################################
 
-def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pcmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
 
     script : str = ""
     # setup
@@ -331,12 +332,15 @@ def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str
     if unset_cmdline := nonzero_unsets( **kwargs ):
         script += f"\n{unset_cmdline}\n"
 
+    # remove old crud
+    script += configure_preclean( dirnames,**kwargs )
+
     # cmake
     cmake = cmake_basic_command( **kwargs )
     cmakeflags = cmake_options( **kwargs )
     buildsettings = cmake_build_settings( **kwargs )
     # set src, build, prefix
-    pathsettings = cmake_paths_settings( cmakedirs,**kwargs )
+    pathsettings = cmake_paths_settings( dirnames,**kwargs )
     # for the regression case only: define project macro
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
@@ -350,15 +354,33 @@ else
     echo FAILURE: cmake failed
 fi
     """
-    _,builddir,_ = cmakedirs
-    script += f"""\necho "builddir contents:"\nls {builddir}\n"""
+    script += configure_postreport( dirnames,**kwargs )
     # VLE I can't get newlines in this script. Hm.
     script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
-def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
+def configure_preclean( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames ["builddir"]
+    prefixdir = dirnames["prefixdir"]
+    return f"""
+echo "Remove any builddir: {builddir}"
+rm -rf {builddir}
+echo "Remove any prefixdir: {prefixdir}"
+rm -rf {prefixdir}
+    """
+
+def configure_postreport( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames ["builddir"]
+    return f"""
+echo "Builddir {builddir} contents:"
+ls {builddir}
+    """
+
+def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pcmakedirs
+    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
+
+    script : str = ""
     # flags and options
     jcount          : str = kwargs.get("jcount","6")
     make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
@@ -369,19 +391,8 @@ def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str
         makeline = f"ninja install"
     else:
         makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
-    script : str = f"""
-if [ ! -d "{builddir}" ] ; then
-    echo "FAILURE: no such build dir: {builddir}"
-    exit  1
-else
-    echo "entering builddir: {builddir}"
-fi
-cd {builddir}
-
-if [ ! -f makefile -a ! -f Makefile ] ; then
-    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
-    exit 1
-fi
+    script += cmake_build_pre( dirnames,**kwargs )
+    script += f"""
 {makeline}
 if [ $? -eq 0 ] ; then
     echo SUCCESS: compilation succeeded
@@ -433,8 +444,8 @@ def cmake_build_settings( **kwargs ) -> str:
     else: buildsharedlibs = "ON"
     return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
 
-def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
-    srcdir,builddir,prefixdir = cmakedirs
+def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
+    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         effectivesrcdir : str = f"{srcdir}/{source}"
     else: effectivesrcdir = srcdir
@@ -447,6 +458,23 @@ def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
     if nonnull(prefixdir):
         cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
     return cmakepathsetting
+
+def cmake_build_pre( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames["builddir"]
+    return f"""
+if [ ! -d "{builddir}" ] ; then
+    echo "FAILURE: no such build dir: {builddir}"
+    exit  1
+else
+    echo "entering builddir: {builddir}"
+fi
+cd {builddir}
+
+if [ ! -f makefile -a ! -f Makefile ] ; then
+    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
+    exit 1
+fi
+    """
 
 ################################################################
 ####

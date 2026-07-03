@@ -7,7 +7,7 @@ import datetime
 import os
 import re
 import sys
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, TypedDict, Union, cast
 
 #
 # my own modules
@@ -60,6 +60,21 @@ def logfile_name(
     logfileshortname += ".log"
     logfilename = f"{scriptsdir}/{logfileshortname}"
     return logfilename,logfileshortname,scriptsdir
+
+class DirNamesDict(TypedDict):
+    scriptsdir : str
+    srcdir     : str
+    builddir   : str
+    prefixdir  : str
+
+def get_dir_names( **kwargs : Any ) -> DirNamesDict:
+    names : DirNamesDict = {
+        'scriptsdir' : scriptsdir_name( **kwargs ),
+        'srcdir'     : srcdir_name    ( **kwargs ),
+        'builddir'   : builddir_name  ( **kwargs ),
+        'prefixdir'  : prefixdir_name ( **kwargs ),
+        }
+    return names
 
 def scriptsdir_name( **kwargs : Any ) -> str:
     if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
@@ -183,10 +198,6 @@ def install_extension( **kwargs: Any ) -> str:
         installext = f"{installext}-{variant}"
     return installext
 
-def srcdir_local_name( **kwargs: Any ) -> str:
-    packagebasename,packageversion = package_names_nonnull( **kwargs )
-    return f"{packagebasename}-{packageversion}"
-
 def gitdir_local_name( **kwargs: Any ) -> str:
     packagebasename,_ = package_names( **kwargs )
     packageversion : str = "git"
@@ -210,6 +221,10 @@ def srcdir_name( **kwargs: Any ) -> str:
         if srcdir := nonzero_keyword( "srcpath",**kwargs ):
             return srcdir
         else: return  f"{homedir}/{srcdir_local}"
+
+def srcdir_local_name( **kwargs: Any ) -> str:
+    packagebasename,packageversion = package_names_nonnull( **kwargs )
+    return f"{packagebasename}-{packageversion}"
 
 def builddir_name( **kwargs: Any ) -> str:
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):

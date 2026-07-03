@@ -19,8 +19,10 @@ from MrPackMod.basics  import remove_macros,\
     nonnull,nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_zero_env
-from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
-    modulefile_path,module_name_and_version
+from MrPackMod.names import logfile_name,get_dir_names,\
+    modulefile_path,module_name_and_version,\
+    DirNamesDict
+# srcdir_name,builddir_name,prefixdir_name
 from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,\
@@ -28,20 +30,20 @@ from MrPackMod.scripts import export_compilers_script,\
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     test_proper_prerequisites,OutputDict
 
-def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
-    from  MrPackMod import  modulefile
-    #
-    # setup directories
-    #
-    srcdir    = srcdir_name( **kwargs )
-    builddir  = builddir_name( **kwargs )
-    prefixdir = prefixdir_name( **kwargs )
-    if nonzero_keyword( "scratch",**kwargs ):
-        try:
-            shutil.rmtree(builddir)
-        except FileNotFoundError: pass
-        os.makedirs(builddir,exist_ok=True)
-    return srcdir,builddir,prefixdir
+# def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
+#     from  MrPackMod import  modulefile
+#     #
+#     # setup directories
+#     #
+#     srcdir    = srcdir_name( **kwargs )
+#     builddir  = builddir_name( **kwargs )
+#     prefixdir = prefixdir_name( **kwargs )
+#     if nonzero_keyword( "scratch",**kwargs ):
+#         try:
+#             shutil.rmtree(builddir)
+#         except FileNotFoundError: pass
+#         os.makedirs(builddir,exist_ok=True)
+#     return srcdir,builddir,prefixdir
 
 ##
 ## CMake commandline with all options
@@ -53,9 +55,10 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
         error_abort( f"Can not configure due to:\n{properness}",**kwargs )
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
@@ -64,9 +67,10 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
         return "No installation needed"
     output : OutputDict = \
         start_test_stage( "cmake build",**kwargs, )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+        cmake_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
