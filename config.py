@@ -94,6 +94,7 @@ def process_total_line( line : str,configfile : str,
     trace_string( f" .. unconditional: {line}",**{ **config_dict,**output } )
 
     # detect and strip conditionals, return acceptability & line to process
+    # if `nowarn' is set, we can deal with undefined macros
     line = remove_macros( line,**config_dict )
     trace_string( f" .. expanded     : {line}",**{ **config_dict,**output } )
     if re.match( r'exit',line )  : return "exit"

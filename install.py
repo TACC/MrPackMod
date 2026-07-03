@@ -20,14 +20,13 @@ from MrPackMod.basics  import remove_macros,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_zero_env
 from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
-    compilers_names,modulefile_path,module_name_and_version
-from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    process_execute_immediate
-from MrPackMod.process import open_logfile,get_value_from_loaded
+    modulefile_path,module_name_and_version
+from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
-    cmake_configure_script,cmake_build_script
+    cmake_configure_script,cmake_build_script,\
+    autotools_configure_script,autotools_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
-    OutputDict
+    test_proper_prerequisites,OutputDict
 
 def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
     from  MrPackMod import  modulefile
@@ -50,11 +49,10 @@ def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
 ## where `program' is only nonnull for regression testing
 ##
 def cmake_configure( **kwargs: Any ) -> Optional[str]:
+    if re.match( "FAILURE", ( properness := test_proper_prerequisites( **kwargs ) ) ):
+        error_abort( f"Can not configure due to:\n{properness}",**kwargs )
     output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"cmake configure", }
-            )
+        start_test_stage( "cmake configure",**kwargs, )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
@@ -65,9 +63,7 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"cmake build", } )
+        start_test_stage( "cmake build",**kwargs, )
     srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
         cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
@@ -80,76 +76,6 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
 ####
 ################################################################
 
-def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,srcdir,builddir,prefixdir = pmakedirs
-    if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
-        setup_script : str = f"\n{before}\n"
-    else: setup_script = "\n"
-
-    ##
-    ## go to the right location for configure
-    ##
-    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
-        trace_string( " .. going to configure in build dir",**kwargs )
-        configloc : str = builddir
-        config_cmdline : str = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
-        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
-        configloc = f"{srcdir}/{subdir}"
-        config_cmdline = f"./configure"
-    else:
-        configloc = f"{srcdir}"
-        config_cmdline = f"./configure"
-    config_loc_script : str = f"""
-cd {configloc}
-echo Starting configure process in $(pwd)
-if [ -f \"configure\" ] ; then
-  has_configure=1
-  echo has configure script
-else has_configure= ; echo no configure script ; fi
-if [ -f \"autogen.sh\" ] ; then
-  has_autogen=1
-  echo has autogen
-else has_autogen= ; echo no autogen ; fi
-if [ -f \"configure.ac\" ] ; then
-  has_ac=1
-  echo has configure.ac 
-else has_ac= ; echo no configure.ac ; fi
-    """
-
-    ##
-    ## do stuff before configure
-    ##
-    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
-        autoupdate : str = "./autoupdate"
-    else: autoupdate = ""
-    reconf_script : str = f"""
-if [ -z \"$has_configure\" ] ; then 
-  if [ ! -z \"$has_ac\" ] ; then
-    aclocal && autoconf
-  elif [ ! -z \"$has_autogen\" ] ; then 
-    ./autogen.sh
-  else
-    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
-  fi
-fi
-{autoupdate}
-    """
-    ##
-    ## do configure
-    ##
-    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
-        prefixoption = option # pdtoolkit
-    else: prefixoption = "--prefix"
-    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
-        flags = f" {flags}"
-    else: flags = ""
-    configure_script : str = f"""
-./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
-    """
-    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
-
-    
 def autotools_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
@@ -160,53 +86,6 @@ def autotools_configure( **kwargs : Any ) -> Optional[str]:
         autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
-
-def original_autotools_configure():
-    if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
-        if has_ac: 
-            if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
-                process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
-                                 process=shell,**kwargs )
-            if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
-                cmdline = f"{reconf} -i"
-            else:
-                cmdline = f"aclocal && autoconf"
-            if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
-                process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
-                                 process=shell,**kwargs )
-        elif has_autogen:
-            cmdline = "./autogen.sh"
-        else:
-            raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
-        process_execute( cmdline,**kwargs,process=shell )
-
-def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
-    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
-
-    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
-        subdir = srcdir
-
-    #
-    # Make
-    #
-    jval : str = kwargs.get("jcount",6)
-    makecommand : str = f"make --no-print-directory -j {jval}"
-    script : str = f"""
-cd {subdir}
-{makecommand}
-    """
-    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
-        trace_string( f" .. making extra targets: {extra}",**kwargs )
-        script += f"\n{makecommand} {extra}\n"
-
-    #
-    # install
-    #
-    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
-    script += f"\n{makecommand} install {extra}\n"
-
-    return script,"Autotools make and install"
 
 def autotools_build( **kwargs : Any ) ->Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
@@ -432,4 +311,23 @@ def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
+
+# def original_autotools_configure():
+#     if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
+#         if has_ac: 
+#             if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
+#                 process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
+#                                  process=shell,**kwargs )
+#             if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
+#                 cmdline = f"{reconf} -i"
+#             else:
+#                 cmdline = f"aclocal && autoconf"
+#             if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
+#                 process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
+#                                  process=shell,**kwargs )
+#         elif has_autogen:
+#             cmdline = "./autogen.sh"
+#         else:
+#             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
+#         process_execute( cmdline,**kwargs,process=shell )
 

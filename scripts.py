@@ -114,7 +114,7 @@ def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
             return module,"",""
 
 #
-# This gets called only from do_config_tests
+# This gets called only from do_config_tests and the `test' action
 #
 def modules_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modulestring : str = ','.join(moduleslist)
@@ -129,7 +129,6 @@ if [ ! -d "{srcdir}" ] ; then
 fi
         """
     for modver in moduleslist:
-        # strip any version number
         onemodulescript,_ = one_module_proper_script( [modver],**kwargs )
         script += f"""
 modulecommand "load {modver}" "load {modver}"
@@ -351,8 +350,10 @@ else
     echo FAILURE: cmake failed
 fi
     """
+    _,builddir,_ = cmakedirs
+    script += f"""\necho "builddir contents:"\nls {builddir}\n"""
     # VLE I can't get newlines in this script. Hm.
-    script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
+    script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
 def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
@@ -446,6 +447,109 @@ def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
     if nonnull(prefixdir):
         cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
     return cmakepathsetting
+
+################################################################
+####
+#### Autotools
+####
+################################################################
+
+def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,srcdir,builddir,prefixdir = pmakedirs
+    if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
+        setup_script : str = f"\n{before}\n"
+    else: setup_script = "\n"
+
+    ##
+    ## go to the right location for configure
+    ##
+    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+        trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
+        configloc : str = builddir
+        config_cmdline : str = f"{srcdir}/configure"
+    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
+        configloc = f"{srcdir}/{subdir}"
+        config_cmdline = f"./configure"
+    else:
+        configloc = f"{srcdir}"
+        config_cmdline = f"./configure"
+    config_loc_script : str = f"""
+cd {configloc}
+echo Starting configure process in $(pwd)
+if [ -f \"configure\" ] ; then
+  has_configure=1
+  echo has configure script
+else has_configure= ; echo no configure script ; fi
+if [ -f \"autogen.sh\" ] ; then
+  has_autogen=1
+  echo has autogen
+else has_autogen= ; echo no autogen ; fi
+if [ -f \"configure.ac\" ] ; then
+  has_ac=1
+  echo has configure.ac 
+else has_ac= ; echo no configure.ac ; fi
+    """
+
+    ##
+    ## do stuff before configure
+    ##
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    reconf_script : str = f"""
+if [ -z \"$has_configure\" ] ; then 
+  if [ ! -z \"$has_ac\" ] ; then
+    aclocal && autoconf
+  elif [ ! -z \"$has_autogen\" ] ; then 
+    ./autogen.sh
+  else
+    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
+  fi
+fi
+{autoupdate}
+    """
+    ##
+    ## do configure
+    ##
+    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
+        flags = f" {flags}"
+    else: flags = ""
+    configure_script : str = f"""
+./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+    """
+    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
+
+def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+
+    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"make --no-print-directory -j {jval}"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    #
+    # install
+    #
+    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
+    script += f"\n{makecommand} install {extra}\n"
+
+    return script,"Autotools make and install"
 
 ################################################################
 ####

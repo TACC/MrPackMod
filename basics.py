@@ -100,9 +100,10 @@ def remove_macros( string : str,**kwargs : Any ) -> str:
             if nowarn:
                 # replace macro by its name.
                 # VLE maybe we should completely avoid this routine
+                # but then, this helps in `prerequisitesinstall'
                 string = re.sub( macro_search,macroname,string,1 )
             else:
-                error_abort( f"No replacement found for <<{macroname}>> in\n{kwargs}",
+                error_abort( f"No replacement found for <<{macroname}>>",
                              **kwargs )
     return string
 

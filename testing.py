@@ -4,29 +4,33 @@ import subprocess
 from typing import Any,Optional,TextIO,TypedDict
 
 from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
-    nonnull,nonzero_keyword,isnull
+    nonnull,nonzero_keyword,isnull,\
+    clean_title
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
     package_prerequisites
-from MrPackMod.process    import process_execute, process_initiate, process_terminate,\
-    get_value_from_loaded,get_value_from_virgin
+from MrPackMod.process    import get_value_from_loaded,get_value_from_virgin
+# process_execute, process_initiate, process_terminate
 from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
-def do_config_tests( **kwargs : Any ) -> str:
+def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
     modulestring : str = package_prerequisites( **kwargs )
     moduleslist  : list[str] = modulestring.split()
     if len(moduleslist)==0:
         return "SUCCESS: no modules to be tested"
-    output : OutputDict  = \
-        start_test_stage(
-            "moduleconfig",
-            **{ **kwargs, "terminal":"suppress" }
-            )
-    retval : str = get_value_from_virgin(
-        modules_proper_script,moduleslist,**kwargs,**output )
-    success,failure = end_test_stage( [],[],output,**kwargs )
+    success : list[str] = []; failure : list[str] = []
+    for module in moduleslist:
+        output : OutputDict  = \
+            start_test_stage(
+                f"moduleconfig {module}",
+                **{ **kwargs, "terminal":"suppress" }
+                )
+        retval : str = get_value_from_virgin(
+            modules_proper_script,[module],**kwargs,**output )
+        msuccess,mfailure = end_test_stage( [],[],output,**kwargs )
+        success += msuccess; failure += mfailure
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:
@@ -63,7 +67,7 @@ def start_test_stage(
 
     # VLE this log file is more or less empty. Get rid?
     logname,loghandle,scriptsdir = \
-        open_logfile( stage.replace(' ','_'),**kwargs, ) 
+        open_logfile( clean_title(stage,**kwargs),**kwargs, ) 
 
     # Create a process for the commands of this test stage
     output : OutputDict = {
