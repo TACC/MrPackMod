@@ -21,8 +21,7 @@ from MrPackMod.basics  import remove_macros,\
 from MrPackMod.error   import abort_on_zero_env
 from MrPackMod.names import logfile_name,get_dir_names,\
     modulefile_path,module_name_and_version,\
-    DirNamesDict
-# srcdir_name,builddir_name,prefixdir_name
+    DirNamesDict,prefixdir_name
 from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,\
