@@ -9,7 +9,7 @@ import re
 
 from MrPackMod.basics  import module_version_from_env,\
     trace_string,echo_string,echo_warning,trace_var,\
-    abort_on_zero_keyword,nonzero_keyword,zero_keyword
+    error_abort,abort_on_zero_keyword,nonzero_keyword,zero_keyword
 from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core,\
