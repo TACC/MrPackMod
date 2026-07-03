@@ -184,10 +184,7 @@ def do_ldd_test(
             package,dirtype,program,**kwargs )
     program_clean : str = re.sub( '/','',program )
     output = \
-        start_test_stage(
-            "exec",
-            **{ "title":f"{title}, ldd test","package":program_clean,**kwargs },
-            )
+        start_test_stage( f"{title}, ldd test", **{ **kwargs, "package":program_clean }, )
     # are library dependencies satisfied?
     prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
     res : Optional[str] = get_value_from_loaded(
@@ -247,11 +244,7 @@ def do_existence_test(
     # existence
     #
     output : OutputDict = \
-        start_test_stage(
-            "exists",
-            **{ **kwargs,**run_config, # weird construct to placate mypy
-                "title":f"{testtitle}, existence test", }, #"package":program_clean, },
-            )
+        start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
         file_to_exist_script,[
             run_config["package"],run_config["dirtype"],run_config["program"],
@@ -294,9 +287,7 @@ def do_run_test( title : str,rundata : RundataDict,
                  success : list[str],failure : list[str],**kwargs : Any
                 ) -> tuple[list[str],list[str]]:
     programname : str = rundata["programname"]
-    output = start_test_stage(
-        "run",
-        **{ **kwargs,"title":f"{title}, run","package":programname } )
+    output = start_test_stage( f"{title}, run", **{ **kwargs,"package":programname } )
     res : Optional[str] = get_value_from_loaded(
         run_script,
         # VLE so what's the point of having this dct?
@@ -338,11 +329,7 @@ def do_cmake_test(
     # Cmake & compile
     #
     output : OutputDict = \
-        start_test_stage(
-            "cmake build and make",
-            **{ **kwargs,
-                "title":f"{testtitle}, cmake/make stage","package":programname, }
-            )
+        start_test_stage( "cmake build and make",**{ **kwargs,"package":programname, } )
     res : Optional[str] = get_value_from_loaded(
         cmake_configure_script,prog_and_dirs,
         **{ **kwargs,**output,
@@ -357,10 +344,7 @@ def do_cmake_test(
     #
     # Check library dependencies satisfied & run
     #
-    output = start_test_stage(
-        "ldd",
-        **{ **kwargs,"title":f"{testtitle}, ldd/run stage","package":programname }
-        )
+    output = start_test_stage( "ldd",**{ **kwargs,"package":programname } )
     # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
     prog_and_dirs[1] = programext
     res = get_value_from_loaded(
@@ -407,11 +391,7 @@ def do_make_test(
     # Make compilation
     #
     output : OutputDict = \
-        start_test_stage(
-            "make compile",
-            **{ **kwargs,
-                "title":f"{testtitle}, make stage","package":programname, }
-            )
+        start_test_stage( "make compile",**{ **kwargs,"package":programname, } )
     res : Optional[str] = get_value_from_loaded(
         make_build_script,prog_and_dirs,**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
@@ -420,11 +400,7 @@ def do_make_test(
     #
     # execution
     #
-    output = start_test_stage(
-        "exec",
-        **{ **kwargs,
-            "package":name,"installing":False, }
-        )
+    output = start_test_stage( "exec",**{ **kwargs,"package":name,"installing":False, } )
     # are library dependencies satisfied
     process_execute( f"ldd {name}",**kwargs,**output )
     # run!
