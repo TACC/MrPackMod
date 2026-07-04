@@ -86,7 +86,7 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
             parser.print_help(); sys.exit(0)
         mpm_action( action,arguments,**configuration )
 
-def mpm_action( action : str,arguments,**configuration ) -> None:
+def mpm_action( action : str,arguments,**configuration ) -> bool:
     # what are the possible actions
     file_actions: str = configuration.get( "file_actions" ) or ""
     build_actions: str = configuration.get( "build_actions" ) or ""
@@ -94,6 +94,7 @@ def mpm_action( action : str,arguments,**configuration ) -> None:
     package_actions: str = configuration.get( "package_actions" ) or ""
     utility_actions: str = configuration.get( "utility_actions" ) or ""
     
+    returncode : bool = True
     # informative
     if action=="actions":
         print( f"""\
@@ -161,7 +162,8 @@ utility_actions : {utility_actions}
     # build stuff
     elif action=="install":
         for a in ["configure","build","module","public",]:
-            mpm_action(a,arguments,**configuration)
+            returncode = mpm_action(a,arguments,**configuration)
+            if not returncode: break
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
@@ -174,11 +176,10 @@ utility_actions : {utility_actions}
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
-            if not configure_action( **{ **configuration,**install_options } ):
-                return
+            returncode = configure_action( **{ **configuration,**install_options } )
         elif action=="build":
-            if not build_action( **{ **configuration,**install_options } ):
-                return
+            returncode = build_action( **{ **configuration,**install_options } )
+            if not returncode: return False
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
             install.post_install_actions(
                 **{ **configuration,**install_options} )
@@ -222,7 +223,8 @@ utility_actions : {utility_actions}
             error_abort( f"Action promised in help but not implemented: {action}", **configuration )
         else:
             error_abort( f"Unknown action: {action}",**configuration )
-                
+    return returncode
+
 def configure_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
         return install.cmake_configure( **kwargs )
