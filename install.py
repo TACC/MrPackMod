@@ -19,202 +19,58 @@ from MrPackMod.basics  import remove_macros,\
     nonnull,nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_zero_env
-from MrPackMod.names import logfile_name,srcdir_name,builddir_name,prefixdir_name,\
-    compilers_names,modulefile_path,module_name_and_version
-from MrPackMod.process import process_execute, process_initiate, process_terminate,\
-    process_execute_immediate
-from MrPackMod.process import open_logfile,get_value_from_loaded
-from MrPackMod.scripts import export_compilers_script
+from MrPackMod.names import logfile_name,get_dir_names,\
+    modulefile_path,module_name_and_version,\
+    DirNamesDict,prefixdir_name
+from MrPackMod.process import get_value_from_loaded
+from MrPackMod.scripts import export_compilers_script,\
+    cmake_configure_script,cmake_build_script,\
+    autotools_configure_script,autotools_build_script,\
+    petsc_configure_script,petsc_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
-    OutputDict
+    test_proper_prerequisites,OutputDict
 
-def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
-    from  MrPackMod import  modulefile
-    #
-    # setup directories
-    #
-    srcdir    = srcdir_name( **kwargs )
-    builddir  = builddir_name( **kwargs )
-    prefixdir = prefixdir_name( **kwargs )
-    if nonzero_keyword( "scratch",**kwargs ):
-        try:
-            shutil.rmtree(builddir)
-        except FileNotFoundError: pass
-        os.makedirs(builddir,exist_ok=True)
-    return srcdir,builddir,prefixdir
-
-################################################################
-####
-#### CMake
-####
-################################################################
-
-def cmake_basic_command( **kwargs : Any ) -> str:
-    cmake : str = kwargs.get( "CMAKENAME","cmake" )
-    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
-        cmake = f"{cmake} -G Ninja"
-    return f"TERM=dumb {cmake} -Wno-dev \
--D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
--D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
--D CMAKE_VERBOSE_MAKEFILE=ON \
--D CMAKE_COLOR_MAKEFILE=OFF \
--D CMAKE_TERM_SUPPORTS_ANSI=OFF"
-
-def cmake_options( **kwargs: Any ) -> str:
-    cmakeflags = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
-    if standard := kwargs.get("CPPSTANDARD"):
-        cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
-    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
-        cmakeflags += f" -D MPM_CUSTOM_FLAGS=START {flags} "
-    return cmakeflags.lstrip(" ")
-
-def cmake_build_settings( **kwargs ) -> str:
-    if kwargs.get("CMAKEBUILDDEBUG"):
-        defaultbuild = "Debug"
-    else: defaultbuild = "RelWithDebInfo"
-    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
-    if static := kwargs.get("buildstaticlibs"):
-        buildsharedlibs = "OFF"
-    else: buildsharedlibs = "ON"
-    return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
-
-def cmake_paths_settings( cmakedirs : list[str],**kwargs ) -> str:
-    srcdir,builddir,prefixdir = cmakedirs
-    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
-        effectivesrcdir : str = f"{srcdir}/{source}"
-    else: effectivesrcdir = srcdir
-    if not os.path.isdir(effectivesrcdir):
-        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
-    settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
-    if not os.path.exists( f"{settingsfile}" ):
-        error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
-    cmakepathsetting : str = f"-S {effectivesrcdir} -B {builddir}"
-    if nonnull(prefixdir):
-        cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
-    return cmakepathsetting
+# def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
+#     from  MrPackMod import  modulefile
+#     #
+#     # setup directories
+#     #
+#     srcdir    = srcdir_name( **kwargs )
+#     builddir  = builddir_name( **kwargs )
+#     prefixdir = prefixdir_name( **kwargs )
+#     if nonzero_keyword( "scratch",**kwargs ):
+#         try:
+#             shutil.rmtree(builddir)
+#         except FileNotFoundError: pass
+#         os.makedirs(builddir,exist_ok=True)
+#     return srcdir,builddir,prefixdir
 
 ##
 ## CMake commandline with all options
 ## `pcmakedirs' is [program,src,build,prefix]
 ## where `program' is only nonnull for regression testing
 ##
-def nonzero_exports( **kwargs : Any ) -> Optional[str]:
-    if exports := nonzero_keyword( "exports",**kwargs ):
-        export_cmdline : str = " && ".join(exports)
-        trace_string( f"Using exports: {export_cmdline}",**kwargs )
-        return export_cmdline
-    else: return None
-
-def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
-    if unsets := nonzero_keyword( "unsets",**kwargs ):
-        unset_cmdline : str = " && ".join(unsets)
-        trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
-        return unset_cmdline
-    else: return None
-
-def cmake_configure_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
-
-    script : str = ""
-    # setup
-    if export_cmdline := nonzero_exports( **kwargs ):
-        script += f"\n{export_cmdline}\n"
-    if unset_cmdline := nonzero_unsets( **kwargs ):
-        script += f"\n{unset_cmdline}\n"
-
-    # cmake
-    cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( **kwargs )
-    buildsettings = cmake_build_settings( **kwargs )
-    # set src, build, prefix
-    pathsettings = cmake_paths_settings( cmakedirs,**kwargs )
-    # for the regression case only: define project macro
-    if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
-    script += f"""
-cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
-echo Doing cmake in pwd=${{PWD}}
-echo .... cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
-eval $cmdline
-if [ $? -eq 0 ] ; then
-    echo SUCCESS: configure succeeded
-else
-    echo FAILURE: cmake failed
-fi
-    """
-    # VLE I can't get newlines in this script. Hm.
-    script = script.replace( r' +-D(.*)$',r'  -D \1\\\n' )
-    return script,"CMake configuring"
-
 def cmake_configure( **kwargs: Any ) -> Optional[str]:
+    if re.match( "FAILURE", ( properness := test_proper_prerequisites( **kwargs ) ) ):
+        error_abort( f"Can not configure due to:\n{properness}",**kwargs )
     output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"cmake configure", }
-            )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+        start_test_stage( "cmake configure",**kwargs, )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
-
-def cmake_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
-    # flags and options
-    jcount          : str = kwargs.get("jcount","6")
-    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
-    makebuildtarget : str = kwargs.get("makebuildtarget","")
-    # execute make & make install
-    trace_string( f"Making in builddir: {builddir}",**kwargs )
-    if ninja := kwargs.get( "CMAKEUSENINJA" ):
-        makeline = f"ninja install"
-    else:
-        makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
-    script : str = f"""
-if [ ! -d "{builddir}" ] ; then
-    echo "FAILURE: no such build dir: {builddir}"
-    exit  1
-else
-    echo "entering builddir: {builddir}"
-fi
-cd {builddir}
-
-if [ ! -f makefile -a ! -f Makefile ] ; then
-    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
-    exit 1
-fi
-{makeline}
-if [ $? -eq 0 ] ; then
-    echo SUCCESS: compilation succeeded
-else
-    echo FAILURE: compilation failed
-fi
-    """
-    if extra_targets := nonzero_keyword( "extrabuildtargets" ):
-        script += f"""
-{make} {extra_targets}
-        """
-    if nonnull(prefixdir) and not ninja:
-        script += f"""
-{make} install
-if [ $? -eq 0 ] ; then
-    echo SUCCESS: installation succeeded
-else
-    echo FAILURE: installation failed
-fi
-        """
-    return script,"CMake make and install"
 
 def cmake_build( **kwargs: Any ) -> Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"cmake build", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+        start_test_stage( "cmake build",**kwargs, )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+        cmake_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
@@ -224,144 +80,24 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
 ####
 ################################################################
 
-def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,srcdir,builddir,prefixdir = pmakedirs
-    if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
-        setup_script : str = f"\n{before}\n"
-    else: setup_script = "\n"
-
-    ##
-    ## go to the right location for configure
-    ##
-    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
-        trace_string( " .. going to configure in build dir",**kwargs )
-        configloc : str = builddir
-        config_cmdline : str = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
-        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
-        configloc = f"{srcdir}/{subdir}"
-        config_cmdline = f"./configure"
-    else:
-        configloc = f"{srcdir}"
-        config_cmdline = f"./configure"
-    config_loc_script : str = f"""
-cd {configloc}
-echo Starting configure process in $(pwd)
-if [ -f \"configure\" ] ; then
-  has_configure=1
-  echo has configure script
-else has_configure= ; echo no configure script ; fi
-if [ -f \"autogen.sh\" ] ; then
-  has_autogen=1
-  echo has autogen
-else has_autogen= ; echo no autogen ; fi
-if [ -f \"configure.ac\" ] ; then
-  has_ac=1
-  echo has configure.ac 
-else has_ac= ; echo no configure.ac ; fi
-    """
-
-    ##
-    ## do stuff before configure
-    ##
-    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
-        autoupdate : str = "./autoupdate"
-    else: autoupdate = ""
-    reconf_script : str = f"""
-if [ -z \"$has_configure\" ] ; then 
-  if [ ! -z \"$has_ac\" ] ; then
-    aclocal && autoconf
-  elif [ ! -z \"$has_autogen\" ] ; then 
-    ./autogen.sh
-  else
-    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
-  fi
-fi
-{autoupdate}
-    """
-    ##
-    ## do configure
-    ##
-    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
-        prefixoption = option # pdtoolkit
-    else: prefixoption = "--prefix"
-    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
-        flags = f" {flags}"
-    else: flags = ""
-    configure_script : str = f"""
-./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
-    """
-    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
-
-    
 def autotools_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"autotools configure", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    output : OutputDict = start_test_stage( "configure",**kwargs )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+        autotools_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
-
-def original_autotools_configure():
-    if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
-        if has_ac: 
-            if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
-                process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
-                                 process=shell,**kwargs )
-            if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
-                cmdline = f"{reconf} -i"
-            else:
-                cmdline = f"aclocal && autoconf"
-            if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
-                process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
-                                 process=shell,**kwargs )
-        elif has_autogen:
-            cmdline = "./autogen.sh"
-        else:
-            raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
-        process_execute( cmdline,**kwargs,process=shell )
-
-def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
-    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
-
-    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
-        subdir = srcdir
-
-    #
-    # Make
-    #
-    jval : str = kwargs.get("jcount",6)
-    makecommand : str = f"make --no-print-directory -j {jval}"
-    script : str = f"""
-cd {subdir}
-{makecommand}
-    """
-    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
-        trace_string( f" .. making extra targets: {extra}",**kwargs )
-        script += f"\n{makecommand} {extra}\n"
-
-    #
-    # install
-    #
-    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
-    script += f"\n{makecommand} install {extra}\n"
-
-    return script,"Autotools make and install"
 
 def autotools_build( **kwargs : Any ) ->Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"autotools build", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+        start_test_stage( "build",**kwargs )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
-        autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+        autotools_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
@@ -438,51 +174,19 @@ def make_build( **kwargs : Any ) -> Optional[str]:
 ####
 ################################################################
 
-def petsc_configure_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir,prefixdir = plist
-    petscflags : str = kwargs.get("PETSCFLAGS","")
-    script : str = f"\ncd {srcdir}\n"
-    if export_cmdline := nonzero_exports( **kwargs ):
-        script += f"\n{export_cmdline}\n"
-    script += f"""
-python3 ./configure \
-    CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
-    {petscflags} \
-    --prefix={prefixdir} 
-    """
-    return script,"Make setup"
-
 def petsc_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"petsc configure", } )
-    srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        start_test_stage( "configure",**kwargs )
+    # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
+        petsc_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output} )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
-def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir  : str = srcdir_name( **kwargs )
-    jcount  : str = kwargs.get("jcount",6)
-    targets : str = kwargs.get( "MAKETARGETS","" )
-    trace_string( f"making targets: {targets}",**kwargs )
-
-    script : str = f"\ncd {srcdir}\n"
-    if export_cmdline := nonzero_exports( **kwargs ):
-        script += f"\n{export_cmdline}\n"
-    script += f"""
-make -j {jcount} all
-make -j {jcount} install
-    """
-    return script,"Make build"
-
 def petsc_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"make build", } )
+        start_test_stage( "build",**kwargs )
     retval : Optional[str] = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -605,4 +309,23 @@ def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
+
+# def original_autotools_configure():
+#     if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
+#         if has_ac: 
+#             if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
+#                 process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
+#                                  process=shell,**kwargs )
+#             if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
+#                 cmdline = f"{reconf} -i"
+#             else:
+#                 cmdline = f"aclocal && autoconf"
+#             if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
+#                 process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
+#                                  process=shell,**kwargs )
+#         elif has_autogen:
+#             cmdline = "./autogen.sh"
+#         else:
+#             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
+#         process_execute( cmdline,**kwargs,process=shell )
 

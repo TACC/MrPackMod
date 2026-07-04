@@ -7,7 +7,7 @@ import datetime
 import os
 import re
 import sys
-from typing import Any, Optional, Union, cast
+from typing import Any, Optional, TypedDict, Union, cast
 
 #
 # my own modules
@@ -33,8 +33,10 @@ def package_names( **kwargs: Any ) -> tuple[Optional[str], Optional[str]]:
 
 def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
     p,v = package_names( **kwargs )
-    abort_on_null( v,"package version is null/unspecified",**kwargs )
-    abort_on_null( p,"package is null/unspecified",**kwargs )
+    if v is None: # isnull(v):
+        error_abort( "package version is null/unspecified",**kwargs )
+    if p is None: # isnull(p):
+        error_abort( "package is null/unspecified",**kwargs )
     return p,v
 
 def package_prerequisites( **kwargs : Any ) -> str:
@@ -61,6 +63,21 @@ def logfile_name(
     logfilename = f"{scriptsdir}/{logfileshortname}"
     return logfilename,logfileshortname,scriptsdir
 
+class DirNamesDict(TypedDict):
+    scriptsdir : str
+    srcdir     : str
+    builddir   : str
+    prefixdir  : str
+
+def get_dir_names( **kwargs : Any ) -> DirNamesDict:
+    names : DirNamesDict = {
+        'scriptsdir' : scriptsdir_name( **kwargs ),
+        'srcdir'     : srcdir_name    ( **kwargs ),
+        'builddir'   : builddir_name  ( **kwargs ),
+        'prefixdir'  : prefixdir_name ( **kwargs ),
+        }
+    return names
+
 def scriptsdir_name( **kwargs : Any ) -> str:
     if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
         return scriptsdir
@@ -73,7 +90,7 @@ def scriptsdir_root( **kwargs : Any ) -> str:
         if bdir := nonzero_keyword( "builddirroot",**kwargs ):
             scriptroot : str =  bdir
         elif startdir := nonzero_keyword( "startdir",**kwargs ):
-            scriptroot : str = startdir
+            scriptroot = startdir
         else: # this should 
             raise Exception( f"should have startdir or builddirroot for scripts" )
         if not os.access( scriptroot,os.W_OK ):
@@ -113,10 +130,9 @@ def create_homedir( **kwargs: Any ) -> str:
 ## Description: compute compiler & mpi name & version
 ## Result: quintuple system,cname,cversion,mname,mversion
 ##
-def family_names( **kwargs: Any ) -> Union[
-    tuple[str, str, str, str, str, str],
-    tuple[None, None, None, None, None, None],
-    ]:
+def family_names( **kwargs : dict[str,Any] ) -> tuple[
+        Optional[str], Optional[str], Optional[str], Optional[str],
+        Optional[str], Optional[str] ]:
     system   = nonzero_keyword("SYSTEM",**kwargs)
     compiler = kwargs.get("COMPILER")
     cversion = kwargs.get("COMPILERVERSION")
@@ -183,10 +199,6 @@ def install_extension( **kwargs: Any ) -> str:
         installext = f"{installext}-{variant}"
     return installext
 
-def srcdir_local_name( **kwargs: Any ) -> str:
-    packagebasename,packageversion = package_names_nonnull( **kwargs )
-    return f"{packagebasename}-{packageversion}"
-
 def gitdir_local_name( **kwargs: Any ) -> str:
     packagebasename,_ = package_names( **kwargs )
     packageversion : str = "git"
@@ -210,6 +222,10 @@ def srcdir_name( **kwargs: Any ) -> str:
         if srcdir := nonzero_keyword( "srcpath",**kwargs ):
             return srcdir
         else: return  f"{homedir}/{srcdir_local}"
+
+def srcdir_local_name( **kwargs: Any ) -> str:
+    packagebasename,packageversion = package_names_nonnull( **kwargs )
+    return f"{packagebasename}-{packageversion}"
 
 def builddir_name( **kwargs: Any ) -> str:
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):
@@ -283,18 +299,18 @@ def package_dir_names( **kwargs: Any ) -> tuple[str, str, str, str]:
     else: bindir = ""
     return prefixdir,libdir,incdir,bindir
 
-def modulefile_path( **kwargs: Any ) -> tuple[str, bool]:
+def modulefile_path( **kwargs: dict[str,Any] ) -> tuple[str, bool]:
     abort_on_nonzero_env( "MODULEDIRSET" )
     package,packageversion = package_names_nonnull( **kwargs )
     modulename,_ = module_name_and_version( **kwargs )
     #
     # construct module path
     #
-    if existing := nonzero_keyword( "modulediradd",**kwargs ):
+    if ( existing := nonzero_keyword( "modulediradd",**kwargs ) ) is not None:
         # in jail we can get an explicit, already-existing path (see netcdf/netcdff)
-        modulepath = existing
+        modulepath : str = existing
         return f"{modulepath}",True
-    elif nonnull( dirset := kwargs.get("moduledir") ):
+    elif ( dirset := nonzero_keyword( "moduledir",**kwargs ) ) is not None:
         # in jail we get an explicit path
         modulepath = dirset
         return f"{modulepath}",False

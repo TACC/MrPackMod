@@ -20,7 +20,7 @@ from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
     nonnull, nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_failure_result
-from MrPackMod.testing import do_config_tests,report_success_failure
+from MrPackMod.testing import test_proper_prerequisites,report_success_failure
 from MrPackMod import regression
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
@@ -61,6 +61,8 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
         'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
                                       "actions", "url", "show", "test",
                                       "listmodules", "modules", "public", "version",
+                                      "download", "unpack", "clone", "pull",
+                                      "prerequisitesinstall", # this only needs the MODULE line
                                      ]
                           for action in actions ] ) or len(actions)==0,
     }
@@ -117,7 +119,7 @@ utility_actions : {utility_actions}
     elif action=="list":
         info.list_installations( **configuration )
     elif action=="logfiles":
-        info.list_logfiles( **configuration )
+        error_abort( "logfiles action not implemented",**configuration )
     elif action=="configurelog":
         logfile = info.configurelog_name( **configuration, )
         print( logfile )
@@ -128,17 +130,18 @@ utility_actions : {utility_actions}
         except:
             print( f"No configuration variable: {displayvar}" )
     elif action=="test":
-        if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
-            echo_warning( "Source directory {srcdir} does not exist (yet)",
-                          **configuration )
+        # if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
+        #     echo_warning( "Source directory {srcdir} does not exist (yet)",
+        #                   **configuration )
         abort_on_failure_result(
-            do_config_tests( installing=True,**configuration ),**configuration )
+            test_proper_prerequisites( installing=True,**configuration ),**configuration )
     elif action=="listmodules":
         if modulelist := configuration.get("MODULES"):
             print( modulelist )
     elif action=="url":
         if url := configuration.get("URL"): print( url )
         if url := configuration.get("CODEURL"): print( url )
+        if url := configuration.get("SOFTWAREURL"): print( url )
         if url := configuration.get("DOCURL"): print( url )
     elif action=="version":
         v = configuration["PACKAGEVERSION"]
@@ -159,15 +162,15 @@ utility_actions : {utility_actions}
     elif action=="install":
         for a in ["configure","build","module","public",]:
             mpm_action(a,arguments,**configuration)
+    elif action=="prerequisitesinstall":
+        prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
-        # VLE the `install' action should really be a loop over recursive calls
-        # to prevent corruption of the install options
         install_options : dict = {
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites
         }
         abort_on_failure_result(
-            do_config_tests( **configuration ),**configuration )
+            test_proper_prerequisites( **configuration ),**configuration )
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
@@ -203,7 +206,7 @@ utility_actions : {utility_actions}
         if targets := nonzero_keyword( "CLEANTARGET",**configuration ):
             for t in targets:
                 clean_targets += " "+t
-            os.system( f"rm -rf {clean_targets}" )
+        os.system( f"rm -rf {clean_targets}" )
     elif action=="regression":
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
         echo_warning( f"Need better test for package actually being loaded",**configuration )
@@ -211,7 +214,6 @@ utility_actions : {utility_actions}
         #     error_abort( f"Module {package} needs to be loaded for regression testing",
         #                  **configuration )
         screen_report_action(action,**configuration)
-        #do_config_tests( installing=False,**configuration,no_home=True )
         regression.do_tests\
             ( match=arguments.match,filter=arguments.filter,
               logdir="./logfiles",**configuration )
@@ -243,3 +245,6 @@ def build_action( **kwargs : Any ) -> Optional[str]:
         return install.petsc_build( **kwargs )
     else: raise Exception\
         ( f"Can only build for cmake/autotools/make, not: {system}" )
+
+def prerequisites_action( **kwargs : Any ) -> None:
+    return

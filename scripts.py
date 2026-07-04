@@ -4,16 +4,18 @@
 ####
 ################################################################
 
+import os
 import re
 
 from MrPackMod.basics  import module_version_from_env,\
     trace_string,echo_string,echo_warning,trace_var,\
-    abort_on_zero_keyword,nonzero_keyword,zero_keyword
+    error_abort,abort_on_zero_keyword,nonzero_keyword,zero_keyword
 from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
-    mode_has_mpi,mode_has_seq,mode_is_core
+    mode_has_mpi,mode_has_seq,mode_is_core,\
+    DirNamesDict
 
-from typing import Any
+from typing import Any,Optional
 
 def compilers_flags( **kwargs: Any ) -> dict[str, str]:
     flags = { 'CFLAGS':"", 'CXXFLAGS':"", 'FFLAGS':"", }
@@ -52,11 +54,12 @@ echo where {val}=${{whichcomp}}
             """
     return script,"Export compiler settings"
 
-def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> str:
+def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> tuple[str,str]:
     title : str = f"Load compiler and mpi and modules: {modules_to_load}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulepath = nonzero_keyword( "modulepath",**kwargs )
+    if ( modulepath := nonzero_keyword( "modulepath",**kwargs ) ) is None:
+        error_abort( "Need a module path",**kwargs )
     if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
         redirect = ""
     loadscript : str = ""
@@ -73,7 +76,9 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     #
     loadscript += modulepurgefunction()
     if not mode_is_core( **kwargs ):
-        loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+        if compiler is not None:
+            loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+        else: error_abort( "No compiler defined",**kwargs )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
@@ -85,7 +90,9 @@ echo "Load blas/lapack library: {blas}"
 modulecommand "load blas" "load {blas}"
                 """
     if mode_has_mpi( **kwargs ):
-        loadscript += mpiloadfunction( mpi,mpiversion )
+        if mpi is not None:
+            loadscript += mpiloadfunction( mpi,mpiversion )
+        else: error_abort( "No mpi defined",**kwargs )
     if nonnull( modules_to_load ) and zero_keyword( "skipmodules",**kwargs ):
         loadscript += modulesloadscript( modules_to_load,**kwargs )
     else:
@@ -113,7 +120,7 @@ def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
             return module,"",""
 
 #
-# This gets called only from do_config_tests
+# This gets called only from do_config_tests and the `test' action
 #
 def modules_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modulestring : str = ','.join(moduleslist)
@@ -128,7 +135,6 @@ if [ ! -d "{srcdir}" ] ; then
 fi
         """
     for modver in moduleslist:
-        # strip any version number
         onemodulescript,_ = one_module_proper_script( [modver],**kwargs )
         script += f"""
 modulecommand "load {modver}" "load {modver}"
@@ -234,6 +240,8 @@ function testmoduleproper () {
         eval cmpdir=\\${$nam}
         if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
             echo "FAILURE: variable $nam set but dir $cmpdir does not exist"
+        else
+            echo "${nam}=${cmpdir}"
         fi
     done
 }
@@ -271,9 +279,15 @@ modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" displ
 modulecommand "Load compiler" "load {compiler}/{compilerversion}"
     """
 
-def mpiloadfunction( mpi : str,mpiversion : str ) -> str:
-    return f"""
+# VLE Should be insist on an mpi version?
+def mpiloadfunction( mpi : str,mpiversion : Optional[str] ) -> str:
+    if mpiversion is not None:
+        return f"""
 modulecommand "Load mpi" "load {mpi}/{mpiversion}"
+        """
+    else:
+        return f"""
+modulecommand "Load mpi" "load {mpi}"
     """
 
 def modulesloadscript( modules_to_load : str,**kwargs ) -> str:
@@ -308,4 +322,354 @@ function modulelist ()
     done
 }
         """
+
+##
+## Now the big scripts!
+##
+
+################################################################
+####
+#### CMake
+####
+################################################################
+
+def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pcmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+
+    script : str = ""
+    # setup
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    if unset_cmdline := nonzero_unsets( **kwargs ):
+        script += f"\n{unset_cmdline}\n"
+
+    # remove old crud
+    script += configure_preclean( dirnames,**kwargs )
+
+    # cmake
+    cmake = cmake_basic_command( **kwargs )
+    cmakeflags = cmake_options( **kwargs )
+    buildsettings = cmake_build_settings( **kwargs )
+    # set src, build, prefix
+    pathsettings = cmake_paths_settings( dirnames,**kwargs )
+    # for the regression case only: define project macro
+    if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
+    script += f"""
+cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
+echo Doing cmake in pwd=${{PWD}}
+echo .... cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
+eval $cmdline
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: configure succeeded
+else
+    echo FAILURE: cmake failed
+fi
+    """
+    script += configure_postreport( dirnames,**kwargs )
+    # VLE I can't get newlines in this script. Hm.
+    script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
+    return script,"CMake configuring"
+
+def configure_preclean( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames ["builddir"]
+    prefixdir = dirnames["prefixdir"]
+    return f"""
+echo "Remove any builddir: {builddir}"
+rm -rf {builddir}
+echo "Remove any prefixdir: {prefixdir}"
+rm -rf {prefixdir}
+    """
+
+def configure_postreport( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames ["builddir"]
+    return f"""
+echo "Builddir {builddir} contents:"
+ls {builddir}
+    """
+
+def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pcmakedirs
+    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
+
+    script : str = ""
+    # flags and options
+    jcount          : str = kwargs.get("jcount","6")
+    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
+    makebuildtarget : str = kwargs.get("makebuildtarget","")
+    # execute make & make install
+    trace_string( f"Making in builddir: {builddir}",**kwargs )
+    if ninja := kwargs.get( "CMAKEUSENINJA" ):
+        makeline = f"ninja install"
+    else:
+        makeline = f"{make} --no-print-directory V=1 VERBOSE=1 -j {jcount} {makebuildtarget}"
+    script += cmake_build_pre( dirnames,**kwargs )
+    script += f"""
+{makeline}
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: compilation succeeded
+else
+    echo FAILURE: compilation failed
+fi
+    """
+    if extra_targets := nonzero_keyword( "extrabuildtargets" ):
+        script += f"""
+{make} {extra_targets}
+        """
+    if nonnull(prefixdir) and not ninja:
+        script += f"""
+{make} install
+if [ $? -eq 0 ] ; then
+    echo SUCCESS: installation succeeded
+else
+    echo FAILURE: installation failed
+fi
+        """
+    return script,"CMake make and install"
+
+def cmake_basic_command( **kwargs : Any ) -> str:
+    cmake : str = kwargs.get( "CMAKENAME","cmake" )
+    if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
+        cmake = f"{cmake} -G Ninja"
+    return f"TERM=dumb {cmake} -Wno-dev \
+-D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
+-D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
+-D CMAKE_VERBOSE_MAKEFILE=ON \
+-D CMAKE_COLOR_MAKEFILE=OFF \
+-D CMAKE_TERM_SUPPORTS_ANSI=OFF"
+
+def cmake_options( **kwargs: Any ) -> str:
+    cmakeflags = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    if standard := kwargs.get("CPPSTANDARD"):
+        cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
+    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
+        cmakeflags += f" -D MPM_CUSTOM_FLAGS=START {flags} "
+    return cmakeflags.lstrip(" ")
+
+def cmake_build_settings( **kwargs ) -> str:
+    if kwargs.get("CMAKEBUILDDEBUG"):
+        defaultbuild = "Debug"
+    else: defaultbuild = "RelWithDebInfo"
+    cmakebuildtype = kwargs.get("CMAKEBUILDTYPE",defaultbuild)
+    if static := kwargs.get("buildstaticlibs"):
+        buildsharedlibs = "OFF"
+    else: buildsharedlibs = "ON"
+    return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
+
+def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
+    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
+    if nonnull( source := kwargs.get("CMAKESUBDIR") ):
+        effectivesrcdir : str = f"{srcdir}/{source}"
+    else: effectivesrcdir = srcdir
+    if not os.path.isdir(effectivesrcdir):
+        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+    settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
+    if not os.path.exists( f"{settingsfile}" ):
+        error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
+    cmakepathsetting : str = f"-S {effectivesrcdir} -B {builddir}"
+    if nonnull(prefixdir):
+        cmakepathsetting += f" -D CMAKE_INSTALL_PREFIX={prefixdir}"
+    return cmakepathsetting
+
+def cmake_build_pre( dirnames : DirNamesDict,**kwargs : Any ) -> str:
+    builddir = dirnames["builddir"]
+    return f"""
+if [ ! -d "{builddir}" ] ; then
+    echo "FAILURE: no such build dir: {builddir}"
+    exit  1
+else
+    echo "entering builddir: {builddir}"
+fi
+cd {builddir}
+
+if [ ! -f makefile -a ! -f Makefile ] ; then
+    echo "FAILURE: build dir {builddir} has no makefile or Makefile"
+    exit 1
+fi
+    """
+
+################################################################
+####
+#### Autotools
+####
+################################################################
+
+def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,srcdir,builddir,prefixdir = pmakedirs
+    if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
+        setup_script : str = f"\n{before}\n"
+    else: setup_script = "\n"
+
+    ##
+    ## go to the right location for configure
+    ##
+    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+        trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
+        configloc : str = builddir
+        config_cmdline : str = f"{srcdir}/configure"
+    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
+        configloc = f"{srcdir}/{subdir}"
+        config_cmdline = f"./configure"
+    else:
+        configloc = f"{srcdir}"
+        config_cmdline = f"./configure"
+    config_loc_script : str = f"""
+cd {configloc}
+echo Starting configure process in $(pwd)
+if [ -f \"configure\" ] ; then
+  has_configure=1
+  echo has configure script
+else has_configure= ; echo no configure script ; fi
+if [ -f \"autogen.sh\" ] ; then
+  has_autogen=1
+  echo has autogen
+else has_autogen= ; echo no autogen ; fi
+if [ -f \"configure.ac\" ] ; then
+  has_ac=1
+  echo has configure.ac 
+else has_ac= ; echo no configure.ac ; fi
+    """
+
+    ##
+    ## do stuff before configure
+    ##
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    reconf_script : str = f"""
+if [ -z \"$has_configure\" ] ; then 
+  if [ ! -z \"$has_ac\" ] ; then
+    aclocal && autoconf
+  elif [ ! -z \"$has_autogen\" ] ; then 
+    ./autogen.sh
+  else
+    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
+  fi
+fi
+{autoupdate}
+    """
+    ##
+    ## do configure
+    ##
+    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
+        flags = f" {flags}"
+    else: flags = ""
+    configure_script : str = f"""
+./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+    """
+    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
+
+def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+
+    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"make --no-print-directory -j {jval}"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    #
+    # install
+    #
+    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
+    script += f"\n{makecommand} install {extra}\n"
+
+    return script,"Autotools make and install"
+
+################################################################
+####
+#### PETSc
+####
+################################################################
+
+def petsc_configure_script( pdirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pdirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    # srcdir,prefixdir = plist
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    petscflags : str = kwargs.get("PETSCFLAGS","")
+    script : str = f"""
+if [ ! -d "{srcdir}" ] ; then
+    echo "FAILURE: src dir {srcdir} does not exist" && exit 1
+fi
+cd {srcdir}
+    """
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
+if [ ! -f "configure" ] ; then
+    echo "FAILURE: no petsc configure script found in ${{PWD}}" && exit 1
+fi
+python3 ./configure \
+    CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
+    {petscflags} \
+    --prefix={prefixdir} 
+    """
+    return script,"Make setup"
+
+def petsc_build_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    srcdir  : str = srcdir_name( **kwargs )
+    jcount  : str = kwargs.get("jcount",6)
+    targets : str = kwargs.get( "MAKETARGETS","" )
+    trace_string( f"making targets: {targets}",**kwargs )
+
+    script : str = f"\ncd {srcdir}\n"
+    if export_cmdline := nonzero_exports( **kwargs ):
+        script += f"\n{export_cmdline}\n"
+    script += f"""
+make -j {jcount} all
+make -j {jcount} install
+    """
+    return script,"Make build"
+
+################################################################
+####
+#### Make
+####
+################################################################
+
+def make_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir,builddir,prefixdir = cmakedirs
+    # flags and options
+    jcount          : str = kwargs.get("jcount","6")
+    make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
+    makebuildtarget : str = kwargs.get("makebuildtarget","")
+
+    script : str = f"""
+make -f {srcdir}/Makefile SRCDIR={srcdir} PROJECTNAME={program} {program}
+    """
+    return script,"Make compilation"
+
+#
+# Auxs for the build scripts
+#
+def nonzero_exports( **kwargs : Any ) -> Optional[str]:
+    if exports := nonzero_keyword( "exports",**kwargs ):
+        export_cmdline : str = " && ".join(exports)
+        trace_string( f"Using exports: {export_cmdline}",**kwargs )
+        return export_cmdline
+    else: return None
+
+def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
+    if unsets := nonzero_keyword( "unsets",**kwargs ):
+        unset_cmdline : str = " && ".join(unsets)
+        trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
+        return unset_cmdline
+    else: return None
 

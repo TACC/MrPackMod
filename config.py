@@ -80,11 +80,12 @@ def add_settings_from_config(
                 saving = True
                 continue
             else:
-                status : str = process_total_line( totalline,configfile,config_dict,**output )
-                if status is None:
-                    raise Exception( f"Can not parse: <<{line}>>\nin: {configfile}" )
-                elif status in ["exit","return"] : break
-                saving = False ; totalline = ""
+                # VLE move the abort into the process function
+                if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
+                    if status in ["exit","return"] : break
+                    saving = False ; totalline = ""
+                else:
+                    error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
 
 def process_total_line( line : str,configfile : str,
                         config_dict : dict[str,Any],**output : Any ) -> Optional[str]:
@@ -94,6 +95,7 @@ def process_total_line( line : str,configfile : str,
     trace_string( f" .. unconditional: {line}",**{ **config_dict,**output } )
 
     # detect and strip conditionals, return acceptability & line to process
+    # if `nowarn' is set, we can deal with undefined macros
     line = remove_macros( line,**config_dict )
     trace_string( f" .. expanded     : {line}",**{ **config_dict,**output } )
     if re.match( r'exit',line )  : return "exit"
@@ -123,7 +125,7 @@ def process_total_line( line : str,configfile : str,
 ##
 ## We have determined a variable assignment
 ##
-def process_key_setting( keyval,config_dict,**output ):
+def process_key_setting( keyval,config_dict,**output ) -> None:
     key,assign,val = keyval
     if assign in [ "+=","*=" ]:
         type : str = "addition"
