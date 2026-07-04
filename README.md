@@ -93,7 +93,8 @@ The MrPackMod system relies on a couple of global variables.
 Certain environment variables can be overriden in the configuration file (see above):
 
 - `PACKAGEROOT` : packages are downloaded and unpacked in `${PACKAGEROOT}/${PACKAGENAME}`; override this with the `DOWNLOADPATH` setting.
-  The packageroot is also used as the default location of any builddirectory; override this with `BUILDDIRROOT`. (!!!not yet implemented!!!)
+  The packageroot is also used as the default location of any builddirectory; override this with `BUILDDIRROOT`.
+  (At TACC it might be an idea to set this to `$SCRATCH/build` or so.)
 - `INSTALLROOT` : the package is installed in `${INSTALLROOT}/installation-${PACKAGE}-${EXTENSION}` where the extension is compound of system, compiler, mpi.
   Override this whole path with `INSTALLPATH`.
 - `MODULEROOT` : this is used to build up the `${MODULEROOT}/{Core,Compiler,MPI}/et/cetera` path as in the LMod documentation.
