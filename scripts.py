@@ -54,11 +54,12 @@ echo where {val}=${{whichcomp}}
             """
     return script,"Export compiler settings"
 
-def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> str:
+def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> tuple[str,str]:
     title : str = f"Load compiler and mpi and modules: {modules_to_load}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    modulepath = nonzero_keyword( "modulepath",**kwargs )
+    if ( modulepath := nonzero_keyword( "modulepath",**kwargs ) ) is None:
+        error_abort( "Need a module path",**kwargs )
     if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
         redirect = ""
     loadscript : str = ""
@@ -75,7 +76,9 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     #
     loadscript += modulepurgefunction()
     if not mode_is_core( **kwargs ):
-        loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+        if compiler is not None:
+            loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+        else: error_abort( "No compiler defined",**kwargs )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
@@ -87,7 +90,9 @@ echo "Load blas/lapack library: {blas}"
 modulecommand "load blas" "load {blas}"
                 """
     if mode_has_mpi( **kwargs ):
-        loadscript += mpiloadfunction( mpi,mpiversion )
+        if mpi is not None:
+            loadscript += mpiloadfunction( mpi,mpiversion )
+        else: error_abort( "No mpi defined",**kwargs )
     if nonnull( modules_to_load ) and zero_keyword( "skipmodules",**kwargs ):
         loadscript += modulesloadscript( modules_to_load,**kwargs )
     else:
@@ -274,9 +279,15 @@ modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" displ
 modulecommand "Load compiler" "load {compiler}/{compilerversion}"
     """
 
-def mpiloadfunction( mpi : str,mpiversion : str ) -> str:
-    return f"""
+# VLE Should be insist on an mpi version?
+def mpiloadfunction( mpi : str,mpiversion : Optional[str] ) -> str:
+    if mpiversion is not None:
+        return f"""
 modulecommand "Load mpi" "load {mpi}/{mpiversion}"
+        """
+    else:
+        return f"""
+modulecommand "Load mpi" "load {mpi}"
     """
 
 def modulesloadscript( modules_to_load : str,**kwargs ) -> str:

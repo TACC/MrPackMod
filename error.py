@@ -33,6 +33,7 @@ def abort_on_nonzero_env( envvar: str, **kwargs: Any ) -> None:
         pass
 
 # test on FAILURE/SUCCESS
-def abort_on_failure_result( result : str,**kwargs : Any ) -> Optional[NoReturn]:
+def abort_on_failure_result( result : str,**kwargs : Any ) -> Any: # Optional[NoReturn]:
     if match := re.match( r'FAILURE:?\s*(.*)$',result ):
         error_abort( match.groups()[0],**kwargs )
+    return

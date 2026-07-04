@@ -80,13 +80,11 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
 ################################################################
 
 def autotools_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"autotools configure", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    output : OutputDict = start_test_stage( "configure",**kwargs )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        autotools_configure_script,["",srcdir,builddir,prefixdir],**kwargs,**output, )
+        autotools_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
@@ -94,12 +92,11 @@ def autotools_build( **kwargs : Any ) ->Optional[str]:
     if nonzero_keyword("noinstall",**kwargs):
         return "No installation needed"
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"autotools build", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
+        start_test_stage( "build",**kwargs )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
-        autotools_build_script,["",srcdir,builddir,prefixdir],**kwargs,**output )
+        autotools_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 

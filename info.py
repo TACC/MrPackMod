@@ -11,22 +11,26 @@ from typing import Any
 # my own modules
 #
 import MrPackMod.names as names
-from MrPackMod.basics  import echo_string,error_abort,abort_on_zero_keyword
+from MrPackMod.basics  import echo_string,error_abort,nonzero_keyword
 
 
 def list_installations( **kwargs: Any ) -> None:
-    installroot = abort_on_zero_keyword( "installroot",**kwargs )
-    package     = abort_on_zero_keyword( "PACKAGE",**kwargs ).lower()
+    if ( installroot := nonzero_keyword( "installroot",**kwargs ) ) is None:
+        error_abort( "no installroot found",**kwargs )
+    else: installroot = installroot.lower()
+    if ( package := nonzero_keyword( "PACKAGE",**kwargs ) ) is None:
+        error_abort( "no package keyword found",**kwargs )
+    else: package = package.lower()
     dirs = [ d for d in os.listdir(installroot)
              if os.path.isdir( f"{installroot}/{d}" )
              and re.match( f"installation-{package}",d )
              ]
     echo_string( f"Found installations in installroot {installroot}\n{dirs}" )
     
-def list_logfiles( **kwargs: Any ) -> None:
-    _,configurelog = names.logfile_name( "configure",**kwargs )
-    _,installlog   = names.logfile_name( "install",**kwargs )
-    print( f"{configurelog} {installlog}" )
+# def list_logfiles( **kwargs: Any ) -> None:
+#     _,configurelog = names.logfile_name( "configure",**kwargs )
+#     _,installlog   = names.logfile_name( "install",**kwargs )
+#     print( f"{configurelog} {installlog}" )
 
 def configurelog_name( **kwargs: Any ) -> str:
     if bs := kwargs.get("BUILDSYSTEM"):

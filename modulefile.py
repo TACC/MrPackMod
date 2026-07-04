@@ -206,8 +206,10 @@ fi
 # Get module version of something in the install environment
 def get_module_version( pkg : str,**kwargs : Any ) -> str:
     # this happens in "dependency_clauses"
-    version : str =  get_value_from_loaded( module_version_script,[pkg],**kwargs, )
-    return version
+    if ( version := get_value_from_loaded( module_version_script,[pkg],**kwargs, ) ) \
+       is not None:
+        return version
+    else: return ""
 
 ##
 ## Construct the modulefile string

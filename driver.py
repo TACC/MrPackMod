@@ -119,7 +119,7 @@ utility_actions : {utility_actions}
     elif action=="list":
         info.list_installations( **configuration )
     elif action=="logfiles":
-        info.list_logfiles( **configuration )
+        error_abort( "logfiles action not implemented",**configuration )
     elif action=="configurelog":
         logfile = info.configurelog_name( **configuration, )
         print( logfile )

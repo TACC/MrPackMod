@@ -61,7 +61,7 @@ from MrPackMod.names import logfile_name
 ## add name/handle to kwargs["logfiles"]
 ##
 def open_logfile(
-        logstage : str, **kwargs   : Any, ) -> tuple[str,str,str]:
+        logstage : str, **kwargs   : Any, ) -> tuple[str,Any,str]:
     # get global name, ignore local name
     logname,_,scriptsdir = logfile_name( logstage,**kwargs )
     ensure_dir(scriptsdir)
@@ -124,7 +124,8 @@ def process_execute_immediate( cmdline : str, **kwargs : Any ) -> str:
 
     # create new process
     process : subprocess.Popen[str] = process_initiate()
-    process_input  : IO[str] = process.stdin
+    if ( process_input := process.stdin ) is None:
+        error_abort( "could not get stdin of process",**kwargs )
     trace_string( f"Execute cmdline=\"{cmdline}\" on new process {process.pid}",**kwargs )
 
     # execute!
@@ -258,7 +259,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[str,str]:
 ## return: value, or FAILURE string
 ##
 def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] ],
-                           args : list[Optional[str]],**kwargs : Any ) -> Optional[str]:
+                           args : list[Any],**kwargs : Any ) -> Optional[str]:
     # Generate the meat of the script
     mainscript,scripttitle = script_function(args,**kwargs)
     scripttitle = remove_macros( scripttitle,**kwargs )
