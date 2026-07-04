@@ -25,7 +25,8 @@ from MrPackMod.names import logfile_name,get_dir_names,\
 from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,\
-    autotools_configure_script,autotools_build_script
+    autotools_configure_script,autotools_build_script,\
+    petsc_configure_script,petsc_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     test_proper_prerequisites,OutputDict
 
@@ -175,20 +176,17 @@ def make_build( **kwargs : Any ) -> Optional[str]:
 
 def petsc_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
-        start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"petsc configure", } )
-    srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        start_test_stage( "configure",**kwargs )
+    # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        petsc_configure_script,[srcdir,prefixdir],**kwargs,**output )
+        petsc_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output} )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
 def petsc_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"make build", } )
+        start_test_stage( "build",**kwargs )
     retval : Optional[str] = get_value_from_loaded(
         petsc_build_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )

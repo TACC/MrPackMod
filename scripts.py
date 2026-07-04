@@ -596,13 +596,25 @@ cd {subdir}
 ####
 ################################################################
 
-def petsc_configure_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir,prefixdir = plist
+def petsc_configure_script( pdirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pdirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    # srcdir,prefixdir = plist
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
     petscflags : str = kwargs.get("PETSCFLAGS","")
-    script : str = f"\ncd {srcdir}\n"
+    script : str = f"""
+if [ ! -d "{srcdir}" ] ; then
+    echo "FAILURE: src dir {srcdir} does not exist" && exit 1
+fi
+cd {srcdir}
+    """
     if export_cmdline := nonzero_exports( **kwargs ):
         script += f"\n{export_cmdline}\n"
     script += f"""
+if [ ! -f "configure" ] ; then
+    echo "FAILURE: no petsc configure script found in ${{PWD}}" && exit 1
+fi
 python3 ./configure \
     CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
     {petscflags} \
