@@ -316,7 +316,9 @@ def modulefile_path( **kwargs: dict[str,Any] ) -> tuple[str, bool]:
         return f"{modulepath}",False
     else:
         # otherwise we build the path from system & compiler info
-        modulepath = abort_on_zero_keyword( "moduleroot",**kwargs )
+        if ( trypath := nonzero_keyword( "moduleroot",**kwargs ) ) is not None:
+            modulepath = trypath
+        else: error_abort( "Need a module path",**kwargs )
         if ( mode := kwargs.get("MODE","MODE_NOT_FOUND") ) == "core":
             modulepath += f"/Core"
         else:

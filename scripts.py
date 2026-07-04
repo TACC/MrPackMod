@@ -82,7 +82,7 @@ def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: An
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
-            if comp=="gcc": blas : str = "mkl"
+            if comp=="gcc"    : blas = "mkl"
             if comp=="nvidia" : blas = "nvpl"
             if nonnull(blas):
                 loadscript += f"""
@@ -106,15 +106,15 @@ modulelist
 def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
     if modslshver := re.match( r'^([^/]+)(/)([^/]+)$',modver ):
         # if there was a slash, keep original mod+ver
-        return modslshver.groups()
+        m,s,v = modslshver.groups()
+        return m,s,v
     else:
         # no slash, let's see if we can find a version
         module : str = modver
         # no version required, let's see if the environment has one
-        version = module_version_from_env( modver,**kwargs )
-        if nonnull( version ):
+        if ( version := module_version_from_env(modver,**kwargs) ) is not None:
             return module,"/",version
-            modver = f"{module}/{version}"
+            # modver = f"{module}/{version}"
         else:
             # no slash and no environment version, so load default
             return module,"",""
@@ -259,8 +259,12 @@ export LMOD_SYSTEM_DEFAULT_MODULES=TACC
 modulecommand "reset" "reset"
     """
 
-def compilerloadfunction( modulepath : str,compiler : str,compilerversion : str,
+def compilerloadfunction( modulepath : str,compiler : str,compilerversion : Optional[str],
                           redirect="" ) -> str:
+    if compilerversion is None:
+        compver : str = compiler
+    else:
+        compver = f"{compiler}/{compilerversion}"
     return f"""
 if [ ! -z "${{TACC_FAMILY_MPI}}" ] ; then
   modulecommand "unload mpi" "-f unload ${{TACC_FAMILY_MPI}}"
@@ -274,9 +278,9 @@ modulelist {redirect}
 echo .... Set modulepath {redirect}
 export MODULEPATH={modulepath}
 echo MODULEPATH=${{MODULEPATH}} {redirect}
-modulecommand "Can we load compiler?" "avail {compiler}/{compilerversion}" display
+modulecommand "Can we load compiler?" "avail {compver}" display
 
-modulecommand "Load compiler" "load {compiler}/{compilerversion}"
+modulecommand "Load compiler" "load {compver}"
     """
 
 # VLE Should be insist on an mpi version?
@@ -643,9 +647,10 @@ make -j {jcount} install
 ####
 ################################################################
 
-def make_build_script( pcmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program = pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
+def make_build_script( dirnamesl : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = dirnamesl
+    # srcdir,builddir,prefixdir = cmakedirs
+    srcdir = dirnames["srcdir"]
     # flags and options
     jcount          : str = kwargs.get("jcount","6")
     make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"

@@ -128,7 +128,7 @@ def make_configure( **kwargs : Any ) -> Optional[str]:
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"make configure", } )
-    srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
+    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -158,12 +158,10 @@ make -j {jcount} {targets}
 
 def make_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
-        start_test_stage(
-            "build",
-            **{ **kwargs,"title":"make build", } )
-    srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        start_test_stage( "build",**kwargs )
+    # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
-        make_build_script,[ srcdir,prefixdir],
+        make_build_script,[ "",get_dir_names(**kwargs) ],
         **kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
