@@ -15,11 +15,13 @@ from MrPackMod.basics  import clean_title,remove_macros,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword,\
     line_strip_conditionals,ModuleLoadStrategy
-from MrPackMod.names   import package_names,scriptsdir_name,builddir_name
+from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
+    DirNamesDict
 from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
-    cmake_configure_script,cmake_build_script,make_build_script
+    cmake_configure_script,cmake_build_script,make_build_script,\
+    ldd_script,run_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
@@ -143,36 +145,6 @@ fi
           **kwargs, )
     return grep_output_file
 
-def ldd_script( args : list[str],**kwargs ) -> tuple[str,str]:
-    program,programdir,cmakebuilddir,cmakeprefixdir = args
-    programdir = re.sub( r'\${(.+)}/',r'\1',programdir )
-    scriptsdir : str = scriptsdir_name( **kwargs )
-    lddout = f"{scriptsdir}/ldd_{programdir}_{program}.out"
-    where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
-    trace_string( f"Generate ldd script for file={program} in dir={where}",**kwargs )
-    script = f"""
-cd {where}
-rm -f {lddout}
-
-if [ -f \"{program}\" ] ; then
-    ldd {program} 2>&1 | tee {lddout}
-else
-    touch {lddout}
-fi
-
-if [ -f \"{program}\" ] ; then
-    notfound=$( grep \"not found\" {lddout} | wc -l )
-    if [ $notfound -eq 0 ] ; then
-        echo \"SUCCESS: all libraries resolved\" 
-    else
-        echo \"FAILURE: $notfound references not found\"
-    fi
-else
-    echo FAILURE: could not find program={program} to run ldd on
-fi
-    """
-    return script,f"ldd test on {programdir}/{program}"
-
 def do_ldd_test(
         title : str,
         package : str, dirtype : str, program : str,
@@ -191,35 +163,6 @@ def do_ldd_test(
         ldd_script,prog_and_dirs,**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     return success,failure
-
-##
-## Run a program
-##
-def run_script( runstuff : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,prefix,rundir,args = runstuff 
-    title : str = f"run program {program}"
-    if nonnull( prefix ):
-        cmdline :str = f"{prefix}{program}"
-    else:
-        cmdline = f"./{program}"
-    if nonnull( rundir ):
-        cdir = rundir
-    else:
-        builddir = builddir_name(**kwargs)
-        cdir = builddir
-    if nonnull( args ):
-        cmdline += f" {args}"
-    script : str = f"""
-cd {cdir}
-result=$( {cmdline} {args} )
-if [ $? -eq 0 ] ; then 
-    echo "SUCCESS: running {program} with output [${{result}}]"
-else
-    echo "FAILURE: running {program}"
-fi 
-#echo ${{output}}
-    """
-    return script,title
 
 class RundataDict(TypedDict):
     programname : str
@@ -271,28 +214,25 @@ def do_existence_test(
     # run!
     #
     if do_run:
-        rundata : RundataDict = {
-            "programname":program, 
-            "runprefix"  : run_config.get("run_prefix"),
-            "rundir"     : run_config.get("run_in_dir"),
-            "runargs"    : run_config.get("run_args"),
-            "builddir"   : None
+        dirnames : DirNamesDict = {
+            "scriptsdir" : "",
+            "scrdir"     : None,
+            "builddir"   : run_config.get("run_in_dir"),
+            "prefixdir"  : run_config.get("run_prefix"),
         }
         success,failure = do_run_test(
-            testtitle,rundata,
+            testtitle,
+            program,dirnames,run_config.get("run_args"),
             success,failure,**kwargs, )
     return success,failure
 
-def do_run_test( title : str,rundata : RundataDict,
+def do_run_test( title : str,
+                 programname : str,dirnames : DirNamesDict,runargs : str,
                  success : list[str],failure : list[str],**kwargs : Any
                 ) -> tuple[list[str],list[str]]:
-    programname : str = rundata["programname"]
     output = start_test_stage( f"{title}, run", **{ **kwargs,"package":programname } )
     res : Optional[str] = get_value_from_loaded(
-        run_script,
-        # VLE so what's the point of having this dct?
-        [ rundata["programname"],rundata["runprefix"],rundata["rundir"],rundata["runargs"] ],
-        **{ **kwargs,**output } )
+        run_script,[ programname,dirnames,runargs ],**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     if ( res is not None ) and ( returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ) ):
         outputval = returnval.groups()[0]
@@ -318,11 +258,16 @@ def do_cmake_test(
         run_config["programext"]  = programext
     else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
-    programsrcdir    : str = os.getcwd()+"/"+programext
-    programbuilddir  : str = create_dir( "build",**kwargs )
-    cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
-    prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,cmakeprefixdir]
-
+    # programsrcdir    : str = os.getcwd()+"/"+programext
+    # programbuilddir  : str = create_dir( "build",**kwargs )
+    # cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
+    # prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,cmakeprefixdir]
+    dirnames : DirNamesDict = {
+        "scriptsdir":"mpmscripts",
+        "srcdir":os.getcwd()+"/"+programext,
+        "builddir":create_dir( "build",**kwargs ),
+        "prefixdir":"" # for testing it's enough to have the result in `build',
+    }
     success : list[str] = []; failure : list[str] = []
 
     #
@@ -331,13 +276,13 @@ def do_cmake_test(
     output : OutputDict = \
         start_test_stage( "cmake build and make",**{ **kwargs,"package":programname, } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,prog_and_dirs,
-        **{ **kwargs,**output,
-            'pkgconfig':"yes", 'cmakeconfig':"yes" } )
+        cmake_configure_script,[ programname,dirnames ],
+        **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes" } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
-            cmake_build_script,prog_and_dirs,**{ **kwargs,**output } )
+            cmake_build_script,[ programname,dirnames, ],
+            **{ **kwargs,**output } )
         failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
@@ -346,25 +291,26 @@ def do_cmake_test(
     #
     output = start_test_stage( "ldd",**{ **kwargs,"package":programname } )
     # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
-    prog_and_dirs[1] = programext
+    # prog_and_dirs[1] = programext
     res = get_value_from_loaded(
-        ldd_script,prog_and_dirs,**kwargs,**output )
+        ldd_script,[ programname,dirnames ],
+        **{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
     # Run
     #
-    if nonnull( do_run ):
-        rundata : RundataDict = {
-            "programname":programname,
-            "prefixdir"  : run_config["run_prefix"],
-            "builddir"   : programbuilddir,
-            "run_in_dir" : run_config["run_in_dir"],
-            "run_args"   : run_config["run_args"],
+    if do_run:
+        dirnames : DirNamesDict = {
+            "scriptsdir" : "",
+            "scrdir"     : None,
+            "builddir"   : run_config.get("run_in_dir"),
+            "prefixdir"  : run_config.get("run_prefix"),
         }
         success,failure = do_run_test(
-            testtitle,rundata,
-            success,failure,**kwargs,**test_options )
+            testtitle,
+            program,dirnames,run_config.get("run_args"),
+            success,failure,**{ **kwargs,**output } )
     return success,failure
 
 def do_make_test(

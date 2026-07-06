@@ -11,7 +11,7 @@ from MrPackMod.basics  import module_version_from_env,\
     trace_string,echo_string,echo_warning,trace_var,\
     error_abort,abort_on_zero_keyword,nonzero_keyword,zero_keyword
 from MrPackMod.error   import isnull,nonnull
-from MrPackMod.names   import compilers_names,family_names,srcdir_name,\
+from MrPackMod.names   import compilers_names,family_names,srcdir_name,scriptsdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core,\
     DirNamesDict
 
@@ -395,7 +395,9 @@ def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) ->
     program,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
-    script : str = ""
+    script : str = f"""
+echo -e "\n>>> Start of cmake build"
+    """
     # flags and options
     jcount          : str = kwargs.get("jcount","6")
     make            : str = f"make --no-print-directory V=1 VERBOSE=1 -j {jcount}"
@@ -428,6 +430,9 @@ else
     echo FAILURE: installation failed
 fi
         """
+    script += f"""
+echo " .. end of cmake build"
+    """
     return script,"CMake make and install"
 
 def cmake_basic_command( **kwargs : Any ) -> str:
@@ -677,4 +682,91 @@ def nonzero_unsets( **kwargs : Any ) -> Optional[str]:
         trace_string( f"Using unsets: {unset_cmdline}",**kwargs )
         return unset_cmdline
     else: return None
+
+################################################################
+####
+#### More scripts
+####
+################################################################
+
+def ldd_script( dirnamesl : tuple[str,DirNamesDict],**kwargs ) -> tuple[str,str]:
+    # old: program,programdir,cmakebuilddir,cmakeprefixdir = args
+    # new:
+    program,dirnames = dirnamesl
+    # srcdir,builddir,prefixdir = cmakedirs
+    scriptsdir     = dirnames["scriptsdir"]
+    srcdir         = dirnames["srcdir"]
+    cmakebuilddir  = dirnames["builddir"]
+    cmakeprefixdir = dirnames["prefixdir"]
+
+    script : str = f"""
+echo -e "\n>>> Start of ldd testing"
+    """
+
+    srcdir = re.sub( r'\${(.+)}/',r'\1',srcdir )
+    where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
+    script += f"""
+echo "ldd testing on file={program} in dir={where}"
+if [ ! -d ] ; then
+    echo "FAILURE: directory <<{where}>> does not exist" && exit 1
+fi
+cd {where}
+if [ ! -d "{scriptsdir}" ] ; then
+    echo "FAILURE: scripts dir {scriptsdir} does not exist" && exit 1
+fi
+lddout="{scriptsdir}/ldd_{program}.out"
+rm -f "${{lddout}}"
+
+if [ -f \"{program}\" ] ; then
+    ldd {program} 2>&1 | tee "${{lddout}}"
+else
+    touch "${{lddout}}"
+fi
+
+if [ -f \"{program}\" ] ; then
+    notfound=$( grep \"not found\" "${{lddout}}" | wc -l )
+    if [ $notfound -eq 0 ] ; then
+        echo "SUCCESS: all libraries resolved"
+    else
+        echo "FAILURE: $notfound references not found"
+    fi
+else
+    echo "FAILURE: could not find program={program} to run ldd on"
+fi
+    """
+    return script,f"ldd test on {srcdir}/{program}"
+
+##
+## Run a program
+##
+def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tuple[str,str]:
+    # old: program,prefix,rundir,args = runstuff
+    # new:
+    program,dirnames,args = dirnamesl
+    #srcdir  = dirnames["srcdir"]
+    rundir   = dirnames["builddir"]
+    prefix   = dirnames["prefixdir"]
+
+    title : str = f"run program {program}"
+    if nonnull( prefix ):
+        cmdline :str = f"{prefixdir}{program}"
+    else:
+        cmdline = f"./{program}"
+    if isnull( rundir ):
+        rundir = "build"
+        #error_abort( "need run dir for run script",**kwargs )
+    if nonnull( args ):
+        cmdline += f" {args}"
+    script : str = f"""
+cd {rundir}
+echo "Running in <<{rundir}>>:$( pwd )"
+result=$( {cmdline} {args} )
+if [ $? -eq 0 ] ; then 
+    echo "SUCCESS: running {program} with output [${{result}}]"
+else
+    echo "FAILURE: running {program}"
+fi 
+#echo ${{output}}
+    """
+    return script,title
 

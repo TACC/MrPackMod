@@ -289,23 +289,29 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
         trace_string( f"Looking for rc files in{rc_dir}",**config_dict,**output )
     else:
         error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict,**output )
+    ##
+    ## General settings,
+    ## first system specific, then general
+    ##
     rc0 = f"{rc_dir}/.mrpackmodrc"
     if os.path.exists( f"{rc0}" ):
         add_settings_from_config( f"{rc0}",config_dict,**output )
-    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-    if os.path.exists( f"{rc2}" ):
-        add_settings_from_config( f"{rc2}",config_dict,**output )
-    if nonnull(compiler):
-        rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
-        if os.path.exists( f"{rc1}" ):
-            add_settings_from_config( f"{rc1}",config_dict,**output )
+    else:
+        rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+        if os.path.exists( f"{rc2}" ):
+            add_settings_from_config( f"{rc2}",config_dict,**output )
+    ##
+    ## Compiler settings,
+    ## first system specific, then general
+    ##
     if nonnull(compiler):
         rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
         if os.path.exists( f"{rc3}" ):
             add_settings_from_config( f"{rc3}",config_dict,**output )
-    # trace_string(
-    #     f"{rc0}: {has0}\n{rc1}: {has1}\n{rc2}; {has2}\n{rc3}: {has3}",
-    #     **config_dict,**output )
+        else:
+            rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
+            if os.path.exists( f"{rc1}" ):
+                add_settings_from_config( f"{rc1}",config_dict,**output )
 
 def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
