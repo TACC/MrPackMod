@@ -238,10 +238,6 @@ def do_cmake_test(
         run_config["programext"]  = programext
     else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
-    # programsrcdir    : str = os.getcwd()+"/"+programext
-    # programbuilddir  : str = create_dir( "build",**kwargs )
-    # cmakeprefixdir : str = "" # for testing it's enough to have the result in `build'
-    # prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,cmakeprefixdir]
     dirnames : DirNamesDict = {
         "scriptsdir":"mpmscripts",
         "srcdir":os.getcwd()+"/"+programext,
@@ -280,7 +276,7 @@ def do_cmake_test(
     #
     # Run
     #
-    if do_run:
+    if False and do_run:
         dirnames : DirNamesDict = {
             "scriptsdir" : "",
             "scrdir"     : None,

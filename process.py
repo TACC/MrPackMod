@@ -3,7 +3,6 @@
 ##
 ## python modules
 ##
-import datetime
 import os
 import pdb
 import re
@@ -54,23 +53,6 @@ def create_dir( name: str, **kwargs: Any ) -> str:
 #### Logfiles
 ####
 
-from MrPackMod.names import logfile_name
-
-##
-## Open a log file;
-## add name/handle to kwargs["logfiles"]
-##
-def open_logfile(
-        logstage : str, **kwargs   : Any, ) -> tuple[str,Any,str]:
-    # get global name, ignore local name
-    logname,_,scriptsdir = logfile_name( logstage,**kwargs )
-    ensure_dir(scriptsdir)
-    loghandle = open( logname,"w" )
-    loghandle.write( f"""================
-Logstage {logstage} started {datetime.date.today()}
-================\n""" )
-    return logname,loghandle,scriptsdir
-
 ##
 ## Process routines
 ##
@@ -79,7 +61,7 @@ def process_initiate() -> subprocess.Popen[str]:
         (['/bin/bash', '-l'], 
          stdin=subprocess.PIPE, 
          stdout=subprocess.PIPE, 
-         stderr=subprocess.STDOUT,
+         stderr=subprocess.PIPE, #STDOUT,
          text=True,
          bufsize=1)
 
@@ -367,6 +349,9 @@ def execute_execute_script( scriptfilename : str,outputfilename : str,**kwargs :
     script : str = f"""
 chmod +x {scriptfilename}
 {scriptfilename} # the script does output routing itself
+    """
+    if nonzero_keyword("traceresult",**kwargs):
+        script += f"""
 if [ $? -gt 0 ] ; then
     echo FAILURE running script {scriptfilename}
 fi

@@ -695,6 +695,7 @@ def ldd_script( dirnamesl : tuple[str,DirNamesDict],**kwargs ) -> tuple[str,str]
     program,dirnames = dirnamesl
     # srcdir,builddir,prefixdir = cmakedirs
     scriptsdir     = dirnames["scriptsdir"]
+    print( f"scriptsdir={scriptsdir} for ldd" )
     srcdir         = dirnames["srcdir"]
     cmakebuilddir  = dirnames["builddir"]
     cmakeprefixdir = dirnames["prefixdir"]

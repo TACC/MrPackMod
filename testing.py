@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import subprocess
@@ -8,10 +9,10 @@ from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     clean_title
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
-    package_prerequisites
+    logfile_name,package_prerequisites
 from MrPackMod.process    import get_value_from_loaded,get_value_from_virgin
 # process_execute, process_initiate, process_terminate
-from MrPackMod.process    import open_logfile # close_logfile
+# from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
@@ -66,7 +67,8 @@ def start_test_stage(
     # then logfile will go to default dir
 
     # VLE this log file is more or less empty. Get rid?
-    logname,loghandle,scriptsdir = \
+    # except that we use `scriptsdir' left and right
+    logname,loghandle = \
         open_logfile( clean_title(stage,**kwargs),**kwargs, ) 
 
     # Create a process for the commands of this test stage
@@ -76,7 +78,7 @@ def start_test_stage(
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
-        "scriptsdir"  : scriptsdir,
+        "scriptsdir"  : kwargs.get("scriptsdir",kwargs.get("startdir",".")),
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )
@@ -101,6 +103,21 @@ def end_test_stage(
     success,failure = success_failure_in_logfile\
         ( logfile,success=success,failure=failure,**kwargs )
     return success,failure
+
+##
+## Open a log file;
+## add name/handle to kwargs["logfiles"]
+##
+def open_logfile(
+        logstage : str, **kwargs   : Any, ) -> tuple[str,Any]:
+    # get global name, ignore local name
+    logname,_ = logfile_name( logstage,**kwargs )
+    #ensure_dir(scriptsdir)
+    loghandle = open( logname,"w" )
+    loghandle.write( f"""================
+Logstage {logstage} started {datetime.date.today()}
+================\n""" )
+    return logname,loghandle
 
 ##
 ## Grep for SUCCESS or FAILURE in a log file;

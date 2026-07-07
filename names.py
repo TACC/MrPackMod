@@ -61,7 +61,7 @@ def logfile_name(
         logfileshortname += f"_{mpi}-{mversion}"
     logfileshortname += ".log"
     logfilename = f"{scriptsdir}/{logfileshortname}"
-    return logfilename,logfileshortname,scriptsdir
+    return logfilename,logfileshortname
 
 class DirNamesDict(TypedDict):
     scriptsdir : str
@@ -79,23 +79,26 @@ def get_dir_names( **kwargs : Any ) -> DirNamesDict:
     return names
 
 def scriptsdir_name( **kwargs : Any ) -> str:
-    if scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ):
+    if ( scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ) ) is not None:
+        print( f"scriptsdir={scriptsdir} from keyword" )
         return scriptsdir
     else:
-        scriptroot : str = scriptsdir_root( **kwargs )
-        scriptdir  : str = scriptsdir_local( **kwargs )
-        return f"{scriptroot}/{scriptdir}"
+        scriptroot   : str = scriptsdir_root( **kwargs )
+        scriptlocal  : str = scriptsdir_local( **kwargs )
+        scriptsdir = f"{scriptroot}/{scriptlocal}"
+        print( f"scriptsdir={scriptsdir} from root={scriptroot}" )
+        return scriptsdir
 
 def scriptsdir_root( **kwargs : Any ) -> str:
-        if bdir := nonzero_keyword( "builddirroot",**kwargs ):
-            scriptroot : str =  bdir
-        elif startdir := nonzero_keyword( "startdir",**kwargs ):
-            scriptroot = startdir
-        else: # this should 
-            raise Exception( f"should have startdir or builddirroot for scripts" )
-        if not os.access( scriptroot,os.W_OK ):
-            raise Exception( f"scrptroot {scriptroot} not writable" )
-        return scriptroot
+    if bdir := nonzero_keyword( "builddirroot",**kwargs ):
+        scriptroot : str =  bdir
+    elif startdir := nonzero_keyword( "startdir",**kwargs ):
+        scriptroot = startdir
+    else: # this should 
+        raise Exception( f"should have startdir or builddirroot for scripts" )
+    if not os.access( scriptroot,os.W_OK ):
+        raise Exception( f"scrptroot {scriptroot} not writable" )
+    return scriptroot
 
 def scriptsdir_local( **kwargs : Any ) -> str:
     local : str = "mpmscripts"
