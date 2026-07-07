@@ -71,15 +71,6 @@ Logstage {logstage} started {datetime.date.today()}
 ================\n""" )
     return logname,loghandle,scriptsdir
 
-# VLE this function is simple, needs to be inlined
-# def close_logfile( output : OutputDict,**kwargs : dict[str,Any] ) -> None:
-#     # logname: str, kwargs: dict[str, Any] ) -> None:
-#     if ( loghandle := output.get("logfiles") ) is None:
-#         error_abort( f"Can not find logfile to close: {logname}",**kwargs )
-#     #kwargs["logfiles"].pop(logname)
-#     loghandle.close()
-
-
 ##
 ## Process routines
 ##

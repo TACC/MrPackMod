@@ -21,7 +21,7 @@ from MrPackMod.process import process_execute, process_initiate, \
     create_dir,ensure_dir,get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,make_build_script,\
-    ldd_script,run_script
+    file_to_exist_script,ldd_script,run_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
@@ -63,48 +63,6 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
 
     trace_string( f" .. parameters: {arguments_dict}",**kwargs )
     return arguments_dict
-
-##
-## Add process lines for testing file existence
-##
-def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    package,dirtype,program,grep,executable = args
-    title : str = f"Test existence of {package} in {dirtype}"
-    filedir,file_to_test,file_to_report = file_to_exist_names(package,dirtype,program,**kwargs)
-    script : str = f"""
-echo "{title}"
-if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
-    echo ' .. directory {filedir} exists'
-else 
-    echo 'FAILURE: {filedir} does not exist'
-    exit 1
-fi
-
-if [ -f \"{file_to_test}\" ] ; then
-    echo 'SUCCESS: file exists: <<{file_to_report}>> '
-else
-    echo 'FAILURE: file does not exist <<{file_to_report}>>' 
-    exit 1
-fi
-        """
-    if executable:
-        script += f"""
-if [ -x \"{file_to_test}\" ] ; then
-    echo "SUCCESS: file is executable"
-else
-    echo "FAILURE: file is not executable"
-fi
-        """
-    if nonnull( grep ):
-        program_clean = re.sub( '/','',program )
-        grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
-        script += f"""
-if [ -f \"{file_to_test}\" ] ; then
-    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1
-    echo INFORMATION: grep result is $( head -n 1 {grep_output_file} )
-fi
-        """
-    return script,title
 
 ##
 ## Return directory, actual file name & name with LMOD variable unexpanded
@@ -155,12 +113,17 @@ def do_ldd_test(
         file_to_exist_names(
             package,dirtype,program,**kwargs )
     program_clean : str = re.sub( '/','',program )
-    output = \
+    output : OutputDict = \
         start_test_stage( f"{title}, ldd test", **{ **kwargs, "package":program_clean }, )
-    # are library dependencies satisfied?
-    prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
+    # prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
+    dirnames : DirNamesDict = {
+        "scriptsdir":output["logdir"],
+        "srcdir":kwargs.get("startdir",".")+"/"+dirtype,
+        "builddir":create_dir( "build",**kwargs ),
+        "prefixdir":"" # for testing it's enough to have the result in `build',
+    }
     res : Optional[str] = get_value_from_loaded(
-        ldd_script,prog_and_dirs,**{ **kwargs,**output } )
+        ldd_script,[program,dirnames],**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     return success,failure
 
@@ -186,13 +149,16 @@ def do_existence_test(
     #
     # existence
     #
+    args = run_config["package"],run_config["dirtype"],run_config["program"],\
+        run_config["grep"],run_config["executable"]
+    package,dirtype,program,grep,executable = args
+    filedir,file_to_test,file_to_report = \
+        file_to_exist_names(package,dirtype,program,**kwargs)
+    fileargs = [ program,filedir,file_to_test,file_to_report ]
     output : OutputDict = \
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
-        file_to_exist_script,[
-            run_config["package"],run_config["dirtype"],run_config["program"],
-            run_config["grep"],run_config["executable"],
-        ],
+        file_to_exist_script,fileargs,
         **{ **kwargs,**output} )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
@@ -206,9 +172,23 @@ def do_existence_test(
 
     do_run,ldd = run_config["do_run"],run_config["ldd"]
     if run_config.get("ldd"):
-        success,failure = do_ldd_test(
-            testtitle, run_config["package"],run_config["dirtype"],run_config["program"],
-            success,failure, **{ **kwargs,"installing":False } )
+        dirnames : DirNamesDict = {
+            "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),
+            "srcdir":filedir,
+            "builddir":filedir, ## ldd script uses builddir as location 
+            "prefixdir":"" # for testing it's enough to have the result in `build',
+        }
+        output = \
+            start_test_stage( f"{testtitle}, ldd test", **{ **kwargs, **run_config } )
+        retval = get_value_from_loaded(
+            ldd_script,
+            [ program,dirnames ],
+            **{ **kwargs,**output } )
+        success,failure = end_test_stage( success,failure,output,**kwargs )
+
+        # success,failure = do_ldd_test(
+        #     testtitle, run_config["package"],run_config["dirtype"],run_config["program"],
+        #     success,failure, **{ **kwargs,"installing":False } )
 
     #
     # run!

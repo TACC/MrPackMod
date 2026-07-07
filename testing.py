@@ -72,7 +72,7 @@ def start_test_stage(
     # Create a process for the commands of this test stage
     output : OutputDict = {
         "logfile"     : logname, # full path, so we don't need logdir separately
-        #"logdir"      : scriptsdir,
+        "logdir"      : kwargs.get("startdir","."),
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,

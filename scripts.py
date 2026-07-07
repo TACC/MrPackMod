@@ -737,6 +737,51 @@ fi
     return script,f"ldd test on {srcdir}/{program}"
 
 ##
+## Test file existence
+##
+def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
+    _,filedir,file_to_test,file_to_report = args
+    # package,dirtype,program,grep,executable = args
+    title : str = f"Test existence of {file_to_report}"
+    # filedir,file_to_test,file_to_report =
+    # file_to_exist_names(package,dirtype,program,**kwargs)
+    script : str = f"""
+echo "{title}"
+if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
+    echo ' .. directory {filedir} exists'
+else 
+    echo 'FAILURE: {filedir} does not exist'
+    exit 1
+fi
+
+if [ -f \"{file_to_test}\" ] ; then
+    echo 'SUCCESS: file exists: <<{file_to_report}>> '
+else
+    echo 'FAILURE: file does not exist <<{file_to_report}>>' 
+    exit 1
+fi
+        """
+    return script,title
+    if executable:
+        script += f"""
+if [ -x \"{file_to_test}\" ] ; then
+    echo "SUCCESS: file is executable"
+else
+    echo "FAILURE: file is not executable"
+fi
+        """
+    if nonnull( grep ):
+        program_clean = re.sub( '/','',program )
+        grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
+        script += f"""
+if [ -f \"{file_to_test}\" ] ; then
+    grep \"{grep}\" {file_to_test} >{grep_output_file} 2>&1
+    echo INFORMATION: grep result is $( head -n 1 {grep_output_file} )
+fi
+        """
+    return script,title
+
+##
 ## Run a program
 ##
 def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tuple[str,str]:
