@@ -80,13 +80,11 @@ def get_dir_names( **kwargs : Any ) -> DirNamesDict:
 
 def scriptsdir_name( **kwargs : Any ) -> str:
     if ( scriptsdir := nonzero_keyword( "scriptsdir",**kwargs ) ) is not None:
-        print( f"scriptsdir={scriptsdir} from keyword" )
         return scriptsdir
     else:
         scriptroot   : str = scriptsdir_root( **kwargs )
         scriptlocal  : str = scriptsdir_local( **kwargs )
         scriptsdir = f"{scriptroot}/{scriptlocal}"
-        print( f"scriptsdir={scriptsdir} from root={scriptroot}" )
         return scriptsdir
 
 def scriptsdir_root( **kwargs : Any ) -> str:

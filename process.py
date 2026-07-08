@@ -108,10 +108,6 @@ def process_execute( cmdline: str, **kwargs: Any ) -> str:
     else:
         error_abort( f"Can not get process stdin",**kwargs )
 
-    # # Is this commandline proper?
-    # if re.search( r'\$\{',cmdline ):
-    #     echo_warning( f"commandline \"{cmdline}\" contains unexpanded macros",**kwargs )
-
     # Does this execution has a title?
     if not outside_process and ( title := nonzero_keyword( "title",**kwargs ) ):
         process_input.write( f"echo {title}" )

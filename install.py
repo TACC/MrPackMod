@@ -30,21 +30,6 @@ from MrPackMod.scripts import export_compilers_script,\
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     test_proper_prerequisites,OutputDict
 
-# def configure_prep( **kwargs: Any ) -> tuple[str, str, str]:
-#     from  MrPackMod import  modulefile
-#     #
-#     # setup directories
-#     #
-#     srcdir    = srcdir_name( **kwargs )
-#     builddir  = builddir_name( **kwargs )
-#     prefixdir = prefixdir_name( **kwargs )
-#     if nonzero_keyword( "scratch",**kwargs ):
-#         try:
-#             shutil.rmtree(builddir)
-#         except FileNotFoundError: pass
-#         os.makedirs(builddir,exist_ok=True)
-#     return srcdir,builddir,prefixdir
-
 ##
 ## CMake commandline with all options
 ## `pcmakedirs' is [program,src,build,prefix]

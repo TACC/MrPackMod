@@ -503,14 +503,35 @@ fi
 ################################################################
 
 def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,srcdir,builddir,prefixdir = pmakedirs
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
     if before := nonzero_keyword( "BEFORECONFIGURECMDS",**kwargs ):
         setup_script : str = f"\n{before}\n"
     else: setup_script = "\n"
 
     ##
     ## go to the right location for configure
+    ## do autogen stuff before configure
     ##
+    configsetupscript : str = config_setup_script( srcdir,**kwargs )
+
+    ##
+    ## do configure
+    ##
+    if ( option := nonzero_keyword( "PREFIXOPTION",**kwargs ) ) is not None:
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if ( flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ) ) is not None:
+        flags = f" {flags}"
+    else: flags = ""
+    configurescript : str = f"""
+./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+    """
+    return setup_script+configsetupscript+configurescript,"Autotools configuring"
+
+def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
     if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
         trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
         configloc : str = builddir
@@ -522,7 +543,10 @@ def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[
     else:
         configloc = f"{srcdir}"
         config_cmdline = f"./configure"
-    config_loc_script : str = f"""
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    return f"""
 cd {configloc}
 echo Starting configure process in $(pwd)
 if [ -f \"configure\" ] ; then
@@ -537,19 +561,11 @@ if [ -f \"configure.ac\" ] ; then
   has_ac=1
   echo has configure.ac 
 else has_ac= ; echo no configure.ac ; fi
-    """
 
-    ##
-    ## do stuff before configure
-    ##
-    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
-        autoupdate : str = "./autoupdate"
-    else: autoupdate = ""
-    reconf_script : str = f"""
-if [ -z \"$has_configure\" ] ; then 
-  if [ ! -z \"$has_ac\" ] ; then
+if [ -z "${{has_configure}}" ] ; then 
+  if [ ! -z "${{has_ac}}" ] ; then
     aclocal && autoconf
-  elif [ ! -z \"$has_autogen\" ] ; then 
+  elif [ ! -z "${{has_autogen}}" ] ; then 
     ./autogen.sh
   else
     echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
@@ -557,25 +573,13 @@ if [ -z \"$has_configure\" ] ; then
 fi
 {autoupdate}
     """
-    ##
-    ## do configure
-    ##
-    if option := nonzero_keyword( "PREFIXOPTION",**kwargs ):
-        prefixoption = option # pdtoolkit
-    else: prefixoption = "--prefix"
-    if flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ):
-        flags = f" {flags}"
-    else: flags = ""
-    configure_script : str = f"""
-./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
-    """
-    return setup_script+config_loc_script+reconf_script+configure_script,"Autotools configuring"
 
 def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
-    program = pmakedirs[0]; cmakedirs = pmakedirs[1:]
-    srcdir,builddir,prefixdir = cmakedirs
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
 
-    if not ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ):
+    if ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ) is None:
         subdir = srcdir
 
     #

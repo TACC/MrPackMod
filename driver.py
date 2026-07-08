@@ -160,8 +160,11 @@ utility_actions : {utility_actions}
         download.clone_or_pull( **configuration,gitaction=action )
     # build stuff
     elif action=="install":
+        prelimtesting : bool = True
         for a in ["configure","build","module","public",]:
-            returncode = mpm_action(a,arguments,**configuration)
+            returncode = mpm_action(
+                a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )
+            prelimtesting = False
             if not returncode: break
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
@@ -170,8 +173,9 @@ utility_actions : {utility_actions}
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites
         }
-        abort_on_failure_result(
-            test_proper_prerequisites( **configuration ),**configuration )
+        if configuration.get( "prelimtesting",True ):
+            abort_on_failure_result(
+                test_proper_prerequisites( **configuration ),**configuration )
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
