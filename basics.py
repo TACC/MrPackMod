@@ -220,3 +220,27 @@ class ModuleLoadStrategy(Enum):
     prerequisites = auto()
     package = auto()
     all = auto()
+
+#
+# Create directory, or make sure it exists
+#
+def ensure_dir( name: str, **kwargs: Any ) -> str:
+    if re.match( r'/',name):
+        dir : str = name
+    else:
+        pwd = os.getcwd()
+        dir = f"{pwd}/{name}"
+    if os.path.isdir( dir ):
+        trace_string( f"mkdir existing : {name} -> {dir}",**kwargs )
+    else:
+        #breakpoint()
+        trace_string( f"mkdir new dir : {name} -> {dir}",**kwargs )
+    os.makedirs( dir,exist_ok=True)
+    return dir
+
+def create_dir( name: str, **kwargs: Any ) -> str:
+    try:
+        shutil.rmtree(name)
+    except FileNotFoundError: pass
+    return ensure_dir( name,**kwargs )
+

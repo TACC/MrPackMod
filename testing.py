@@ -6,7 +6,7 @@ from typing import Any,Optional,TextIO,TypedDict
 
 from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     nonnull,nonzero_keyword,isnull,\
-    clean_title
+    clean_title,ensure_dir
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
     logfile_name,package_prerequisites
@@ -111,8 +111,8 @@ def end_test_stage(
 def open_logfile(
         logstage : str, **kwargs   : Any, ) -> tuple[str,Any]:
     # get global name, ignore local name
-    logname,_ = logfile_name( logstage,**kwargs )
-    #ensure_dir(scriptsdir)
+    logname,_,logfilesdir = logfile_name( logstage,**kwargs )
+    ensure_dir(logfilesdir)
     loghandle = open( logname,"w" )
     loghandle.write( f"""================
 Logstage {logstage} started {datetime.date.today()}

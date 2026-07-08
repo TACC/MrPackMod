@@ -14,8 +14,7 @@ from MrPackMod import download
 from MrPackMod import info 
 from MrPackMod import install
 from MrPackMod import names 
-from MrPackMod.process import process_initiate,process_terminate,process_execute,\
-    ensure_dir
+from MrPackMod.process import process_initiate,process_terminate,process_execute
 from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
     nonnull, nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy

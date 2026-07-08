@@ -14,11 +14,11 @@ from typing import Any,Optional,TypedDict
 from MrPackMod.basics  import clean_title,remove_macros,\
     echo_string,trace_string,echo_warning,trace_var,error_abort,\
     isnull,nonnull, nonzero_keyword,\
-    line_strip_conditionals,ModuleLoadStrategy
+    line_strip_conditionals,create_dir,ModuleLoadStrategy
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
     DirNamesDict
 from MrPackMod.process import process_execute, process_initiate, \
-    create_dir,ensure_dir,get_value_from_loaded
+    get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,make_build_script,\
     file_to_exist_script,ldd_script,run_script

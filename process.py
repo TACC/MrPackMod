@@ -15,7 +15,7 @@ from typing import Any, Callable, IO, NoReturn, Optional, Tuple
 from MrPackMod.basics  import remove_macros,clean_title,derived_settings,\
     trace_string,echo_string,echo_warning,trace_var,\
     abort_on_zero_keyword,nonzero_keyword,zero_keyword,\
-    isnull,nonnull,error_abort,\
+    ensure_dir,isnull,nonnull,error_abort,\
     ModuleLoadStrategy
 from MrPackMod.names   import package_names,family_names,package_prerequisites,\
     mode_is_core
@@ -25,29 +25,6 @@ from MrPackMod.scripts import export_compilers_script,export_flags,\
 ##
 ## File handling
 ##
-
-#
-# Create directory, or make sure it exists
-#
-def ensure_dir( name: str, **kwargs: Any ) -> str:
-    if re.match( r'/',name):
-        dir : str = name
-    else:
-        pwd = os.getcwd()
-        dir = f"{pwd}/{name}"
-    if os.path.isdir( dir ):
-        trace_string( f"mkdir existing : {name} -> {dir}",**kwargs )
-    else:
-        #breakpoint()
-        trace_string( f"mkdir new dir : {name} -> {dir}",**kwargs )
-    os.makedirs( dir,exist_ok=True)
-    return dir
-
-def create_dir( name: str, **kwargs: Any ) -> str:
-    try:
-        shutil.rmtree(name)
-    except FileNotFoundError: pass
-    return ensure_dir( name,**kwargs )
 
 ####
 #### Logfiles

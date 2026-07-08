@@ -48,7 +48,7 @@ def package_prerequisites( **kwargs : Any ) -> str:
 # 
 def logfile_name(
         logstage : str, **kwargs : Any, ) -> tuple[str, str,str]:
-    scriptsdir : str = scriptsdir_name( **kwargs )
+    logfilesdir : str = scriptsdir_name( **kwargs )
     
     system,compiler,cversion,cshortv,mpi,mversion = family_names( **kwargs )
     logfileshortname : str = logstage
@@ -60,8 +60,8 @@ def logfile_name(
     if mode := nonzero_keyword( "MODE",**kwargs ):
         logfileshortname += f"_{mpi}-{mversion}"
     logfileshortname += ".log"
-    logfilename = f"{scriptsdir}/{logfileshortname}"
-    return logfilename,logfileshortname
+    logfilename = f"{logfilesdir}/{logfileshortname}"
+    return logfilename,logfileshortname,logfilesdir
 
 class DirNamesDict(TypedDict):
     scriptsdir : str
