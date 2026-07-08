@@ -19,6 +19,7 @@ from MrPackMod.basics  import remove_macros,\
     nonnull,nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_zero_env
+# from MrPackMod.modulefile import dependency_clauses
 from MrPackMod.names import logfile_name,get_dir_names,\
     modulefile_path,module_name_and_version,\
     DirNamesDict,prefixdir_name
@@ -292,23 +293,4 @@ def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
-
-# def original_autotools_configure():
-#     if not has_configure or nonzero_keyword( "FORCERECONF",**kwargs ):
-#         if has_ac: 
-#             if nonzero_keyword( "DEFUNPROGFC",**kwargs ):
-#                 process_execute( "sed -i configure.ac -e \'/AC_INIT/aAC_DEFUN([_AC_PROG_FC_V],[])\'",
-#                                  process=shell,**kwargs )
-#             if reconf := nonzero_keyword( "AUTORECONF",**kwargs ): # when does this happen?
-#                 cmdline = f"{reconf} -i"
-#             else:
-#                 cmdline = f"aclocal && autoconf"
-#             if nonzero_keyword( "PKGPROGPKGCONFIG",**kwargs ):
-#                 process_execute( "sed -i configure -e \'s/PKG_PROG_PKG_CONFIG/pkg-config/\'",
-#                                  process=shell,**kwargs )
-#         elif has_autogen:
-#             cmdline = "./autogen.sh"
-#         else:
-#             raise Exception( "Need configure.ac or autogen.sh to generate configure script" )
-#         process_execute( cmdline,**kwargs,process=shell )
 
