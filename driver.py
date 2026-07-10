@@ -162,10 +162,17 @@ utility_actions : {utility_actions}
     elif action=="install":
         prelimtesting : bool = True
         for a in ["configure","build","module","public",]:
+            print( f"""
+================================================================
+\nAction: {a}\n
+================================================================
+            """,file=sys.stderr )
             returncode = mpm_action(
                 a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )
             prelimtesting = False
-            if not returncode: break
+            if not returncode:
+                print( """\nInstallation aborted\n""",file=sys.stderr )
+                break
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:

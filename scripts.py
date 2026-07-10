@@ -528,6 +528,7 @@ def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[
     else: flags = ""
     configurescript : str = f"""
 ./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+echo "SUCCESS: autotools configure succeeded"
     """
     return setup_script+configsetupscript+configurescript,"Autotools configuring"
 
@@ -599,7 +600,10 @@ cd {subdir}
     # install
     #
     extra = kwargs.get( "EXTRAINSTALLTARGET","" )
-    script += f"\n{makecommand} install {extra}\n"
+    script += f"""
+{makecommand} install {extra}
+echo "SUCCESS: autotools build succeeded"
+    """
 
     return script,"Autotools make and install"
 
@@ -628,10 +632,13 @@ cd {srcdir}
 if [ ! -f "configure" ] ; then
     echo "FAILURE: no petsc configure script found in ${{PWD}}" && exit 1
 fi
-python3 ./configure \
+which python3
+cmdline="python3 ./configure \
     CC=${{CC}} CXX=${{CXX}} FC=${{FC}} \
     {petscflags} \
-    --prefix={prefixdir} 
+    --prefix={prefixdir}"
+echo "Configure cmdline=$cmdline"
+eval $cmdline
     """
     return script,"Make setup"
 
