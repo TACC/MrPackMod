@@ -377,12 +377,17 @@ fi
 def configure_preclean( dirnames : DirNamesDict,**kwargs : Any ) -> str:
     builddir = dirnames ["builddir"]
     prefixdir = dirnames["prefixdir"]
-    return f"""
+    script : str =  f"""
 echo "Remove any builddir: {builddir}"
 rm -rf {builddir}
+    """
+    # netcdf installs c & f into the same prefix
+    if kwargs.get("NOSCRATCHINSTALL") is not None:
+        script += f"""
 echo "Remove any prefixdir: {prefixdir}"
 rm -rf {prefixdir}
-    """
+        """
+    return script
 
 def configure_postreport( dirnames : DirNamesDict,**kwargs : Any ) -> str:
     builddir = dirnames ["builddir"]
