@@ -150,7 +150,8 @@ utility_actions : {utility_actions}
         else : print( "default" )
     # download stuff
     elif action=="download":
-        download.download_from_url( **{ **configuration,"immediate_output":True } )
+        download.download_from_url(
+            **{ **configuration,"immediate_output":True,"load_context":False } )
     elif action in [ "unpack", "untar", ]:
         srcdir_local = names.srcdir_local_name( **configuration )
         download.unpack_from_url( srcdir=srcdir_local,**configuration )

@@ -36,16 +36,6 @@ def download_from_url( **kwargs: Any ) -> Optional[str]:
         download_url_script,[package,dirnames],**{ **kwargs,**output} )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
-    # downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
-    # cd_download_path( **kwargs,logfile=downloadlog )
-    # echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
-    # tgz = re.sub( r'.*/','',url )
-    # print("rm")
-    # process_execute_immediate( f"rm -f {tgz}",**kwargs,logfile=downloadlog )
-    # cmdline=f"wget {url}"
-    # print( f"wget {url}" )
-    # process_execute_immediate( cmdline,logfile=downloadlog )
-    # print("done")
 
 def unpack_from_url( **kwargs: Any ) -> None:
     url = kwargs.get( "DOWNLOADURL" ) or ""

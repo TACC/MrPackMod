@@ -134,7 +134,6 @@ def process_key_setting( keyval,config_dict,**output ) -> None:
 
     # start generating compiler/mpi stuff names
     if key in derived_setting_triggers:
-        #print( f"derived settings because key={key}\nsettings so far: {config_dict}" )
         set_derived_settings( config_dict,**output )
 
     if envval := nonzero_env( key,**config_dict ):
