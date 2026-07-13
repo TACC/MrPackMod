@@ -13,7 +13,7 @@ from MrPackMod.basics  import module_version_from_env,\
 from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,scriptsdir_name,\
     mode_has_mpi,mode_has_seq,mode_is_core,\
-    DirNamesDict
+    ensure_download_path,DirNamesDict
 
 from typing import Any,Optional
 
@@ -330,6 +330,32 @@ function modulelist ()
 ##
 ## Now the big scripts!
 ##
+
+################################################################
+####
+#### Download
+####
+################################################################
+
+def download_url_script( pdirs : tuple[str,DirNamesDict],**kwargs : dict[str,Any],
+                        ) -> tuple[str,str]:
+    package,dirnames = pdirs
+    downloadpath : str = ensure_download_path( **kwargs )
+    downloadurl  : str = dirnames["srcdir"]
+    script : str = f"""
+downloadpath={downloadpath}
+echo "Using download location: ${{downloadpath}}"
+cd ${{downloadpath}}
+
+downloadurl={downloadurl}
+tgz=${{downloadurl##*/}}
+echo "First remove existing compressed file ${{tgz}}"
+rm -f ${{tgz}}
+echo "Now download from url: ${{downloadurl}}"
+wget ${{downloadurl}}
+echo "SUCCESS: package {package} downloaded as ${{tgz}}"
+    """
+    return script,"Download from url"
 
 ################################################################
 ####

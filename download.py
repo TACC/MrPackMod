@@ -13,33 +13,39 @@ from typing import Any,Optional
 from MrPackMod.basics  import echo_string,trace_string,\
     abort_on_zero_keyword,nonzero_keyword
 import MrPackMod.names as names
-from MrPackMod.process import get_value_from_loaded,process_execute
+from MrPackMod.process import get_value_from_loaded,\
+    process_execute,process_execute_immediate
+from MrPackMod.scripts import download_url_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     OutputDict
 
-def download_path( **kwargs: Any ) -> str:
-    if downloadpath := nonzero_keyword("downloadpath",**kwargs):
-        trace_string( f"Change dir to downloadpath: {downloadpath}",**kwargs )
-        return downloadpath
-    else:
-        homedir :str = names.create_homedir( **kwargs )
-        trace_string( f"Use home dir as downloadpath: {homedir}",**kwargs )
-        return homedir
-
 def cd_download_path( **kwargs: Any ) -> None:
-    downloadpath = download_path( **kwargs )
+    downloadpath = names.ensure_download_path( **kwargs )
     os.chdir( downloadpath )
     
-def download_from_url( **kwargs: Any ) -> None:
+def download_from_url( **kwargs: Any ) -> Optional[str]:
     if ( url := nonzero_keyword( "DOWNLOADURL",**kwargs ) ) is None:
         raise Exception( f"No download url given" )
-    downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
-    cd_download_path( **kwargs,logfile=downloadlog )
-    echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
-    tgz = re.sub( r'.*/','',url )
-    process_execute( f"rm -f {tgz}",**kwargs,logfile=downloadlog )
-    cmdline=f"wget {url}"
-    process_execute( cmdline,logfile=downloadlog )
+    package,_ = names.package_names( **kwargs )
+    dirnames : DirNamesDict = {
+        'srcdir':url, # abuse of normal naming, but oh well
+        }
+    output : OutputDict = \
+        start_test_stage( "build",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        download_url_script,[package,dirnames],**{ **kwargs,**output} )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+    # downloadlog  = kwargs.pop( "logfile",open( f"{os.getcwd()}/download.log","w" ) )
+    # cd_download_path( **kwargs,logfile=downloadlog )
+    # echo_string( f"In download dir: {os.getcwd()} downloading {url}",logfile=downloadlog )
+    # tgz = re.sub( r'.*/','',url )
+    # print("rm")
+    # process_execute_immediate( f"rm -f {tgz}",**kwargs,logfile=downloadlog )
+    # cmdline=f"wget {url}"
+    # print( f"wget {url}" )
+    # process_execute_immediate( cmdline,logfile=downloadlog )
+    # print("done")
 
 def unpack_from_url( **kwargs: Any ) -> None:
     url = kwargs.get( "DOWNLOADURL" ) or ""

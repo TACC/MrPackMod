@@ -58,6 +58,7 @@ def process_terminate(
     lastline : str = ""
     while True:
         line : str = process_output.readline()
+        print( f"output line: {line}" )
         if not line:
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )

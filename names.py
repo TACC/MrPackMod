@@ -69,6 +69,15 @@ class DirNamesDict(TypedDict):
     builddir   : str
     prefixdir  : str
 
+def ensure_download_path( **kwargs: Any ) -> str:
+    if downloadpath := nonzero_keyword("downloadpath",**kwargs):
+        trace_string( f"Change dir to downloadpath: {downloadpath}",**kwargs )
+        return downloadpath
+    else:
+        homedir :str = create_homedir( **kwargs )
+        trace_string( f"Use home dir as downloadpath: {homedir}",**kwargs )
+        return homedir
+
 def get_dir_names( **kwargs : Any ) -> DirNamesDict:
     names : DirNamesDict = {
         'scriptsdir' : scriptsdir_name( **kwargs ),
