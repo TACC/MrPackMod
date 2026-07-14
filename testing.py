@@ -29,7 +29,7 @@ def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
                 **{ **kwargs, "terminal":"suppress" }
                 )
         retval : str = get_value_from_virgin(
-            modules_proper_script,[module],**kwargs,**output )
+            modules_proper_script,[module],**{ **kwargs,**output } )
         msuccess,mfailure = end_test_stage( [],[],output,**kwargs )
         success += msuccess; failure += mfailure
     for s in success:
@@ -51,7 +51,6 @@ class OutputDict(TypedDict):
     logdir : str
     terminal : Optional[str]
     linedisplay : Any
-    # scriptsdir : str
 
 def start_test_stage(
         stage: str,
@@ -59,6 +58,7 @@ def start_test_stage(
         ) -> OutputDict:
 
     title      : str  = str( kwargs.get("title","notitle") )
+    cleantitle : str  = clean_title(stage,**kwargs)
     package    : str  = str( kwargs.get("package","nopackage") )
     linedisplay = kwargs.pop("linedisplay",echo_string)
 
@@ -69,7 +69,7 @@ def start_test_stage(
     # VLE this log file is more or less empty. Get rid?
     # except that we use `scriptsdir' left and right
     logname,loghandle = \
-        open_logfile( clean_title(stage,**kwargs),**kwargs, ) 
+        open_logfile( cleantitle,**kwargs, ) 
 
     # Create a process for the commands of this test stage
     output : OutputDict = {
@@ -78,9 +78,6 @@ def start_test_stage(
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
-        "scriptsdir"  : kwargs.get("scriptsdir",
-                                   kwargs.get("startdir",".")+f"/mpmscripts_{package}"
-                                   ),
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )

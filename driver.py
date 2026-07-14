@@ -177,13 +177,16 @@ utility_actions : {utility_actions}
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
+        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
         install_options : dict = {
             "immediate_output":True,
-            "moduleloadstrategy":ModuleLoadStrategy.prerequisites
+            "moduleloadstrategy":ModuleLoadStrategy.prerequisites,
+            "scriptsdir":scriptsdir,
         }
         if configuration.get( "prelimtesting",True ):
             abort_on_failure_result(
-                test_proper_prerequisites( **configuration ),**configuration )
+                test_proper_prerequisites( **configuration,scriptsdir=scriptsdir ),
+                **configuration )
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
