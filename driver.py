@@ -151,7 +151,7 @@ utility_actions : {utility_actions}
     # download stuff
     elif action=="download":
         download.download_from_url(
-            **{ **configuration,"immediate_output":True,"load_context":False } )
+            **{ **configuration,"immediate_output":True,"without_context":True } )
     elif action in [ "unpack", "untar", ]:
         srcdir_local = names.srcdir_local_name( **configuration )
         download.unpack_from_url( srcdir=srcdir_local,**configuration )

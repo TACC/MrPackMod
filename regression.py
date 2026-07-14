@@ -230,16 +230,18 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     #
     # Cmake & compile
     #
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
     output : OutputDict = \
-        start_test_stage( "cmake build and make",**{ **kwargs,"package":program, } )
+        start_test_stage(
+            "cmake build and make",**{ **kwargs,"package":program } )
     res : Optional[str] = get_value_from_loaded(
         cmake_configure_script,[ program,tester_dirnames ],
-        **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes" } )
+        **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
             cmake_build_script,[ program,tester_dirnames ],
-            **{ **kwargs,**output } )
+            **{ **kwargs,**output,'scriptsdir':scriptsdir } )
         failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
@@ -249,7 +251,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     output = start_test_stage( "ldd",**{ **kwargs,"package":program } )
     res = get_value_from_loaded(
         ldd_script,[ program,tester_dirnames ],
-        **{ **kwargs,**output } )
+        **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
@@ -266,7 +268,8 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         success,failure = do_run_test(
             testtitle,
             program,tester_dirnames,run_config.get("run_args"),
-            success,failure,**{ **kwargs,**output } )
+            success,failure,
+            **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     return success,failure
 
     # if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
