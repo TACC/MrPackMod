@@ -365,6 +365,7 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 
 def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
     program,dirnames = pcmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    program = re.sub( r'\..*','',program )
 
     script : str = ""
     # setup
@@ -423,7 +424,7 @@ ls {builddir}
     """
 
 def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames = pcmakedirs
+    _,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
     script : str = f"""
@@ -735,9 +736,11 @@ def ldd_script( dirnamesl : tuple[str,DirNamesDict],**kwargs ) -> tuple[str,str]
     # old: program,programdir,cmakebuilddir,cmakeprefixdir = args
     # new:
     program,dirnames = dirnamesl
+    program = re.sub( r'\..*','',program )
+
     # srcdir,builddir,prefixdir = cmakedirs
-    scriptsdir     = dirnames["scriptsdir"]
-    srcdir         = dirnames["srcdir"]
+    if ( scriptsdir := kwargs.get("scriptsdir") ) is None:
+        error_abort( f"need scriptsdir for ldd tmps",**kwargs )
     cmakebuilddir  = dirnames["builddir"]
     cmakeprefixdir = dirnames["prefixdir"]
 
@@ -745,7 +748,6 @@ def ldd_script( dirnamesl : tuple[str,DirNamesDict],**kwargs ) -> tuple[str,str]
 echo -e "\n>>> Start of ldd testing"
     """
 
-    srcdir = re.sub( r'\${(.+)}/',r'\1',srcdir )
     where : str = cmakeprefixdir if nonnull(cmakeprefixdir) else cmakebuilddir
     script += f"""
 echo "ldd testing on file={program} in dir={where}"
@@ -776,7 +778,7 @@ else
     echo "FAILURE: could not find program={program} to run ldd on"
 fi
     """
-    return script,f"ldd test on {srcdir}/{program}"
+    return script,f"ldd test on {program}"
 
 ##
 ## Test file existence

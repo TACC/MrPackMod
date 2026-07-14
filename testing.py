@@ -78,7 +78,9 @@ def start_test_stage(
         "loghandle"   : loghandle,
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
-        "scriptsdir"  : kwargs.get("scriptsdir",kwargs.get("startdir",".")),
+        "scriptsdir"  : kwargs.get("scriptsdir",
+                                   kwargs.get("startdir",".")+f"/mpmscripts_{package}"
+                                   ),
     }
     if nonnull(title):
         trace_string( f"Starting stage for: {title}",**kwargs )

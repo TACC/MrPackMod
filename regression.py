@@ -186,10 +186,6 @@ def do_existence_test(
             **{ **kwargs,**output } )
         success,failure = end_test_stage( success,failure,output,**kwargs )
 
-        # success,failure = do_ldd_test(
-        #     testtitle, run_config["package"],run_config["dirtype"],run_config["program"],
-        #     success,failure, **{ **kwargs,"installing":False } )
-
     #
     # run!
     #
@@ -221,43 +217,28 @@ def do_run_test( title : str,
             print( f"Comparing output={outputval} against {testvalue}" )
     return success,failure
 
-def do_cmake_test(
-        test_definition: str, **kwargs: Any,
-        ) -> tuple[list[str], list[str]]:
+def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
     run_config : dict = test_config( test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
 
-    do_run    = run_config.get("do_run")
-    testvalue = run_config.get("test_value")
-
     program : str = run_config["program"]
-    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
-        programname,programext = name_ext.groups()
-        run_config["programname"] = programname
-        run_config["programext"]  = programext
-    else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
-    dirnames : DirNamesDict = {
-        "scriptsdir":"mpmscripts",
-        "srcdir":os.getcwd()+"/"+programext,
-        "builddir":create_dir( "build",**kwargs ),
-        "prefixdir":"" # for testing it's enough to have the result in `build',
-    }
+    tester_dirnames = get_tester_dirnames(program,**kwargs)
     success : list[str] = []; failure : list[str] = []
 
     #
     # Cmake & compile
     #
     output : OutputDict = \
-        start_test_stage( "cmake build and make",**{ **kwargs,"package":programname, } )
+        start_test_stage( "cmake build and make",**{ **kwargs,"package":program, } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ programname,dirnames ],
+        cmake_configure_script,[ program,tester_dirnames ],
         **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes" } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
-            cmake_build_script,[ programname,dirnames, ],
+            cmake_build_script,[ program,tester_dirnames ],
             **{ **kwargs,**output } )
         failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
@@ -265,18 +246,17 @@ def do_cmake_test(
     #
     # Check library dependencies satisfied & run
     #
-    output = start_test_stage( "ldd",**{ **kwargs,"package":programname } )
-    # VLE maybe we need to adjust prog_and_dirs[1] : needs to be file_to_report
-    # prog_and_dirs[1] = programext
+    output = start_test_stage( "ldd",**{ **kwargs,"package":program } )
     res = get_value_from_loaded(
-        ldd_script,[ programname,dirnames ],
+        ldd_script,[ program,tester_dirnames ],
         **{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
     # Run
     #
-    if False and do_run:
+    if True or run_config.get("do_run"):
+        testvalue = run_config.get("test_value")
         dirnames : DirNamesDict = {
             "scriptsdir" : "",
             "scrdir"     : None,
@@ -285,9 +265,15 @@ def do_cmake_test(
         }
         success,failure = do_run_test(
             testtitle,
-            program,dirnames,run_config.get("run_args"),
+            program,tester_dirnames,run_config.get("run_args"),
             success,failure,**{ **kwargs,**output } )
     return success,failure
+
+    # if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+    #     programname,programext = name_ext.groups()
+    #     run_config["programname"] = programname
+    #     run_config["programext"]  = programext
+    # else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
 
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
@@ -380,6 +366,21 @@ def test_config( test_definition : str,**kwargs : Any ) -> dict:
 
     echo_string( f"\nTEST: {testtitle}",**kwargs )
     return run_config
+
+#
+# tester dirnames
+#
+def get_tester_dirnames( program : str,**kwargs ) -> DirNamesDict:
+    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+        programname,programext = name_ext.groups()
+    else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+    dirnames : DirNamesDict = {
+        "scriptsdir":"mpmscripts", # VLE is this used? we have scripts dir in output
+        "srcdir":os.getcwd()+"/"+programext,
+        "builddir":create_dir( "build",**kwargs ),
+        "prefixdir":"" # for testing it's enough to have the result in `build',
+    }
+    return dirnames
 
 ##
 ## Test driver

@@ -78,6 +78,9 @@ def ensure_download_path( **kwargs: Any ) -> str:
         trace_string( f"Use home dir as downloadpath: {homedir}",**kwargs )
         return homedir
 
+#
+# Installer dirname
+#
 def get_dir_names( **kwargs : Any ) -> DirNamesDict:
     names : DirNamesDict = {
         'scriptsdir' : scriptsdir_name( **kwargs ),

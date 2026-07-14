@@ -58,7 +58,6 @@ def process_terminate(
     lastline : str = ""
     while True:
         line : str = process_output.readline()
-        print( f"output line: {line}" )
         if not line:
             break
         line = re.sub( r'^[ \t]*','', re.sub( r'[ \t\n]*$','', line ) )
@@ -256,11 +255,11 @@ see for details: {outputfilename}
                 msg = fine.groups()[0]
     print( f"""\
 SUCCEEDED: {scripttitle}
-with: {msg}
-returning: {returnvalue}
 see for details: {outputfilename}
                 """ )
     return returnvalue
+# with: {msg}
+# returning: {returnvalue}
     
 def get_value_from_virgin( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str], **kwargs : Any ) -> str:
