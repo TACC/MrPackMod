@@ -832,6 +832,8 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
     # old: program,prefix,rundir,args = runstuff
     # new:
     program,dirnames,args = dirnamesl
+    # strip any extension
+    program = re.sub( r'\..*','',program )
     #srcdir  = dirnames["srcdir"]
     rundir   = dirnames["builddir"]
     prefix   = dirnames["prefixdir"]
