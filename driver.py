@@ -31,7 +31,7 @@ def screen_report_action( action: str, **kwargs: Any ) -> None:
 ================================================================
     """)
 
-def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
+def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,Any] ) -> None:
     arguments = parser.parse_args()
     configfile   = arguments.configuration
     dependencies = arguments.dependencies
@@ -83,15 +83,15 @@ def mpm( parser: argparse.ArgumentParser, **kwargs: Any ) -> None:
             print( f"Action: {action}" )
         if action=="help":
             parser.print_help(); sys.exit(0)
-        mpm_action( action,arguments,**configuration )
+        mpm_action( action,arguments,**{ **configuration,**actionsdict } )
 
 def mpm_action( action : str,arguments,**configuration ) -> bool:
     # what are the possible actions
-    file_actions: str = configuration.get( "file_actions" ) or ""
-    build_actions: str = configuration.get( "build_actions" ) or ""
-    context_actions: str = configuration.get( "context_actions" ) or ""
-    package_actions: str = configuration.get( "package_actions" ) or ""
-    utility_actions: str = configuration.get( "utility_actions" ) or ""
+    file_actions    : str = configuration.get( "file_actions" ) 
+    build_actions   : str = configuration.get( "build_actions" )
+    context_actions : str = configuration.get( "context_actions" )
+    package_actions : str = configuration.get( "package_actions" )
+    utility_actions : str = configuration.get( "utility_actions" )
     
     returncode : bool = True
     # informative
@@ -149,16 +149,10 @@ utility_actions : {utility_actions}
             print( v )
         else : print( "default" )
     # download stuff
-    elif action=="download":
-        download.download_from_url(
-            **{ **configuration,"immediate_output":True,"without_context":True } )
-    elif action in [ "unpack", "untar", ]:
-        srcdir_local = names.srcdir_local_name( **configuration )
-        download.unpack_from_url( srcdir=srcdir_local,**configuration )
-    elif action=="retar":
-        download.retar_to_standard_name( **configuration )
-    elif action in [ "clone","pull" ]:
-        download.clone_or_pull( **configuration,gitaction=action )
+    elif action in file_actions:
+        file_action(
+            action,**{ **configuration,
+                       'scriptsdir':configuration.get("startdir",".")+"/mpmscripts_download" } )
     # build stuff
     elif action=="install":
         prelimtesting : bool = True
@@ -230,14 +224,27 @@ utility_actions : {utility_actions}
         #                  **configuration )
         screen_report_action(action,**configuration)
         regression.do_tests\
-            ( match=arguments.match,filter=arguments.filter,
-              logdir="./logfiles",**configuration )
+            ( match=arguments.match,filter=arguments.filter,**configuration )
     else:
         if action in build_actions+context_actions+package_actions+utility_actions:
             error_abort( f"Action promised in help but not implemented: {action}", **configuration )
         else:
             error_abort( f"Unknown action: {action}",**configuration )
     return returncode
+
+def file_action( action : str,**kwargs : dict[str,Any] ) -> None:
+    if action=="download":
+        download.download_from_url(
+            **{ **kwargs,"immediate_output":True,"without_context":True, } )
+    elif action in [ "unpack", "untar", ]:
+        srcdir_local = names.srcdir_local_name( **kwargs )
+        download.unpack_from_url(
+            **{ **kwargs,'srcdir':srcdir_local, } )
+    elif action=="retar":
+        download.retar_to_standard_name(**kwargs )
+    elif action in [ "clone","pull" ]:
+        download.clone_or_pull( **{ **kwargs,'gitaction':action } )
+    else: error_abort( f"Unimplemented file action: {action}",**kwargs )
 
 def configure_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":

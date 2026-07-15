@@ -140,11 +140,11 @@ def do_existence_test(
 
     run_config : dict = test_config( test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
+    program : str = run_config["program"]
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    success  : list[str] = []; failure  : list[str] = []
 
-    run_config["chdir"]   = create_dir( "build",**kwargs )
-
-    success  : list[str] = []
-    failure  : list[str] = []
+    run_config["chdir"]   = create_dir( "build",**kwargs ) ## ??
 
     #
     # existence
@@ -159,7 +159,7 @@ def do_existence_test(
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
         file_to_exist_script,fileargs,
-        **{ **kwargs,**output} )
+        **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
@@ -183,7 +183,7 @@ def do_existence_test(
         retval = get_value_from_loaded(
             ldd_script,
             [ program,dirnames ],
-            **{ **kwargs,**output } )
+            **{ **kwargs,**output,'scriptsdir':scriptsdir  } )
         success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
@@ -199,7 +199,7 @@ def do_existence_test(
         success,failure = do_run_test(
             testtitle,
             program,dirnames,run_config.get("run_args"),
-            success,failure,**kwargs, )
+            success,failure,**{ **kwargs,'scriptsdir':scriptsdir} )
     return success,failure
 
 def do_run_test( title : str,
@@ -221,16 +221,14 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
 
     run_config : dict = test_config( test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
-
     program : str = run_config["program"]
-
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
     tester_dirnames = get_tester_dirnames(program,**kwargs)
     success : list[str] = []; failure : list[str] = []
 
     #
     # Cmake & compile
     #
-    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
     output : OutputDict = \
         start_test_stage(
             "cmake build and make",**{ **kwargs,"package":program } )

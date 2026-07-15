@@ -255,8 +255,8 @@ see for details: {outputfilename}
                 msg = fine.groups()[0]
     print( f"""\
 SUCCEEDED: {scripttitle}
-see for details: {outputfilename}
-                """ )
+see for details: {outputfilename}\
+""" ) # no newlines before/after
     return returnvalue
 # with: {msg}
 # returning: {returnvalue}

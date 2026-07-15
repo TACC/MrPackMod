@@ -27,7 +27,7 @@ parser.add_argument( '-A','--args',default="" )
 ##
 ## what actions do we support?
 ##
-file_actions: str = "download unpack retar clone pull"
+file_actions: str = "download unpack untar retar betar clone pull"
 build_actions: str = "configure build module public"
 context_actions: str = "dependencies listmodules test"
 package_actions: str = "package version url configurelog logfiles"
@@ -37,9 +37,10 @@ parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package:
 from MrPackMod import driver
 
 driver.mpm( parser,
-            file_actions=file_actions,
-            build_actions=build_actions,
-            context_actions=context_actions,
-            package_actions=package_actions,
-            utility_actions=utility_actions,
+            **{ 'file_actions':file_actions,
+              'build_actions':build_actions,
+              'context_actions':context_actions,
+              'package_actions':package_actions,
+              'utility_actions':utility_actions,
+              }
            )
