@@ -31,7 +31,7 @@ def screen_report_action( action: str, **kwargs: Any ) -> None:
 ================================================================
     """)
 
-def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,Any] ) -> None:
+def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -> None:
     arguments = parser.parse_args()
     configfile   = arguments.configuration
     dependencies = arguments.dependencies
@@ -95,6 +95,7 @@ def mpm_action( action : str,arguments,**configuration ) -> bool:
     
     returncode : bool = True
     # informative
+    print( f"package actions: {package_actions}" )
     if action=="actions":
         print( f"""\
 file_actions: {file_actions}
@@ -122,17 +123,19 @@ utility_actions : {utility_actions}
             print( configuration[displayvar] )
         except:
             print( f"No configuration variable: {displayvar}" )
-    elif action in package_actions:
-        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
-        package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action=="listmodules":
         if modulelist := configuration.get("MODULES"):
             print( modulelist )
-    # download stuff
+    ##
+    ## By category
+    ##
+    elif action in package_actions:
+        print( f"{action} is in {package_actions}" )
+        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
+        package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action in file_actions:
-        file_action(
-            action,**{ **configuration,
-                       'scriptsdir':configuration.get("startdir",".")+"/mpmscripts_download" } )
+        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_download"
+        file_action( action,**{ **configuration,'scriptsdir':scriptsdir } )
     # build stuff
     elif action=="install":
         prelimtesting : bool = True
