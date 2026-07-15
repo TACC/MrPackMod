@@ -29,9 +29,9 @@ parser.add_argument( '-A','--args',default="" )
 ##
 file_actions: str = "download unpack untar retar betar clone pull"
 build_actions: str = "configure build module public"
-context_actions: str = "dependencies listmodules test"
-package_actions: str = "package version url configurelog logfiles"
-utility_actions: str = "actions clean regression"
+context_actions: str = "dependencies listmodules"
+package_actions: str = "package version test url configurelog logfiles"
+utility_actions: str = "actions clean regression "
 parser.add_argument( 'actions', nargs='*', help=f"File: {file_actions}, Package: {package_actions}, Build: {build_actions}, Context: {context_actions}, Utility: {utility_actions}, install=configure+build+module" )
 
 from MrPackMod import driver

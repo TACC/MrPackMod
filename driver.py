@@ -114,40 +114,20 @@ utility_actions : {utility_actions}
                   **configuration )
         else:
             echo_string( f"WARNING: find_string command needs --args",**configuration )
-    elif action=="package":
-        print( configuration.get("PACKAGE","PACKAGE variable not set") )
     elif action=="list":
         info.list_installations( **configuration )
-    elif action=="logfiles":
-        error_abort( "logfiles action not implemented",**configuration )
-    elif action=="configurelog":
-        logfile = info.configurelog_name( **configuration, )
-        print( logfile )
     elif action=="show":
         displayvar : str = arguments.displayvar
         try:
             print( configuration[displayvar] )
         except:
             print( f"No configuration variable: {displayvar}" )
-    elif action=="test":
-        # if not os.path.isdir( ( srcdir := names.srcdir_name( **configuration ) ) ):
-        #     echo_warning( "Source directory {srcdir} does not exist (yet)",
-        #                   **configuration )
-        abort_on_failure_result(
-            test_proper_prerequisites( installing=True,**configuration ),**configuration )
+    elif action in package_actions:
+        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
+        package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action=="listmodules":
         if modulelist := configuration.get("MODULES"):
             print( modulelist )
-    elif action=="url":
-        if url := configuration.get("URL"): print( url )
-        if url := configuration.get("CODEURL"): print( url )
-        if url := configuration.get("SOFTWAREURL"): print( url )
-        if url := configuration.get("DOCURL"): print( url )
-    elif action=="version":
-        v = configuration["PACKAGEVERSION"]
-        if nonnull(v):
-            print( v )
-        else : print( "default" )
     # download stuff
     elif action in file_actions:
         file_action(
@@ -245,6 +225,32 @@ def file_action( action : str,**kwargs : dict[str,Any] ) -> None:
     elif action in [ "clone","pull" ]:
         download.clone_or_pull( **{ **kwargs,'gitaction':action } )
     else: error_abort( f"Unimplemented file action: {action}",**kwargs )
+
+def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
+    if action=="package":
+        print( kwargs.get("PACKAGE","PACKAGE variable not set") )
+    elif action=="version":
+        v = kwargs["PACKAGEVERSION"]
+        if nonnull(v):
+            print( v )
+        else : print( "default" )
+    elif action=="url":
+        if url := kwargs.get("URL"): print( url )
+        if url := kwargs.get("CODEURL"): print( url )
+        if url := kwargs.get("SOFTWAREURL"): print( url )
+        if url := kwargs.get("DOCURL"): print( url )
+    elif action=="test":
+        # if not os.path.isdir( ( srcdir := names.srcdir_name( **kwargs ) ) ):
+        #     echo_warning( "Source directory {srcdir} does not exist (yet)",
+        #                   **kwargs )
+        abort_on_failure_result(
+            test_proper_prerequisites( installing=True,**kwargs ),**kwargs )
+    elif action=="configurelog":
+        logfile = info.configurelog_name( **kwargs, )
+        print( logfile )
+    elif action=="logfiles":
+        error_abort( "logfiles action not implemented",**kwargs )
+    else: error_abort( f"Unimplemented package action: {action}",**kwargs )
 
 def configure_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
