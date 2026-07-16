@@ -199,13 +199,15 @@ utility_actions : {utility_actions}
         os.system( f"rm -rf {clean_targets}" )
     elif action=="regression":
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
-        echo_warning( f"Need better test for package actually being loaded",**configuration )
-        # if not loaded_module_version( package,**configuration ):
-        #     error_abort( f"Module {package} needs to be loaded for regression testing",
-        #                  **configuration )
+        install_options : dict = {
+            "immediate_output":False,
+            "moduleloadstrategy":ModuleLoadStrategy.package,
+            "scriptsdir":None,
+        }
         screen_report_action(action,**configuration)
         regression.do_tests\
-            ( match=arguments.match,filter=arguments.filter,**configuration )
+            ( match=arguments.match,filter=arguments.filter,
+              **{ **configuration,**install_options } )
     else:
         if action in build_actions+context_actions+package_actions+utility_actions:
             error_abort( f"Action promised in help but not implemented: {action}", **configuration )

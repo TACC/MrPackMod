@@ -21,6 +21,9 @@ from MrPackMod.error import abort_on_null,abort_on_nonzero_env,abort_on_zero_env
 #### General names
 ####
 
+def dir_variable( package: str, dirtype: str = "dir" ) -> str:
+    return f"TACC_{package.upper()}_{dirtype.upper()}"
+
 #
 # compute package name and version,
 # both lowercase

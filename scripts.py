@@ -12,6 +12,7 @@ from MrPackMod.basics  import module_version_from_env,\
     error_abort,abort_on_zero_keyword,nonzero_keyword,zero_keyword
 from MrPackMod.error   import isnull,nonnull
 from MrPackMod.names   import compilers_names,family_names,srcdir_name,scriptsdir_name,\
+    dir_variable,\
     mode_has_mpi,mode_has_seq,mode_is_core,\
     ensure_download_path,DirNamesDict
 
@@ -784,24 +785,31 @@ fi
 ## Test file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    _,filedir,file_to_test,file_to_report = args
-    # package,dirtype,program,grep,executable = args
-    title : str = f"Test existence of {file_to_report}"
+    # _,filedir,file_to_test,file_to_report = args
+    package,dirtype,program,grep,executable = args
+    dirvar : str = dir_variable(package,dirtype)
+    title : str = f"Test existence of {dirtype}:{program}"
     # filedir,file_to_test,file_to_report =
     # file_to_exist_names(package,dirtype,program,**kwargs)
     script : str = f"""
 echo "{title}"
-if [ ! -z \"{filedir}\" -a -d \"{filedir}\" ] ; then 
-    echo ' .. directory {filedir} exists'
+
+echo "Using directory variable: {dirvar}
+eval filedir=\${{dirvar}}
+echo " .. expands to path: ${{filedir}}"
+if [ ! -z "${{filedir}}" -a -d "${{filedir}}" ] ; then 
+    echo " .. directory {dirvar}=${{filedir}} exists"
 else 
-    echo 'FAILURE: {filedir} does not exist'
+    echo "FAILURE: {dirvar} does not exist"
     exit 1
 fi
 
-if [ -f \"{file_to_test}\" ] ; then
-    echo 'SUCCESS: file exists: <<{file_to_report}>> '
+file_to_test=${{filedir}}/{program}
+echo "File to test: ${{file_to_test}}"
+if [ -f "${{file_to_test}}" ] ; then
+    echo "SUCCESS: file exists: <<${{file_to_report}}>>"
 else
-    echo 'FAILURE: file does not exist <<{file_to_report}>>' 
+    echo "FAILURE: file does not exist <<${{file_to_report}}>>"
     exit 1
 fi
         """

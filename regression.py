@@ -28,9 +28,9 @@ from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in
 #
 # Parse the cmake/existence options lien into a dict
 #
-def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
+def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[str, Any]:
     parser = argparse.ArgumentParser\
-        ( prog="mpm_cmake_tester",
+        ( prog=f"mpm_{testtype}_tester",
           description="CMake based tester for MrPackMod regression tests",
           add_help=True )
     # running
@@ -67,22 +67,22 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
 ##
 ## Return directory, actual file name & name with LMOD variable unexpanded
 ##
-def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
-    if isnull(dirtype) or dirtype=="dir":
-        dirvar : str = dir_variable(package,"dir")
-        filedir_to_report : str = f"${{{dirvar}}}"
-    elif dirtype in [ "inc","lib","bin", ]:
-        dirvar = dir_variable(package,dirtype)
-        filedir_to_report = f"${{{dirvar}}}"
-    else:
-        filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
-    filedir        : str = remove_macros( filedir_to_report,**kwargs )
-    file_to_test   : str = f"{filedir}/{program}"
-    file_to_report : str = f"{filedir_to_report}/{program}"
-    return filedir,file_to_test,file_to_report
+# def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
+#     if isnull(dirtype) or dirtype=="dir":
+#         dirvar : str = dir_variable(package,"dir")
+#         filedir_to_report : str = f"${{{dirvar}}}"
+#     elif dirtype in [ "inc","lib","bin", ]:
+#         dirvar = dir_variable(package,dirtype)
+#         filedir_to_report = f"${{{dirvar}}}"
+#     else:
+#         filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
+#     filedir        : str = remove_macros( filedir_to_report,**kwargs )
+#     file_to_test   : str = f"{filedir}/{program}"
+#     file_to_report : str = f"{filedir_to_report}/{program}"
+#     return filedir,file_to_test,file_to_report
 
-def dir_variable( package: str, dirtype: str = "dir" ) -> str:
-    return f"TACC_{package.upper()}_{dirtype.upper()}"
+# def dir_variable( package: str, dirtype: str = "dir" ) -> str:
+#     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
 ##
 ## Add lines to a process for testing the existence of a file
@@ -138,7 +138,7 @@ def do_existence_test(
         test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( test_definition,**kwargs )
+    run_config : dict = test_config( "existence",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -152,9 +152,10 @@ def do_existence_test(
     args = run_config["package"],run_config["dirtype"],run_config["program"],\
         run_config["grep"],run_config["executable"]
     package,dirtype,program,grep,executable = args
-    filedir,file_to_test,file_to_report = \
-        file_to_exist_names(package,dirtype,program,**kwargs)
-    fileargs = [ program,filedir,file_to_test,file_to_report ]
+    # filedir,file_to_test,file_to_report = \
+    #     file_to_exist_names(package,dirtype,program,**kwargs)
+    # fileargs = [ program,filedir,file_to_test,file_to_report ]
+    fileargs = [ package,dirtype,program,"","" ] # grep,executable
     output : OutputDict = \
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
@@ -165,10 +166,6 @@ def do_existence_test(
     #
     # run and ldd
     #
-
-    # filedir,file_to_test,file_to_report = \
-    #     file_to_exist_names(
-    #         package,dirtype,program,**{ **kwargs,"installing":False } )
 
     if run_config.get("ldd"):
         dirnames : DirNamesDict = {
@@ -219,7 +216,7 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( test_definition,**kwargs )
+    run_config : dict = test_config( "cmake",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -279,7 +276,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( test_definition,**kwargs )
+    run_config : dict = test_config( "make",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
 
     program : str = run_config["program"]
@@ -347,9 +344,9 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
             return True
     return False
 
-def test_config( test_definition : str,**kwargs : Any ) -> dict:
+def test_config( test_type : str,test_definition : str,**kwargs : Any ) -> dict:
     #parsed_options
-    run_config : dict = parse_command( test_definition,**kwargs )
+    run_config : dict = parse_command( test_type,test_definition,**kwargs )
     trace_string( f"Test options: {run_config}",**kwargs )
 
     if ( package := package_names( **kwargs )[0] ) is not None:
@@ -395,8 +392,7 @@ def do_tests( **kwargs: Any ) -> None:
     if tests := kwargs.get( "EXISTENCETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_existence_test(
-                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
+                success,failure = do_existence_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -408,8 +404,7 @@ def do_tests( **kwargs: Any ) -> None:
     if tests := kwargs.get( "CMAKETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_cmake_test(
-                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
+                success,failure = do_cmake_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -421,8 +416,7 @@ def do_tests( **kwargs: Any ) -> None:
     if tests := kwargs.get( "MAKETEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_make_test( 
-                    test,**kwargs,moduleloadstrategy=ModuleLoadStrategy.package )
+                success,failure = do_make_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:
@@ -430,7 +424,7 @@ def do_tests( **kwargs: Any ) -> None:
             else: report_skipped_test( test,**kwargs )
 
 def report_skipped_test( test_definition : str,**kwargs : Any ) -> None:
-    run_config : dict = parse_command( test_definition,**kwargs )
+    run_config : dict = parse_command( "skip",test_definition,**kwargs )
     title : str   = run_config.pop("title")
     echo_string( f"Skipping test: {title}",**kwargs )
 
