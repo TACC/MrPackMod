@@ -26,7 +26,7 @@ from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in
     OutputDict
 
 #
-# Parse the options with argparse
+# Parse the cmake/existence options lien into a dict
 #
 def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
     parser = argparse.ArgumentParser\
@@ -34,16 +34,16 @@ def parse_command( test_options: str, **kwargs: Any ) -> dict[str, Any]:
           description="CMake based tester for MrPackMod regression tests",
           add_help=True )
     # running
-    parser.add_argument( '-r',"--run", action='store_true', default=False )
-    parser.add_argument( '--run_in_dir', action='store_true', default=False )
-    parser.add_argument( '-a',"--run_args" )
-    parser.add_argument( '-t',"--test_value",default="0" )
+    parser.add_argument( '-r',"--run",        action='store_true', default=False )
+    parser.add_argument( '--run_in_dir',      default="." )
+    parser.add_argument( '-a',"--run_args",   default="" )
+    parser.add_argument( '-t',"--test_value", default="0" )
 
-    parser.add_argument( '-k','--keywords',default="" )
-    parser.add_argument( '-p',"--run_prefix" )
+    parser.add_argument( '-k','--keywords'  , default="" )
+    parser.add_argument( '-p',"--run_prefix", default="" )
     # existence
-    parser.add_argument( '-l',"--ldd", action='store_true', default=False )
-    parser.add_argument( '-x',"--executable",action='store_true', default=False )
+    parser.add_argument( '-l',"--ldd",        action='store_true', default=False )
+    parser.add_argument( '-x',"--executable", action='store_true', default=False )
     parser.add_argument( "-d","--dir" )
 
     # grep in file
@@ -170,7 +170,6 @@ def do_existence_test(
     #     file_to_exist_names(
     #         package,dirtype,program,**{ **kwargs,"installing":False } )
 
-    do_run,ldd = run_config["do_run"],run_config["ldd"]
     if run_config.get("ldd"):
         dirnames : DirNamesDict = {
             "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),
@@ -189,13 +188,14 @@ def do_existence_test(
     #
     # run!
     #
-    if do_run:
+    if run_config.get("do_run"):
         dirnames : DirNamesDict = {
             "scriptsdir" : "",
             "scrdir"     : None,
             "builddir"   : run_config.get("run_in_dir"),
-            "prefixdir"  : run_config.get("run_prefix"),
+            "prefixdir"  : run_config.get("run_prefix",""),
         }
+        # print( f"run test with prefix: "+dirnames["prefixdir"] )
         success,failure = do_run_test(
             testtitle,
             program,dirnames,run_config.get("run_args"),

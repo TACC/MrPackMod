@@ -95,7 +95,6 @@ def mpm_action( action : str,arguments,**configuration ) -> bool:
     
     returncode : bool = True
     # informative
-    print( f"package actions: {package_actions}" )
     if action=="actions":
         print( f"""\
 file_actions: {file_actions}
@@ -130,7 +129,6 @@ utility_actions : {utility_actions}
     ## By category
     ##
     elif action in package_actions:
-        print( f"{action} is in {package_actions}" )
         scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
         package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action in file_actions:

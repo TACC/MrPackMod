@@ -829,29 +829,38 @@ fi
 ## Run a program
 ##
 def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tuple[str,str]:
-    # old: program,prefix,rundir,args = runstuff
-    # new:
     program,dirnames,args = dirnamesl
     # strip any extension
     program = re.sub( r'\..*','',program )
-    #srcdir  = dirnames["srcdir"]
-    rundir   = dirnames["builddir"]
-    prefix   = dirnames["prefixdir"]
 
-    title : str = f"run program {program}"
-    if nonnull( prefix ):
-        cmdline :str = f"{prefixdir}{program}"
-    else:
-        cmdline = f"./{program}"
+    title   : str = f"run program {program}"
+
+    script : str = ""
+    # where do we run?
+    rundir   = dirnames["builddir"]
     if isnull( rundir ):
         rundir = "build"
-        #error_abort( "need run dir for run script",**kwargs )
+        script += f"""
+cd {rundir}
+echo "Running in rundir={rundir}=$( pwd )"
+        """
+    else:
+        script += f"""
+echo "Running in rundir={rundir}=$( pwd )"
+        """
+
+    # what do we run?
+    #  - prefix is empty for runing along path
+    #  - prefix can be ./
+    prefix  : str = dirnames["prefixdir"]
+    cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
         cmdline += f" {args}"
-    script : str = f"""
-cd {rundir}
-echo "Running in <<{rundir}>>:$( pwd )"
-result=$( {cmdline} {args} )
+    script += f"""
+echo "cmdline={cmdline}"
+echo ">>>> start execution"
+result=$( {cmdline} )
+echo "<<<< end execution"
 if [ $? -eq 0 ] ; then 
     echo "SUCCESS: running {program} with output [${{result}}]"
 else
