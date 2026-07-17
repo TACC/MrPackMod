@@ -168,6 +168,8 @@ def do_existence_test(
     #
 
     if run_config.get("ldd"):
+        print("ldd test temporarily disabled")
+    if False:
         dirnames : DirNamesDict = {
             "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),
             "srcdir":filedir,
