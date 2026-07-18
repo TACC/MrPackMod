@@ -42,8 +42,34 @@ def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
         error_abort( "package is null/unspecified",**kwargs )
     return p,v
 
-def package_prerequisites( **kwargs : Any ) -> str:
-    return kwargs.get( "MODULES","" )
+def package_prerequisites( **kwargs : Any ) -> list[str]:
+    versionedmodules : list[str] = [
+        vm
+        for m in kwargs.get( "MODULES","" ).split(" ")
+        if ( vm := versioned_module(m) ) != ""
+    ]
+    trace_string( f"Prerequisites with versions: {versionedmodules}",**kwargs )
+    return versionedmodules
+
+# VLE should the next two functions be local to `package_prerequisites'?
+# Get module version from the calling environment
+def get_environment_module_version( pkg : str,**kwargs : dict[str,Any] ) -> Optional[str]:
+    if ( v1 := os.getenv(f"TACC_{pkg.upper()}_VERSION") ) is not None:
+        return v1
+    elif ( v2 := os.getenv(f"TACC_{pkg.upper()}_VER") ) is not None:
+        return v2
+    else: return None
+
+def versioned_module( module : str,**kwargs : dict[str,Any] ) -> str:
+    if re.search( "/",module ):
+        # already has a version: keep
+        return module
+    elif ( envversion := get_environment_module_version( module,**kwargs ) ) is not None:
+        # return version from environment
+        return f"{module}/{envversion}"
+    else:
+        # return name, and we will load the default version
+        return module
 
 #
 # name of a logfile

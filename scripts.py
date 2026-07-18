@@ -55,9 +55,9 @@ echo where {val}=${{whichcomp}}
             """
     return script,"Export compiler settings"
 
-def load_compiler_and_mpi_and_modules_script( modules_to_load : str,**kwargs: Any ) -> tuple[str,str]:
-    title : str = f"Load compiler and mpi and modules: {modules_to_load}"
-    errmsg : str = f"Failed to load compiler and mpi and modules: {modules_to_load}"
+def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs: Any ) -> tuple[str,str]:
+    title : str = f"Load compiler and mpi and modules: {modulestoload}"
+    errmsg : str = f"Failed to load compiler and mpi and modules: {modulestoload}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
     if ( modulepath := nonzero_keyword( "modulepath",**kwargs ) ) is None:
         error_abort( "Need a module path",**kwargs )
@@ -94,8 +94,8 @@ modulecommand "load blas" "load {blas}"
         if mpi is not None:
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
-    if nonnull( modules_to_load ) and zero_keyword( "skipmodules",**kwargs ):
-        loadscript += modulesloadscript( modules_to_load,**kwargs )
+    if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ):
+        loadscript += modulesloadscript( modulestoload,**kwargs )
     else:
         echo_warning( "not loading any modules",**kwargs )
     loadscript += f"""
@@ -295,12 +295,12 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 modulecommand "Load mpi" "load {mpi}"
     """
 
-def modulesloadscript( modules_to_load : str,**kwargs ) -> str:
+def modulesloadscript( modulestoload : list[str],**kwargs ) -> str:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
-echo ".... Load packages <<{modules_to_load}>>" {redirect}
+echo ".... Load packages <<{modulestoload}>>" {redirect}
     """
-    for modver in modules_to_load.split(" "):
+    for modver in modulestoload:
         if isnull(modver): continue
         module,slash,version = module_and_version_to_load(modver,**kwargs )
         modulepropertest,_ = one_module_proper_script( [modver],**kwargs )
