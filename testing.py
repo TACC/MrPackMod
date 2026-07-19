@@ -17,8 +17,8 @@ from MrPackMod.scripts    import modules_proper_script
 
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
-    modulestring : str = package_prerequisites( **kwargs )
-    moduleslist  : list[str] = modulestring.split()
+    #modulestring : str = package_prerequisites( **kwargs )
+    moduleslist  : list[str] = package_prerequisites( **kwargs ) #modulestring.split()
     if len(moduleslist)==0:
         return "SUCCESS: no modules to be tested"
     success : list[str] = []; failure : list[str] = []

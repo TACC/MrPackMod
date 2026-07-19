@@ -187,7 +187,8 @@ derived_settings : list[str] = [ "SRCDIR","BUILDDIR","PREFIXDIR" ]
 def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]:
     """ returns: line,accept """
     trace_string( f"Test line for conditions: {line}",**config_dict )
-    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_]+|"")\s+(.*)$',line ):
+    # VLE should we allow any nonblank string as rhs of the test?
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_\.]+|"")\s+(.*)$',line ):
         value1,comparison,value2,line = condition_split( test,**config_dict )
         trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
                       **config_dict )
