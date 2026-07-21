@@ -364,7 +364,7 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 ################################################################
 
 def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames = pcmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    program,dirnames = pcmakedirs
     program = re.sub( r'\..*','',program )
 
     script : str = ""
@@ -479,11 +479,19 @@ def cmake_basic_command( **kwargs : Any ) -> str:
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
 def cmake_options( **kwargs: Any ) -> str:
-    cmakeflags = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
-    if standard := kwargs.get("CPPSTANDARD"):
+    cmakeflags : str = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
+    if ( standard := kwargs.get("CPPSTANDARD") ) is not None:
         cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
-    if flags := nonzero_keyword( "CMAKEFLAGS",**kwargs ):
-        cmakeflags += f" -D MPM_CUSTOM_FLAGS=START {flags} "
+    if ( conflags := nonzero_keyword("CMAKEFLAGS",**kwargs) ) is not None \
+       or ( envflags := os.getenv("CMAKE_C_FLAGS") ) is not None:
+        flags : str = f" -D MPM_CUSTOM_FLAGS=START "
+        # VLE we need to cover the case that both are nonzero:
+        # we need to edit the envflags into the conflags
+        if conflags is not None:
+            flags += conflags
+        elif envflags is not None:
+            flags += f" -D CMAKE_C_FLAGS={envflags}"
+        cmakeflags += f"{flags} -D MPM_CUSTOM_FLAGS=END "
     return cmakeflags.lstrip(" ")
 
 def cmake_build_settings( **kwargs ) -> str:
