@@ -28,7 +28,7 @@ list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST",
                              ]
 
 def add_new_dict_item(
-        newkey: str, assign: str, newval: str, config_dict: dict[str, Any],**output : Any ) -> None:
+        newkey: str, assign: str, newval: str, config_dict: dict[str, Any],**kwargs : Any ) -> None:
     """ Add a new value under the given key.
     Any macros in the value are expanded.
     Note: only one expansion pass, but macros can not contains macros anyway.
@@ -36,7 +36,8 @@ def add_new_dict_item(
     except for keys that are additive such as DEPENDSON, or if `assign' is `+='
     """
     newval = newval.strip('\n').strip(' ')
-    newval = remove_macros( newval,**config_dict )
+    # expansion has been done -- and possible prevented -- earlier
+    # VLE newval = remove_macros( newval,**config_dict )
     if ( newkey in additive_keys or assign in ["+=","*="] ) :
         if newkey in config_dict.keys() :
             if assign=="*=":
@@ -50,10 +51,12 @@ def add_new_dict_item(
         if newkey not in config_dict.keys() :
             config_dict[newkey] = []
         config_dict[newkey].append( newval )
-        trace_string( f"Added test: {newkey}={config_dict[newkey]}",**config_dict,**output )
+        trace_string( f"Added test: {newkey}={config_dict[newkey]}",
+                      **{ **config_dict,**kwargs } )
     else:
         config_dict[newkey] = newval
-    trace_string( f"Setting {newkey}{assign}{newval} from config",**config_dict,**output )
+    trace_string( f"Setting {newkey}{assign}{newval} from config",
+                  **{ **config_dict,**kwargs } )
 
 def add_settings_from_config(
         configfile: str, config_dict: dict[str, Any], **output : Any ) -> None:
@@ -90,16 +93,18 @@ def add_settings_from_config(
                     error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
 
 def process_total_line( line : str,configfile : str,
-                        config_dict : dict[str,Any],**output : Any ) -> Optional[str]:
-    trace_string( f"Processing line  : {line}",**{ **config_dict,**output } )
-    line,accept = line_strip_conditionals( line,**config_dict,**output )
+                        config_dict : dict[str,Any],**kwargs : Any ) -> Optional[str]:
+    trace_string( f"Processing line  : {line}",**{ **config_dict,**kwargs } )
+    line,accept = line_strip_conditionals( line,**config_dict,**kwargs )
     if not accept: return "reject"
-    trace_string( f" .. unconditional: {line}",**{ **config_dict,**output } )
+    trace_string( f" .. unconditional: {line}",**{ **config_dict,**kwargs } )
 
     # detect and strip conditionals, return acceptability & line to process
     # if `nowarn' is set, we can deal with undefined macros
-    line = remove_macros( line,**config_dict )
-    trace_string( f" .. expanded     : {line}",**{ **config_dict,**output } )
+    # we set `noexpand_macros' when reading .rc files
+    if not kwargs.get("noexpand_macros",False):
+        line = remove_macros( line,**config_dict )
+        trace_string( f" .. expanded     : {line}",**{ **config_dict,**kwargs } )
     if re.match( r'exit',line )  : return "exit"
     if re.match( r'return',line ): return "return"
     if callitaday := re.match( r'\s*abort\s+(.*)$',line ):
@@ -108,19 +113,19 @@ def process_total_line( line : str,configfile : str,
             sys.exit(1)
     if include := re.search( r'^\s*include\s+(.+)$',line ):
         includefile = include.groups()[0]
-        trace_string( f"Include file: {includefile}",**config_dict,**output )
+        trace_string( f"Include file: {includefile}",**{ **config_dict,**kwargs } )
         add_settings_from_config( includefile,config_dict )
         return "normal"
     elif export := re.search( r'export\s+(.+)$',line ):
-        trace_string( f"Adding export: <<{line}>>",**config_dict,**output )
+        trace_string( f"Adding export: <<{line}>>",**{ **config_dict,**kwargs } )
         config_dict["exports"].append(line)
         return "normal"
     elif unset := re.search( r'unset\s+(.+)$',line ):
-        trace_string( f"Adding unset: <<{line}>>",**config_dict,**output )
+        trace_string( f"Adding unset: <<{line}>>",**{ **config_dict,**kwargs } )
         config_dict["unsets"].append(line)
         return "normal"
     elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
-        process_key_setting( keyval.groups(),config_dict,**output )
+        process_key_setting( keyval.groups(),config_dict,**kwargs )
         return "normal"
     else: return None
 
@@ -296,11 +301,13 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     ##
     rc0 = f"{rc_dir}/.mrpackmodrc"
     if os.path.exists( f"{rc0}" ):
-        add_settings_from_config( f"{rc0}",config_dict,**output )
+        add_settings_from_config( f"{rc0}",config_dict,
+                                  **{ **output,'noexpand_macros':True} )
     else:
         rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
         if os.path.exists( f"{rc2}" ):
-            add_settings_from_config( f"{rc2}",config_dict,**output )
+            add_settings_from_config( f"{rc2}",config_dict,
+                                      **{ **output,'noexpand_macros':True} )
     ##
     ## Compiler settings,
     ## first system specific, then general
@@ -308,11 +315,13 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     if nonnull(compiler):
         rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
         if os.path.exists( f"{rc3}" ):
-            add_settings_from_config( f"{rc3}",config_dict,**output )
+            add_settings_from_config( f"{rc3}",config_dict,
+                                      **{ **output,'noexpand_macros':True} )
         else:
             rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
             if os.path.exists( f"{rc1}" ):
-                add_settings_from_config( f"{rc1}",config_dict,**output )
+                add_settings_from_config( f"{rc1}",config_dict,
+                                          **{ **output,'noexpand_macros':True} )
 
 def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
