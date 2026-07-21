@@ -206,8 +206,10 @@ def compilers_names( **kwargs: Any ) -> dict[str, str]:
         compilers["CC"]  = abort_on_zero_env( "TACC_CC",**kwargs )
         compilers["CXX"] = abort_on_zero_env( "TACC_CXX",**kwargs )
         compilers["FC"]  = abort_on_zero_env( "TACC_FC",**kwargs )
-    elif ( mode := abort_on_zero_keyword( "MODE",**kwargs ) )  == "core":
-        compilers["CC"] = "gcc"; compilers["CXX"] = "g++"; compilers["FC"] = "gfortran"
+    elif mode_is_core( **kwargs ):
+        compilers["CC"]  = os.getenv("CC", "gcc")
+        compilers["CXX"] = os.getenv("CXX","g++")
+        compilers["FC"]  = os.getenv("FC", "gfortran")
     else: raise Exception( f"Unknown mode: {mode}" )
     return compilers
 

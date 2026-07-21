@@ -38,15 +38,14 @@ def export_flags( **kwargs: Any ) -> str:
     return cmdline
 
 def export_compilers_script( dummy : list[str],**kwargs: Any ) -> tuple[str,str]:
-    if mode_is_core( **kwargs ): return "","No compilers in core mode"
     trace_string( "Exporting compilers",**kwargs )
     compilers = compilers_names( **kwargs )
     script : str = "\necho \"Now exporting compilers for cmake and such\""
     for key,val in compilers.items():
         trace_string( f" .. Setting compiler: {key}={val}",**kwargs )
         script += f"""
-export {key}={val}
 echo Export {key}={val}
+export {key}={val}
 whichcomp=$( which {val} )
 if [ $? -gt 0 ] ; then
   echo FAILURE: could not determine {val} && exit 1
