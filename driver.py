@@ -180,12 +180,14 @@ utility_actions : {utility_actions}
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
+        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_module"
         install_options = {
             "immediate_output":False,
             # VLE we need to be able to get the version of prereqs
             # for dependency clauses. Do we also need to be able to
             # load the package itself?
-            "moduleloadstrategy":ModuleLoadStrategy.prerequisites #package
+            "moduleloadstrategy":ModuleLoadStrategy.prerequisites, #package
+            'scriptsdir':scriptsdir,
         }
         success,failure = install.write_module_file(
             **{ **configuration,**install_options } )
