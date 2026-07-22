@@ -333,3 +333,8 @@ if [ $? -gt 0 ] ; then
 fi
     """
     return script
+
+def package_version_available( name : str,version : str,**kwargs : dict[str,Any] ) -> None:
+    availret : str = process_execute_immediate(
+        "module avail {name}/{version} >/dev/null 2>&1 && echo $?",**kwargs )
+    return availret=="0"
