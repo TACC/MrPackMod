@@ -29,7 +29,7 @@ def screen_report_action( action: str, **kwargs: Any ) -> None:
 ==== Action: {action}
 ====
 ================================================================
-    """)
+    """,file=sys.stderr)
 
 def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -> None:
     arguments = parser.parse_args()
@@ -138,11 +138,7 @@ utility_actions : {utility_actions}
     elif action=="install":
         prelimtesting : bool = True
         for a in ["configure","build","module","public",]:
-            print( f"""
-================================================================
-\nAction: {a}\n
-================================================================
-            """,file=sys.stderr )
+            screen_report_action(a,**kwargs )
             returncode = mpm_action(
                 a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )
             prelimtesting = False
@@ -206,7 +202,6 @@ utility_actions : {utility_actions}
             "moduleloadstrategy":ModuleLoadStrategy.package,
             "scriptsdir":None,
         }
-        screen_report_action(action,**configuration)
         regression.do_tests\
             ( match=arguments.match,filter=arguments.filter,
               **{ **configuration,**install_options } )
