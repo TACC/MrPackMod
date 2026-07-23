@@ -396,8 +396,7 @@ else
     echo FAILURE: cmake failed
 fi
     """
-    script += configure_postreport( dirnames,**kwargs )
-    # VLE I can't get newlines in this script. Hm.
+    ## maybe only in the log file? script += configure_postreport( dirnames,**kwargs )
     script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
 
