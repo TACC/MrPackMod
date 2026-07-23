@@ -795,7 +795,7 @@ def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
 echo "{title}"
 
 echo "Using directory variable: {dirvar}
-eval filedir=\${{dirvar}}
+eval filedir=\\${{dirvar}}
 echo " .. expands to path: ${{filedir}}"
 if [ ! -z "${{filedir}}" -a -d "${{filedir}}" ] ; then 
     echo " .. directory {dirvar}=${{filedir}} exists"

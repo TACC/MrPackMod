@@ -120,7 +120,7 @@ def pull_from_url( **kwargs: Any ) -> None:
 def clone_pull_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     if ( url := nonzero_keyword( "GITREPO",** kwargs ) ) is None:
         raise Exception( "No git repo url given for clone" )
-    downloadpath : str = download_path( **kwargs )
+    downloadpath : str = names.ensure_download_path( **kwargs )
     if ( action := nonzero_keyword( "gitaction",**kwargs ) ) is None:
         raise Exception( "Need git action" )
     script : str = f"""

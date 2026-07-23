@@ -127,9 +127,8 @@ def other_paths( **kwargs: Any ) -> str:
                      ["PYTHONPATHABS","PYTHONPATH"],
                      ["PYTHONPATHADD","PYTHONPATH"],
                 ]:
-        if val := nonzero_keyword( cfg,**kwargs ):
-            if cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD",
-                       ]:
+        if ( val := nonzero_keyword(cfg,**kwargs) ) is not None:
+            if cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD", ]:
                 #
                 # add path relative to prefix
                 #
@@ -144,7 +143,7 @@ def other_paths( **kwargs: Any ) -> str:
                 paths += f"prepend_path( \"{var}\", {newpath} )\n"
             elif cfg in [ "PREFIXPATHSET", ]:
                 #
-                # value==1 so ignire: add prefix path itself
+                # value==1 so ignore: add prefix path itself
                 #
                 paths += f"prepend_path( \"{var}\", prefixdir )\n"
             elif cfg in [ "PYTHONPATHABS", ]:
