@@ -255,11 +255,9 @@ see for details: {outputfilename}
                 msg = fine.groups()[0]
     print( f"""\
 SUCCEEDED: {scripttitle}
-see for details: {outputfilename}\
-""" ) # no newlines before/after
+    """.strip() ) # no newlines before/after
+    # see for details: {outputfilename}
     return returnvalue
-# with: {msg}
-# returning: {returnvalue}
     
 def get_value_from_virgin( script_function : Callable[ list[str],tuple[str,str] ],
                            args : list[str], **kwargs : Any ) -> str:
@@ -333,3 +331,8 @@ if [ $? -gt 0 ] ; then
 fi
     """
     return script
+
+def package_version_available( name : str,version : str,**kwargs : dict[str,Any] ) -> None:
+    availret : str = process_execute_immediate(
+        "module avail {name}/{version} >/dev/null 2>&1 && echo $?",**kwargs )
+    return availret=="0"

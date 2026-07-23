@@ -18,7 +18,7 @@ from MrPackMod.basics  import clean_title,remove_macros,\
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
     DirNamesDict
 from MrPackMod.process import process_execute, process_initiate, \
-    get_value_from_loaded
+    get_value_from_loaded,package_version_available
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,make_build_script,\
     file_to_exist_script,ldd_script,run_script
@@ -152,10 +152,7 @@ def do_existence_test(
     args = run_config["package"],run_config["dirtype"],run_config["program"],\
         run_config["grep"],run_config["executable"]
     package,dirtype,program,grep,executable = args
-    # filedir,file_to_test,file_to_report = \
-    #     file_to_exist_names(package,dirtype,program,**kwargs)
-    # fileargs = [ program,filedir,file_to_test,file_to_report ]
-    fileargs = [ package,dirtype,program,"","" ] # grep,executable
+    fileargs : list[str] = [ package,dirtype,program,"","" ] # grep,executable
     output : OutputDict = \
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
@@ -387,6 +384,19 @@ def get_tester_dirnames( program : str,**kwargs ) -> DirNamesDict:
 ##
 
 def do_tests( **kwargs: Any ) -> None:
+
+    name,version =  package_names(**kwargs)
+    if package_version_available(name,version,**kwargs):
+        print( f"""
+================================================================
+\nRegression testing: {name}/{version}\n
+================================================================
+        """,file=sys.stderr )
+    else:
+        print( f"""
+Module {name}/{version} not available
+        """,file=sys.stderr )
+        return
 
     #
     # existence tests
