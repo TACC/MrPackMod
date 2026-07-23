@@ -138,7 +138,7 @@ utility_actions : {utility_actions}
     elif action=="install":
         prelimtesting : bool = True
         for a in ["configure","build","module","public",]:
-            screen_report_action(a,**kwargs )
+            screen_report_action(a,**configuration )
             returncode = mpm_action(
                 a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )
             prelimtesting = False
