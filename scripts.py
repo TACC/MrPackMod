@@ -353,6 +353,10 @@ echo "First remove existing compressed file ${{tgz}}"
 rm -f ${{tgz}}
 echo "Now download from url: ${{downloadurl}}"
 wget ${{downloadurl}}
+if [ $? -gt 0 ] ; then
+  echo "FAILURE Executing wget ${{downloadurl}}"
+  exit
+fi
 echo "SUCCESS: package {package} downloaded as ${{tgz}}"
     """
     return script,"Download from url"
