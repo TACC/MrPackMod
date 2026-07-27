@@ -36,7 +36,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     # running
     parser.add_argument( '-r',"--run",        action='store_true', default=False )
     parser.add_argument( '--run_in_dir',      default="." )
-    parser.add_argument( '-a',"--run_args",   default="" )
+    parser.add_argument( '--run_args',        default="" )
     parser.add_argument( '-t',"--test_value", default="0" )
 
     parser.add_argument( '-k','--keywords'  , default="" )
@@ -138,7 +138,9 @@ def do_existence_test(
         test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( "existence",test_definition,**kwargs )
+    trace_string( f"Existence test: {test_definition}",**kwargs )
+    run_config : dict = test_definition_to_dict( "existence",test_definition,**kwargs )
+    trace_string( f" .. as dict: {run_config}",**kwargs )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -215,7 +217,7 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( "cmake",test_definition,**kwargs )
+    run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -275,7 +277,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    run_config : dict = test_config( "make",test_definition,**kwargs )
+    run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
 
     program : str = run_config["program"]
@@ -343,7 +345,7 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
             return True
     return False
 
-def test_config( test_type : str,test_definition : str,**kwargs : Any ) -> dict:
+def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : Any ) -> dict:
     #parsed_options
     run_config : dict = parse_command( test_type,test_definition,**kwargs )
     trace_string( f"Test options: {run_config}",**kwargs )
