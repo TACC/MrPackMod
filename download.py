@@ -76,6 +76,11 @@ def unpack_from_url( **kwargs: Any ) -> None:
         echo_string( f"Packed file contains directory: {unpackdir}")
         process_execute( f"rm -rf {unpackdir}" )
         process_execute( f"tar fx {unpackdir}.tar" )
+    elif ext in [ "zip", ]:
+        unpackdir = process_execute( f"unzip -l {file} | awk 'NR==5 {{print $4}}'",**kwargs )
+        trace_string( f"found unpackdir: {unpackdir}",**kwargs )
+        process_execute( f"rm -rf {unpackdir}",**kwargs )
+        process_execute( f"unzip {file}",**kwargs )
     else: raise Exception(f"Cannot unpack {file}")
     if srcdir:
         if unpackdir.lstrip("./") != srcdir:

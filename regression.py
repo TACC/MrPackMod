@@ -193,7 +193,6 @@ def do_existence_test(
             "builddir"   : run_config.get("run_in_dir"),
             "prefixdir"  : run_config.get("run_prefix",""),
         }
-        # print( f"run test with prefix: "+dirnames["prefixdir"] )
         success,failure = do_run_test(
             testtitle,
             program,dirnames,run_config.get("run_args"),

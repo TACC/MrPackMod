@@ -877,7 +877,7 @@ echo "Running in rundir={rundir}=$( pwd )"
     script += f"""
 echo "cmdline={cmdline}"
 echo ">>>> start execution"
-result=$( {cmdline} )
+result=$( {cmdline} || echo "FAILURE Could not execute: {cmdline}" ) || echo FAILURE
 echo "<<<< end execution"
 if [ $? -eq 0 ] ; then 
     echo "SUCCESS: running {program} with output [${{result}}]"
