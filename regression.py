@@ -278,28 +278,30 @@ def do_make_test(
 
     run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
     testtitle : str = run_config["testtitle"]
-
     program : str = run_config["program"]
-    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
-        programname,programext = name_ext.groups()
-        run_config["programname"] = programname
-        run_config["programext"]  = programext
-    else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
-
-    programsrcdir    : str = os.getcwd()+"/"+programext
-    programbuilddir  : str = create_dir( "build",**kwargs )
-    prefixdir        : str = "" # for testing it's enough to have the result in `build'
-    prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,prefixdir]
-
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    tester_dirnames = get_tester_dirnames(program,**kwargs)
     success : list[str] = []; failure : list[str] = []
+
+    # if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+    #     programname,programext = name_ext.groups()
+    #     run_config["programname"] = programname
+    #     run_config["programext"]  = programext
+    # else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+
+    # programsrcdir    : str = os.getcwd()+"/"+programext
+    # programbuilddir  : str = create_dir( "build",**kwargs )
+    # prefixdir        : str = "" # for testing it's enough to have the result in `build'
+    # prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,prefixdir]
 
     #
     # Make compilation
     #
     output : OutputDict = \
-        start_test_stage( "make compile",**{ **kwargs,"package":programname, } )
+        start_test_stage( "make compile",**{ **kwargs,"package":program, } )
     res : Optional[str] = get_value_from_loaded(
-        make_build_script,prog_and_dirs,**{ **kwargs,**output } )
+        make_build_script,[program,tester_dirnames],
+        **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     return success,failure
 
