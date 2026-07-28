@@ -474,7 +474,7 @@ def cmake_basic_command( **kwargs : Any ) -> str:
     cmake : str = kwargs.get( "CMAKENAME","cmake" )
     if nonzero_keyword( "CMAKEUSENINJA",**kwargs ):
         cmake = f"{cmake} -G Ninja"
-    return f"TERM=dumb {cmake} -Wno-dev \
+    return f"TERM=dumb {cmake} --fresh -Wno-dev \
 -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF \
 -D CMAKE_POLICY_VERSION_MINIMUM=3.13 \
 -D CMAKE_VERBOSE_MAKEFILE=ON \
