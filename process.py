@@ -198,8 +198,10 @@ def modules_to_load( **kwargs : Any ) -> tuple[list[str],str]:
             return [packagetoload],loadcomment
         elif strategy==ModuleLoadStrategy.all:
             return prereqmodules+[packagetoload],"Loading pkg and prereqs"
+        elif strategy==ModuleLoadStrategy.none:
+            return [],"Load none"
     else: 
-        return [],""
+        return [],"No load strategy specified"
 ##
 ## Execute a script in the context of compiler and modules
 ## return: value, or FAILURE string

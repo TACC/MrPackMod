@@ -93,7 +93,7 @@ modulecommand "load blas" "load {blas}"
         if mpi is not None:
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
-    if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ):
+    if nonnull( modulestoload ) or zero_keyword( "skipmodules",**kwargs ):
         loadscript += modulesloadscript( modulestoload,**kwargs )
     else:
         echo_warning( "not loading any modules",**kwargs )
@@ -120,7 +120,7 @@ def module_and_version_to_load( modver : str,**kwargs ) -> tuple[str,str,str]:
             return module,"",""
 
 #
-# This gets called only from do_config_tests and the `test' action
+# This gets called only from the `test' action
 #
 def modules_proper_script( moduleslist : list[str],**kwargs : Any ) -> tuple[str,str]:
     modulestring : str = ','.join(moduleslist)
@@ -133,6 +133,7 @@ if [ ! -d "{srcdir}" ] ; then
     echo "FAILURE: Source directory {srcdir} does not exist"
     exit 1
 fi
+echo "Now testing properness of {moduleslist}"
         """
     for modver in moduleslist:
         onemodulescript,_ = one_module_proper_script( [modver],**kwargs )

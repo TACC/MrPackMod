@@ -222,6 +222,7 @@ class ModuleLoadStrategy(Enum):
     prerequisites = auto()
     package = auto()
     all = auto()
+    none = auto()
 
 #
 # Create directory, or make sure it exists

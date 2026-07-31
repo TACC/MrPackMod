@@ -240,11 +240,16 @@ def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
         if url := kwargs.get("SOFTWAREURL"): print( url )
         if url := kwargs.get("DOCURL"): print( url )
     elif action=="test":
-        # if not os.path.isdir( ( srcdir := names.srcdir_name( **kwargs ) ) ):
-        #     echo_warning( "Source directory {srcdir} does not exist (yet)",
-        #                   **kwargs )
+        scriptsdir = kwargs.get("startdir",".")+"/mpmscripts_test"
+        install_options : dict = {
+            "immediate_output":False,
+            "moduleloadstrategy":ModuleLoadStrategy.none,
+            "scriptsdir":scriptsdir,
+        }
         abort_on_failure_result(
-            test_proper_prerequisites( installing=True,**kwargs ),**kwargs )
+            test_proper_prerequisites(
+                installing=False,**{ **kwargs,**install_options } ),
+            **kwargs )
     elif action=="configurelog":
         logfile = info.configurelog_name( **kwargs, )
         print( logfile )
