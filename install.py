@@ -1,6 +1,8 @@
 ################################################################
+####
 #### install.py
-#### install functions for cmake/autotools.make
+#### install functions for cmake/autotools/make/petsc/pip
+####
 ################################################################
 
 #
@@ -149,6 +151,48 @@ def make_build( **kwargs : Any ) -> Optional[str]:
     retval : Optional[str] = get_value_from_loaded(
         make_build_script,[ "",get_dir_names(**kwargs) ],
         **kwargs,**output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+################################################################
+####
+#### Pip
+####
+################################################################
+
+def pip_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
+    script : str = "echo SUCCESS: pip configure is noop"
+    return script,"Pip configuring"
+
+def pip_configure( **kwargs : Any ) -> Optional[str]:
+    output : OutputDict = \
+        start_test_stage( "configure",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        pip_configure_script,[],**kwargs,**output )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+def pip_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
+    print( f"dirs arg : {srcpfx}" )
+    srcdir    = srcpfx["srcdir"]
+    prefixdir = srcpfx["prefixdir"]
+    print( f"srcdir={srcdir}, prefix={prefixdir}" )
+    jcount  : str = kwargs.get("jcount",6)
+    trace_string( f"pipping in {prefixdir}",**kwargs )
+    script : str = f"""
+cd {srcdir}
+echo "Pipping into: {prefixdir}"
+pip3 install --target={prefixdir} .
+echo "result: $( ls {prefixdir} )"
+    """
+    return script,"Pip build install"
+
+def pip_build( **kwargs : Any ) -> Optional[str]:
+    output : OutputDict = \
+        start_test_stage( "build",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        pip_build_script,get_dir_names(**kwargs),
+        **{ **kwargs,**output } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 

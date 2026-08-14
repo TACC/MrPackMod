@@ -255,9 +255,9 @@ echo Module setup starts here {redirect}
 
 modulecommand "module purge" "purge"
 
-export LMOD_SYSTEM_DEFAULT_MODULES=TACC
+# export LMOD_SYSTEM_DEFAULT_MODULES=TACC
 
-modulecommand "reset" "reset"
+# modulecommand "reset" "reset"
     """
 
 def compilerloadfunction( modulepath : str,compiler : str,compilerversion : Optional[str],

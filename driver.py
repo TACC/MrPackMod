@@ -266,7 +266,9 @@ def configure_action( **kwargs : Any ) -> Optional[str]:
         return install.make_configure( **kwargs )
     elif system == "petsc":
         return install.petsc_configure( **kwargs )
-    else: raise Exception( f"Can only configure for cmake and autotools, not: {system}" )
+    elif system == "pip":
+        return install.pip_configure( **kwargs )
+    else: raise Exception( f"Can only configure for cmake/autotools/make/petsc/pip, not: {system}" )
 
 def build_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
@@ -277,8 +279,10 @@ def build_action( **kwargs : Any ) -> Optional[str]:
         return install.make_build( **kwargs )
     elif system == "petsc":
         return install.petsc_build( **kwargs )
+    elif system == "pip":
+        return install.pip_build( **kwargs )
     else: raise Exception\
-        ( f"Can only build for cmake/autotools/make, not: {system}" )
+        ( f"Can only build for cmake/autotools/make/petsc/pip, not: {system}" )
 
 def prerequisites_action( **kwargs : Any ) -> None:
     return
