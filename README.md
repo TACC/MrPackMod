@@ -137,9 +137,12 @@ A subsequent `unpack` action unpacks the downloaded file and renames the result 
 
 ## Configure
 
-The `BUILDSYSTEM` setting can be `cmake` or `autotools` 
-or `make` for packages that are stuck in the 1980s.
-(The setting `petsc` exists, only for the PETSc package.)
+The `BUILDSYSTEM` setting can be:
+
+- `cmake` or `autotools`, each with some specific flags;
+- or `make` for packages that are stuck in the 1980s,
+- or `pip` for python packages.
+- The setting `petsc` exists, only for the PETSc package.
 
 Corresponding to the build system,
 the `CMAKEFLAGS` and `CONFIGUREFLAGS` settings are used.
@@ -156,8 +159,14 @@ a number of standard options are already provided.
 
 CMake will do the configuration in a builddirectory that is created alongside the source directory.
 Override this with the `BUILDDIRROOT` setting.
+
 Autotools will do the configuration in the source directory; 
 packages that support a separate builddirectory can use the `CONFIGINBUILDDIR` setting.
+
+Pip: In case your system has an old `pip`, 
+you can set the `PIP` environment variable and can call
+
+```PIP=/opt/local/pip3 mpm.py install```
 
 ## Building
 

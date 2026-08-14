@@ -176,14 +176,20 @@ def pip_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
     print( f"dirs arg : {srcpfx}" )
     srcdir    = srcpfx["srcdir"]
     prefixdir = srcpfx["prefixdir"]
-    print( f"srcdir={srcdir}, prefix={prefixdir}" )
+    if ( pip := kwargs.get("PIP") ) is None \
+        and ( pip := os.getenv("PIP") ) is None:
+        pip = "pip3"
+    print( f"srcdir={srcdir}, prefix={prefixdir}, pip={pip}" )
     jcount  : str = kwargs.get("jcount",6)
     trace_string( f"pipping in {prefixdir}",**kwargs )
     script : str = f"""
 cd {srcdir}
 echo "Pipping into: {prefixdir}"
-pip3 install --target={prefixdir} .
-echo "result: $( ls {prefixdir} )"
+{pip} install --target={prefixdir} .
+if [ $? -gt 0 ] ; then
+    echo "FAILURE: pipping failed" && exit 1
+fi
+echo "SUCCESS: installed in $( ls {prefixdir} )"
     """
     return script,"Pip build install"
 
