@@ -86,7 +86,7 @@ def add_settings_from_config(
                 # VLE move the abort into the process function
                 if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
                     if status in ["exit","return"] :
-                        print( totalline )
+                        print( re.sub(r'(exit|return)\s*','',totalline) )
                         break
                     saving = False ; totalline = ""
                 else:

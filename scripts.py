@@ -859,14 +859,14 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
     rundir   = dirnames["builddir"]
     if isnull( rundir ):
         rundir = "build"
-        script += f"""
+    script += f"""
+if [ ! -d "{rundir}" ] ; then
+    echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
+    exit 1
+fi
 cd {rundir}
-echo "Running in rundir={rundir}=$( pwd )"
-        """
-    else:
-        script += f"""
-echo "Running in rundir={rundir}=$( pwd )"
-        """
+echo "Running in rundir={rundir} full path=$( pwd )"
+    """
 
     # what do we run?
     #  - prefix is empty for runing along path
@@ -875,6 +875,8 @@ echo "Running in rundir={rundir}=$( pwd )"
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
         cmdline += f" {args}"
+    if kwargs.get("MODE") in ["mpi","hybrid",]:
+        cmdline = f"ibrun -n 1 {cmdline}"
     script += f"""
 echo "cmdline={cmdline}"
 echo ">>>> start execution"
