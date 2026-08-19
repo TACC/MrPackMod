@@ -165,7 +165,7 @@ utility_actions : {utility_actions}
         elif action=="build":
             returncode = build_action( **{ **configuration,**install_options } )
             if not returncode: return False
-            install_options["moduleloadstrategy"] = ModuleLoadStrategy.package
+            install_options["moduleloadstrategy"] = ModuleLoadStrategy.none
             install.post_install_actions(
                 **{ **configuration,**install_options} )
         elif action=="public":

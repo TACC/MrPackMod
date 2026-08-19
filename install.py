@@ -43,7 +43,6 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
         error_abort( f"Can not configure due to:\n{properness}",**kwargs )
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
-    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         cmake_configure_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
@@ -55,7 +54,6 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
         return "No installation needed"
     output : OutputDict = \
         start_test_stage( "cmake build",**kwargs, )
-    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
         cmake_build_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
@@ -70,7 +68,6 @@ def cmake_build( **kwargs: Any ) -> Optional[str]:
 
 def autotools_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = start_test_stage( "configure",**kwargs )
-    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         autotools_configure_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
@@ -82,7 +79,6 @@ def autotools_build( **kwargs : Any ) ->Optional[str]:
         return "No installation needed"
     output : OutputDict = \
         start_test_stage( "build",**kwargs )
-    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=False )
     retval : Optional[str] = get_value_from_loaded(
         autotools_build_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
@@ -116,7 +112,6 @@ def make_configure( **kwargs : Any ) -> Optional[str]:
         start_test_stage(
             "configure",
             **{ **kwargs,"title":"make configure", } )
-    # srcdir,builddir,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -147,7 +142,6 @@ make -j {jcount} {targets}
 def make_build( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "build",**kwargs )
-    # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         make_build_script,[ "",get_dir_names(**kwargs) ],
         **kwargs,**output )
@@ -211,7 +205,6 @@ def pip_build( **kwargs : Any ) -> Optional[str]:
 def petsc_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "configure",**kwargs )
-    # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
     retval : Optional[str] = get_value_from_loaded(
         petsc_configure_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output} )
@@ -232,10 +225,10 @@ def petsc_build( **kwargs : Any ) -> Optional[str]:
 ####
 ################################################################
 
-def post_install_actions_script( plist : list[str],**kwargs : Any ) -> tuple[str,str]:
+def post_install_actions_script( plist : DirNamesDict,**kwargs : Any ) -> tuple[str,str]:
     # if we get here, we already know there are actions
     cptoinstall : Optional[str] = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
-    srcdir,prefixdir = plist
+    srcdir,prefixdir = plist["srcdir"],plist["prefixdir"]
     trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
                   **kwargs )
     script : str = f"""
@@ -250,13 +243,11 @@ cp -r {cptoinstall} {prefixdir}
 
 def post_install_actions( **kwargs ) -> Optional[str]:
     if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
-        srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
+        # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
         output : OutputDict = \
-            start_test_stage(
-                "actions",
-                **{ **kwargs,"title":"post-install actions", } )
+            start_test_stage( "actions",**kwargs )
         retval : Optional[str] = get_value_from_loaded(
-            post_install_actions_script,[srcdir,prefixdir],**kwargs,**output )
+            post_install_actions_script,get_dir_names(**kwargs),**{ **kwargs,**output} )
         success,failure = end_test_stage( [],[],output,**kwargs )
         return retval
     else: return "SUCCESS: no cp-to-install"
