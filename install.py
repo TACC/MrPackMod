@@ -227,30 +227,41 @@ def petsc_build( **kwargs : Any ) -> Optional[str]:
 
 def post_install_actions_script( plist : DirNamesDict,**kwargs : Any ) -> tuple[str,str]:
     # if we get here, we already know there are actions
-    cptoinstall : Optional[str] = abort_on_zero_keyword( "CPTOINSTALLDIR",**kwargs )
+    script : str = ""
     srcdir,prefixdir = plist["srcdir"],plist["prefixdir"]
-    trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
-                  **kwargs )
-    script : str = f"""
+    if ( cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ) ) is not None:
+        trace_string( f"Extra cp from srcdir={srcdir} to prefix={prefixdir}: {cptoinstall}",
+                      **kwargs )
+        script += f"""
 if [ -d "{prefixdir}/{cptoinstall}" ] ; then
     echo FAILURE: cptoinstall={cptoinstall} already exists in prefix
     exit 1
 fi
+echo "Copying <<{cptoinstall}>> from srcdir={srcdir} to prefix={prefixdir}"
 cd {srcdir}
 cp -r {cptoinstall} {prefixdir}
-    """
-    return script,"Post-install copy actions"
+if [ $? -gt 0 ] ; then
+    echo "FAILURE: copy failed"
+else
+    echo "SUCCESS: copy succeeded"
+fi
+        """
+    if ( linkliblib := nonzero_keyword( "LINKLIB64toLIB",**kwargs ) ) is not None:
+        script += f"""
+echo "Linking lib64 to lib, any previous lib is first erased"
+cd {prefixdir}
+rm -rf lib
+ln -s lib64 lib
+        """
+    return script,"Post-install actions"
 
 def post_install_actions( **kwargs ) -> Optional[str]:
-    if cptoinstall := nonzero_keyword( "CPTOINSTALLDIR",**kwargs ):
-        # srcdir,_,prefixdir = configure_prep( **kwargs,scratch=True )
-        output : OutputDict = \
-            start_test_stage( "actions",**kwargs )
-        retval : Optional[str] = get_value_from_loaded(
-            post_install_actions_script,get_dir_names(**kwargs),**{ **kwargs,**output} )
-        success,failure = end_test_stage( [],[],output,**kwargs )
-        return retval
-    else: return "SUCCESS: no cp-to-install"
+    output : OutputDict = \
+        start_test_stage( "actions",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        post_install_actions_script,get_dir_names(**kwargs),**{ **kwargs,**output} )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
     
 import os
 import stat
