@@ -192,6 +192,8 @@ def modules_to_load( **kwargs : Any ) -> tuple[list[str],str]:
             packagetoload = package
             loadcomment = f"# Loading environment for package: {package}"
         prereqmodules : list[str] = package_prerequisites( **kwargs )
+        systemmodules : list[str] = os.getenv("SYSTEMMODULES","").split()
+        prereqmodules += systemmodules
         if strategy==ModuleLoadStrategy.prerequisites:
             return prereqmodules,f"# Loading environment for prerequisites: {prereqmodules}"
         elif strategy==ModuleLoadStrategy.package:
