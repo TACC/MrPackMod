@@ -806,8 +806,8 @@ def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
     script : str = f"""
 echo "{title}"
 
-echo "Using directory variable: {dirvar}
-eval filedir=\\${{dirvar}}
+echo "Using directory variable: {dirvar}"
+eval filedir=\\${{{dirvar}}}
 echo " .. expands to path: ${{filedir}}"
 if [ ! -z "${{filedir}}" -a -d "${{filedir}}" ] ; then 
     echo " .. directory {dirvar}=${{filedir}} exists"
@@ -819,7 +819,7 @@ fi
 file_to_test=${{filedir}}/{program}
 echo "File to test: ${{file_to_test}}"
 if [ -f "${{file_to_test}}" ] ; then
-    echo "SUCCESS: file exists: <<${{file_to_report}}>>"
+    echo "SUCCESS: file exists: <<${{file_to_test}}>>"
 else
     echo "FAILURE: file does not exist <<${{file_to_report}}>>"
     exit 1
@@ -881,14 +881,17 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     script += f"""
 echo "cmdline={cmdline}"
 echo ">>>> start execution"
-result=$( {cmdline} || echo "FAILURE Could not execute: {cmdline}" ) || echo FAILURE
+runout=run_{program}.out
+{cmdline} >${{runout}} 2>&1
 echo "<<<< end execution"
 if [ $? -eq 0 ] ; then 
-    echo "SUCCESS: running {program} with output [${{result}}]"
+    echo "SUCCESS: running {program}"
 else
     echo "FAILURE: running {program}"
 fi 
-#echo ${{output}}
+echo ">>>> output"
+cat ${{runout}}
+echo "<<<< output"
     """
     return script,title
 
