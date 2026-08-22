@@ -391,6 +391,8 @@ def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any 
     # for the regression case only: define project macro
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
+echo "CMAKE_PREFIX_PATH=$( echo ${{CMAKE_PREFIX_PATH}} | tr ':' '\\n' )"
+echo "PKG_CONFIG_PATH=$(   echo ${{PKG_CONFIG_PATH}}   | tr ':' '\\n' )"
 cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
 echo "Doing cmake in pwd=${{PWD}}"
 echo " .. with cmake=$( which cmake )"

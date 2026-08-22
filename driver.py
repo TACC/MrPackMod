@@ -199,7 +199,7 @@ utility_actions : {utility_actions}
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
         install_options : dict = {
             "immediate_output":False,
-            "moduleloadstrategy":ModuleLoadStrategy.package,
+            "moduleloadstrategy":ModuleLoadStrategy.all,
             "scriptsdir":None,
         }
         regression.do_tests\
