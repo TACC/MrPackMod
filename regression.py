@@ -389,10 +389,11 @@ def get_tester_dirnames( program : str,**kwargs ) -> DirNamesDict:
 def do_tests( **kwargs: Any ) -> None:
 
     name,version =  package_names(**kwargs)
+    extra : str = os.getenv( "REGRESSIONHEADEREXTRA","" )
     if package_version_available(name,version,**kwargs):
         print( f"""
 ================================================================
-\nRegression testing: {name}/{version}\n
+\nRegression testing: {name}/{version}{extra}\n
 ================================================================
         """,file=sys.stderr )
     else:
