@@ -66,6 +66,7 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
                           for action in actions ] ) or len(actions)==0,
     }
     not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
+    # VLE this call generates a spurious blank line
     read_config( configuration,configfile,
                  # test_stage mechanism is used here, but is missing some info
                  # so we set dummy values

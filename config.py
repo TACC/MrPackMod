@@ -109,7 +109,7 @@ def process_total_line( line : str,configfile : str,
     if re.match( r'return',line ): return "return"
     if callitaday := re.match( r'\s*abort\s+(.*)$',line ):
         if nonnull( msg := callitaday.groups()[0] ):
-            print( f"\n{msg}\n" )
+            print( f"\nAbort: {msg}\n" )
             sys.exit(1)
     if include := re.search( r'^\s*include\s+(.+)$',line ):
         includefile = include.groups()[0]
