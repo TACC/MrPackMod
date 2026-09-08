@@ -15,6 +15,18 @@ from MrPackMod.process    import get_value_from_loaded,get_value_from_virgin
 # from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
+def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
+    moduleslist  : list[str] = package_prerequisites( **kwargs ) #modulestring.split()
+    all_loaded : bool = True; failures : str = ""
+    trace_string( f"Testing modules loaded: {moduleslist}",**kwargs )
+    for m in moduleslist:
+        if not os.getenv( f"TACC_{m.upper()}_DIR" ):
+            all_loaded = False; failures += f"{m},"
+    if not all_loaded:
+        return f"FAILURE: Please load modules: {failures}"
+    else:
+        return f"SUCCESS: All prerequisite modules loaded"
+
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
     #modulestring : str = package_prerequisites( **kwargs )

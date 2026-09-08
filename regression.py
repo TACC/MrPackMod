@@ -35,7 +35,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
           add_help=True )
     # running
     parser.add_argument( '-r',"--run",        action='store_true', default=False )
-    parser.add_argument( '--run_in_dir',      default="." )
+    parser.add_argument( '--run_in_dir' )
     parser.add_argument( '--run_args',        default="" )
     parser.add_argument( '-t',"--test_value", default="0" )
 
@@ -242,10 +242,10 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
             "scriptsdir" : "",
             "scrdir"     : None,
             "builddir"   : run_config.get("run_in_dir"),
-            "prefixdir"  : run_config.get("run_prefix","./"),
+            "prefix"     : run_config.get("run_prefix","./"),
         }
-        tester_dirnames["builddir"]  = run_config.get("run_in_dir")
-        tester_dirnames["prefixdir"] = run_config.get("run_prefix","./")
+        tester_dirnames["rundir"]  = run_config.get("run_in_dir","build")
+        tester_dirnames["prefix"] = run_config.get("run_prefix","./")
         print( f"dirnames for run section: {dirnames}" )
         success,failure = do_run_test(
             testtitle,
@@ -362,10 +362,12 @@ def get_tester_dirnames( program : str,**kwargs ) -> DirNamesDict:
         programname,programext = name_ext.groups()
     else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
     dirnames : DirNamesDict = {
-        "scriptsdir":"mpmscripts", # VLE is this used? we have scripts dir in output
-        "srcdir":os.getcwd()+"/"+programext,
-        "builddir":create_dir( "build",**kwargs ),
-        "prefixdir":"" # for testing it's enough to have the result in `build',
+        "scriptsdir" : "mpmscripts", # VLE is this used? we have scripts dir in output
+        "srcdir"     : os.getcwd()+"/"+programext,
+        "builddir"   : create_dir( "build",**kwargs ),
+        "rundir"     : "build",
+        "prefix"     : "./",
+        "prefixdir"  : "",
     }
     return dirnames
 

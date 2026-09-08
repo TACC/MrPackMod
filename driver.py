@@ -19,7 +19,8 @@ from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
     nonnull, nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_failure_result
-from MrPackMod.testing import test_proper_prerequisites,report_success_failure
+from MrPackMod.testing import test_proper_prerequisites,test_prerequisites_loaded,\
+    report_success_failure
 from MrPackMod import regression
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
@@ -157,7 +158,10 @@ utility_actions : {utility_actions}
         }
         if configuration.get( "prelimtesting",True ):
             abort_on_failure_result(
-                test_proper_prerequisites( **configuration,scriptsdir=scriptsdir ),
+                test_prerequisites_loaded( **{ **configuration,"scriptsdir":scriptsdir, } ),
+                **configuration )
+            abort_on_failure_result(
+                test_proper_prerequisites( **{ **configuration,"scriptsdir":scriptsdir, } ),
                 **configuration )
         success : list[str] = []
         failure : list[str] = []

@@ -860,7 +860,7 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    rundir   = dirnames["builddir"]
+    rundir   = dirnames["rundir"]
     if isnull( rundir ):
         rundir = "build"
     script += f"""
@@ -875,7 +875,7 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     # what do we run?
     #  - prefix is empty for runing along path
     #  - prefix can be ./
-    prefix  : str = dirnames["prefixdir"]
+    prefix  : str = dirnames["prefix"]
     print( f"prefix=<<{prefix}>> out of dirnames={dirnames}" )
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):

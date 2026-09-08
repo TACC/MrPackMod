@@ -98,7 +98,9 @@ class DirNamesDict(TypedDict):
     scriptsdir : str
     srcdir     : str
     builddir   : str
+    rundir     : str
     prefixdir  : str
+    prefix     : str
 
 def ensure_download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
