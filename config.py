@@ -292,36 +292,41 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):
-        trace_string( f"Looking for rc files in{rc_dir}",**config_dict,**output )
+        trace_string\
+            ( f"Looking for rc files in {rc_dir} for SYSTEM={system}, COMPILER={compiler}",
+              **{ **config_dict,**output} )
     else:
-        error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict,**output )
-    ##
-    ## General settings,
-    ## first system specific, then general
-    ##
-    rc0 = f"{rc_dir}/.mrpackmodrc"
-    if os.path.exists( f"{rc0}" ):
-        add_settings_from_config( f"{rc0}",config_dict,
-                                  **{ **output,'noexpand_macros':True} )
-    else:
-        rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-        if os.path.exists( f"{rc2}" ):
-            add_settings_from_config( f"{rc2}",config_dict,
-                                      **{ **output,'noexpand_macros':True} )
-    ##
-    ## Compiler settings,
-    ## first system specific, then general
-    ##
+        error_abort( f"Non-existing dir for rc files: {rc_dir}",
+                     **{ **config_dict,**output} )
+        
     if nonnull(compiler):
         rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
         if os.path.exists( f"{rc3}" ):
             add_settings_from_config( f"{rc3}",config_dict,
                                       **{ **output,'noexpand_macros':True} )
-        else:
-            rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
-            if os.path.exists( f"{rc1}" ):
-                add_settings_from_config( f"{rc1}",config_dict,
-                                          **{ **output,'noexpand_macros':True} )
+            return
+        else: trace_string( f"No such rc file: {rc3}",**{ **config_dict,**output} )
+
+    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+    if os.path.exists( f"{rc2}" ):
+        add_settings_from_config\
+            ( f"{rc2}",config_dict, **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc2}",**output )
+
+    rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
+    if os.path.exists( f"{rc1}" ):
+        add_settings_from_config( f"{rc1}",config_dict,
+                                  **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc1}",**{ **config_dict,**output} )
+
+    rc0 = f"{rc_dir}/.mrpackmodrc"
+    if os.path.exists( f"{rc0}" ):
+        add_settings_from_config\
+            ( f"{rc0}",config_dict, **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc0}",**output )
 
 def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
