@@ -396,7 +396,8 @@ echo "PKG_CONFIG_PATH=$(   echo ${{PKG_CONFIG_PATH}}   | tr ':' '\\n' )"
 cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
 echo "Doing cmake in pwd=${{PWD}}"
 echo " .. with cmake=$( which cmake )"
-echo " .. cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /' "
+echo " .. cmake cmdline=$cmdline" \
+    | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
 eval $cmdline
 if [ $? -eq 0 ] ; then
     echo SUCCESS: configure succeeded
@@ -875,6 +876,7 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     #  - prefix is empty for runing along path
     #  - prefix can be ./
     prefix  : str = dirnames["prefixdir"]
+    print( f"prefix=<<{prefix}>> out of dirnames={dirnames}" )
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
         cmdline += f" {args}"
@@ -885,8 +887,9 @@ echo "cmdline={cmdline}"
 echo ">>>> start execution"
 runout=run_{program}.out
 {cmdline} >${{runout}} 2>&1
+runcode=$?
 echo "<<<< end execution"
-if [ $? -eq 0 ] ; then 
+if [ ${{runcode}} -eq 0 ] ; then 
     echo "SUCCESS: running {program}"
 else
     echo "FAILURE: running {program}"

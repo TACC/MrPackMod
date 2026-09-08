@@ -40,7 +40,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( '-t',"--test_value", default="0" )
 
     parser.add_argument( '-k','--keywords'  , default="" )
-    parser.add_argument( '-p',"--run_prefix", default="" )
+    parser.add_argument( '-p',"--run_prefix", default="./" )
     # existence
     parser.add_argument( '-l',"--ldd",        action='store_true', default=False )
     parser.add_argument( '-x',"--executable", action='store_true', default=False )
@@ -63,26 +63,6 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
 
     trace_string( f" .. parameters: {arguments_dict}",**kwargs )
     return arguments_dict
-
-##
-## Return directory, actual file name & name with LMOD variable unexpanded
-##
-# def file_to_exist_names( package : str,dirtype : str,program : str,**kwargs ) -> tuple[str,str,str]:
-#     if isnull(dirtype) or dirtype=="dir":
-#         dirvar : str = dir_variable(package,"dir")
-#         filedir_to_report : str = f"${{{dirvar}}}"
-#     elif dirtype in [ "inc","lib","bin", ]:
-#         dirvar = dir_variable(package,dirtype)
-#         filedir_to_report = f"${{{dirvar}}}"
-#     else:
-#         filedir_to_report = f"${{TACC_{package.upper()}_DIR}}/{dirtype}"
-#     filedir        : str = remove_macros( filedir_to_report,**kwargs )
-#     file_to_test   : str = f"{filedir}/{program}"
-#     file_to_report : str = f"{filedir_to_report}/{program}"
-#     return filedir,file_to_test,file_to_report
-
-# def dir_variable( package: str, dirtype: str = "dir" ) -> str:
-#     return f"TACC_{package.upper()}_{dirtype.upper()}"
 
 ##
 ## Add lines to a process for testing the existence of a file
@@ -191,7 +171,7 @@ def do_existence_test(
             "scriptsdir" : "",
             "scrdir"     : None,
             "builddir"   : run_config.get("run_in_dir"),
-            "prefixdir"  : run_config.get("run_prefix",""),
+            "prefixdir"  : run_config.get("run_prefix","./"),
         }
         success,failure = do_run_test(
             testtitle,
@@ -216,11 +196,15 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
+    print( f"convert test definition=<<{test_definition}>>" )
     run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
+    print( f" .. gives run_config=<<{run_config}>>" )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    # settings for building, later overwritten for running
     tester_dirnames = get_tester_dirnames(program,**kwargs)
+
     success : list[str] = []; failure : list[str] = []
 
     #
@@ -252,14 +236,17 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     #
     # Run
     #
-    if True or run_config.get("do_run"):
+    if run_config.get("do_run"):
         testvalue = run_config.get("test_value")
         dirnames : DirNamesDict = {
             "scriptsdir" : "",
             "scrdir"     : None,
             "builddir"   : run_config.get("run_in_dir"),
-            "prefixdir"  : run_config.get("run_prefix"),
+            "prefixdir"  : run_config.get("run_prefix","./"),
         }
+        tester_dirnames["builddir"]  = run_config.get("run_in_dir")
+        tester_dirnames["prefixdir"] = run_config.get("run_prefix","./")
+        print( f"dirnames for run section: {dirnames}" )
         success,failure = do_run_test(
             testtitle,
             program,tester_dirnames,run_config.get("run_args"),

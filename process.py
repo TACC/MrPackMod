@@ -185,6 +185,8 @@ def version_satisfies(
 def modules_to_load( **kwargs : Any ) -> tuple[list[str],str]:
     if ( strategy := kwargs.get("moduleloadstrategy") ) is not None:
         package,packageversion =  package_names( **kwargs )
+        if package == "NOPACKAGE":
+            return [],"loading no package"
         if nonnull(packageversion):
             packagetoload = f"{package}/{packageversion}"
             loadcomment = f"# Loading environment for package: {package}/{packageversion}"
