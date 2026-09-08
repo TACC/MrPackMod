@@ -9,16 +9,16 @@ from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     clean_title,ensure_dir
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
-    logfile_name,package_prerequisites
+    logfile_name,package_prerequisites,package_prerequisite_modulenames
 from MrPackMod.process    import get_value_from_loaded,get_value_from_virgin
 # process_execute, process_initiate, process_terminate
 # from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
 def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
-    moduleslist  : list[str] = package_prerequisites( **kwargs ) #modulestring.split()
+    moduleslist  : list[str] = package_prerequisite_modulenames( **kwargs )
     all_loaded : bool = True; failures : str = ""
-    trace_string( f"Testing modules loaded: {moduleslist}",**kwargs )
+    trace_string( f"Testing modules loaded for: {moduleslist}",**kwargs )
     for m in moduleslist:
         if not os.getenv( f"TACC_{m.upper()}_DIR" ):
             all_loaded = False; failures += f"{m},"
@@ -29,8 +29,7 @@ def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
 
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
-    #modulestring : str = package_prerequisites( **kwargs )
-    moduleslist  : list[str] = package_prerequisites( **kwargs ) #modulestring.split()
+    moduleslist  : list[str] = package_prerequisites( **kwargs )
     if len(moduleslist)==0:
         return "SUCCESS: no modules to be tested"
     success : list[str] = []; failure : list[str] = []

@@ -159,10 +159,10 @@ utility_actions : {utility_actions}
         if configuration.get( "prelimtesting",True ):
             abort_on_failure_result(
                 test_prerequisites_loaded( **{ **configuration,"scriptsdir":scriptsdir, } ),
-                **configuration )
+                **{ **configuration,'notraceback':True} )
             abort_on_failure_result(
                 test_proper_prerequisites( **{ **configuration,"scriptsdir":scriptsdir, } ),
-                **configuration )
+                **{ **configuration,'notraceback':True} )
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":

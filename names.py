@@ -44,6 +44,15 @@ def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
         error_abort( "package is null/unspecified",**kwargs )
     return p,v
 
+def package_prerequisite_modulenames( **kwargs : Any ) -> list[str]:
+    modules : list[str] = [
+        re.sub( r'/.*','',m )
+        for m in kwargs.get( "MODULES","" ).split(" ")
+        if m != ""
+    ]
+    trace_string( f"Prerequisite modules: {modules}",**kwargs )
+    return modules
+
 def package_prerequisites( **kwargs : Any ) -> list[str]:
     versionedmodules : list[str] = [
         vm
