@@ -21,6 +21,7 @@ def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
     trace_string( f"Testing modules loaded for: {moduleslist}",**kwargs )
     for m in moduleslist:
         if not os.getenv( f"TACC_{m.upper()}_DIR" ):
+            trace_string( f"Error: no variable TACC_{m.upper()}_DIR defined",**kwargs )
             all_loaded = False; failures += f"{m},"
     if not all_loaded:
         return f"FAILURE: Please load modules: {failures}"

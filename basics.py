@@ -116,7 +116,9 @@ def clean_title( title : str,**kwargs : Any ) -> str:
 #### Error handling
 ####
 def error_abort( string: str, **kwargs: Any ) -> NoReturn:
-    if not kwargs.get("notraceback"):
+    if kwargs.get("notraceback"):
+        echo_string( f"\nERROR {string}\n",**kwargs )
+    else:
         echo_string( f"\nERROR {string}\n\ntraceback:",**kwargs )
         traceback.print_stack()
     sys.exit(1)

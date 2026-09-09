@@ -189,16 +189,15 @@ def do_run_test( title : str,
     success,failure = end_test_stage( success,failure,output,**kwargs )
     if ( res is not None ) and ( returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ) ):
         outputval = returnval.groups()[0]
-        #print( f"success output: {outputval}" )
         if testvalue := kwargs.get("testvalue"):
             print( f"Comparing output={outputval} against {testvalue}" )
     return success,failure
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    print( f"convert test definition=<<{test_definition}>>" )
+    #print( f"convert test definition=<<{test_definition}>>" )
     run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
-    print( f" .. gives run_config=<<{run_config}>>" )
+    #print( f" .. gives run_config=<<{run_config}>>" )
     testtitle : str = run_config["testtitle"]
     program : str = run_config["program"]
     scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -246,7 +245,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         }
         tester_dirnames["rundir"]  = run_config.get("run_in_dir","build")
         tester_dirnames["prefix"] = run_config.get("run_prefix","./")
-        print( f"dirnames for run section: {dirnames}" )
+        #print( f"dirnames for run section: {dirnames}" )
         success,failure = do_run_test(
             testtitle,
             program,tester_dirnames,run_config.get("run_args"),
