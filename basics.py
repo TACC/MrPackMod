@@ -191,19 +191,22 @@ def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]
     """ returns: line,accept """
     trace_string( f"Test line for conditions: {line}",**config_dict )
     # VLE should we allow any nonblank string as rhs of the test?
-    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_\.]+|"")\s+(.*)$',line ):
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=|\*=|~=)([a-zA-Z0-9_\.]+|"")\s+(.*)$',line ):
         value1,comparison,value2,line = condition_split( test,**config_dict )
         trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
                       **config_dict )
-        if ( comparison=="==" and value1!=value2 ) or \
-           ( comparison=="!=" and value1==value2 ):
-            trace_string( f" .. reject because not {value1}{comparison}{value2}",
-                          **config_dict )
-            return line,False
-        else: 
+        if ( comparison=="==" and value1==value2 ) or \
+           ( comparison=="!=" and value1!=value2 ) or \
+           ( comparison=="*=" and re.search(value2,value1) ) or \
+           ( comparison=="~=" and not re.search(value2,value1) ) \
+           :
             trace_string( f" .. accept because {value1}{comparison}{value2}",
                           **config_dict )
             return line_strip_conditionals( line,**config_dict )
+        else:
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
+            return line,False
     else:
         trace_string( f" .. accept because no conditionals detected: {line}",
                       **config_dict )
