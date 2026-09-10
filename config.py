@@ -150,26 +150,27 @@ def process_key_setting( keyval,config_dict,**output ) -> None:
         # use value deduced from file
         add_new_dict_item( key,assign,val,config_dict,**output )
 
-def setting_from_env_or_rc( name: str, env: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
-    val : str = ""
+def setting_from_env_or_rc( key: str, envvar: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
+    # first find `key' literally in rc files
     for file in rc_files:
         with open( file,"r" ) as rc:
             for line in rc.readlines():
                 line = line.strip()
                 if re.match( r"\s*#",line ): continue
-                if re.match( name,line ):
+                if re.match( key,line ):
                     m = re.search(
-                        fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",
+                        fr"^\s*{key}\s*=\s*([A-Za-z0-9_]+)\s*$",
                         line,
                     )
                     assert m is not None
                     val = m.groups()[0]
                     trace_string(
-                        f"Setting {name}={val} found in file <<{file}>>.",
+                        f"Setting {key}={val} found in file <<{file}>>.",
                         **kwargs )
                     return val
-    osval = os.getenv( env,default )
-    trace_string( f"Setting {name}={osval} found in environment.",**kwargs )
+    # otherwise find `key' as `envvar' in environment
+    osval : str = os.getenv( envvar,default )
+    trace_string( f"Setting {key}={osval} found in environment.",**kwargs )
     return osval
 
 ##
@@ -194,7 +195,7 @@ def system_settings(
                 rc_files,**kwargs  ),
             # mpi family
             'MPI':setting_from_env_or_rc(
-                "MPI", "TACC_FAMILY_MPI","",
+                "MPI", "TACC_FAMILY_MPI","mpich",
                 rc_files,**kwargs  ),
             'MPIVERSION':setting_from_env_or_rc(
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","",
@@ -375,8 +376,10 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
                    for location in [ ".","..",os.path.expanduser('~') ]
                    ]
                  if os.path.exists(rc) ]
-    system_settings      ( configuration_dict,rc_files, )
-    trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
+    trace_string   ( f"Retrieving system settings", **{**configuration_dict,**output} )
+    system_settings( configuration_dict,rc_files,   **{**configuration_dict,**output} )
+    trace_string   ( f" .. system settings:\n{configuration_dict}",
+                  **{ **configuration_dict,**output } )
 
     system   = configuration_dict["SYSTEM"]
     compiler = configuration_dict["COMPILER"]
