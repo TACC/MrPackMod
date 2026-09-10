@@ -86,11 +86,13 @@ def add_settings_from_config(
                 # VLE move the abort into the process function
                 if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
                     if status in ["exit","return"] :
-                        print( re.sub(r'(exit|return)\s*','',totalline) )
+                        info : str = re.sub(r'(exit|return)\s*','',totalline)
+                        if nonnull(info) : print(info)
                         break
                     saving = False ; totalline = ""
                 else:
                     error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
+
 
 def process_total_line( line : str,configfile : str,
                         config_dict : dict[str,Any],**kwargs : Any ) -> Optional[str]:
