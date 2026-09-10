@@ -82,8 +82,8 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
-            if comp=="gcc"    : blas = "mkl"
-            if comp=="nvidia" : blas = "nvpl"
+            # if comp=="gcc"    : blas = "mkl"
+            # if comp=="nvidia" : blas = "nvpl"
             if nonnull(blas):
                 loadscript += f"""
 echo "Load blas/lapack library: {blas}"
