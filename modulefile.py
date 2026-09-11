@@ -85,11 +85,17 @@ The {package} modulefile defines the following variables:
 def package_info( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
     modulename,moduleversion = module_name_and_version( **kwargs )
-    return \
+    info : str = \
 f"""\
 whatis( "Name: {modulename}" )
 whatis( "Version: {moduleversion}" )
-""".strip()
+"""
+    if ( category := kwargs.get("CATEGORY") ) is not None:
+        info += f"""\
+whatis( "Category: {category}" )
+"""
+    info = info.strip()
+    return info
 
 def path_settings( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
