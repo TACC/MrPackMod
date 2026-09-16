@@ -60,7 +60,7 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
         'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
                                       "actions", "url", "show", "test",
-                                      "listmodules", "modules", "public", "version",
+                                      "modules", "public", "version",
                                       "download", "unpack", "clone", "pull",
                                       "prerequisitesinstall", # this only needs the MODULE line
                                      ]
@@ -106,7 +106,7 @@ package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
     # Auxiliary actions
-    elif action=="dependencies":
+    elif action in ["dependencies","modules",]:
         print( configuration['MODULES'] )
     elif action=="find_string":
         if args := nonnull( arguments.args ):
@@ -124,9 +124,6 @@ utility_actions : {utility_actions}
             print( configuration[displayvar] )
         except:
             print( f"No configuration variable: {displayvar}" )
-    elif action=="listmodules":
-        if modulelist := configuration.get("MODULES"):
-            print( modulelist )
     ##
     ## By category
     ##

@@ -245,7 +245,6 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         }
         tester_dirnames["rundir"]  = run_config.get("run_in_dir","build")
         tester_dirnames["prefix"] = run_config.get("run_prefix","./")
-        #print( f"dirnames for run section: {dirnames}" )
         success,failure = do_run_test(
             testtitle,
             program,tester_dirnames,run_config.get("run_args"),
@@ -300,6 +299,76 @@ def do_make_test(
     # run!
     if do_run:
         process_execute( f"./{name}",**kwargs,**output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    return success,failure
+
+def do_make_test(
+        test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
+
+    run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+    program : str = run_config["program"]
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    tester_dirnames = get_tester_dirnames(program,**kwargs)
+    success : list[str] = []; failure : list[str] = []
+
+    # if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+    #     programname,programext = name_ext.groups()
+    #     run_config["programname"] = programname
+    #     run_config["programext"]  = programext
+    # else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+
+    # programsrcdir    : str = os.getcwd()+"/"+programext
+    # programbuilddir  : str = create_dir( "build",**kwargs )
+    # prefixdir        : str = "" # for testing it's enough to have the result in `build'
+    # prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,prefixdir]
+
+    #
+    # Make compilation
+    #
+    output : OutputDict = \
+        start_test_stage( "make compile",**{ **kwargs,"package":program, } )
+    res : Optional[str] = get_value_from_loaded(
+        make_build_script,[program,tester_dirnames],
+        **{ **kwargs,**output,'scriptsdir':scriptsdir } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+    return success,failure
+
+    #
+    # execution
+    #
+    output = start_test_stage( "exec",**{ **kwargs,"package":name,"installing":False, } )
+    # are library dependencies satisfied
+    process_execute( f"ldd {name}",**kwargs,**output )
+    # run!
+    if do_run:
+        process_execute( f"./{name}",**kwargs,**output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    return success,failure
+
+####
+#### Run bare application
+####
+def do_run_test(
+        test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
+
+    run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+    program : str = run_config["program"]
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    #tester_dirnames = get_tester_dirnames(program,**kwargs)
+    success : list[str] = []; failure : list[str] = []
+
+    #
+    # execution
+    #
+    output = start_test_stage( "exec",**{ **kwargs,"package":program,"installing":False, } )
+    # are library dependencies satisfied
+    process_execute( f"ldd {program}",**kwargs,**output )
+    # run!
+    process_execute( f"./{program}",**kwargs,**output )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     return success,failure
@@ -421,6 +490,18 @@ Module {name}/{version} not available
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_make_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
+    #
+    # run tests
+    #
+    if tests := kwargs.get( "RUNTEST" ):
+        for test in tests:
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_run_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:

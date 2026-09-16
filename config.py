@@ -23,7 +23,7 @@ additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
                               "MODULE", 
                               "CMAKEFLAGS","CONFIGUREFLAGS","PETSCFLAGS",
                              ]
-list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST",
+list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", "RUNTEST",
                               "CLEANTARGET",
                              ]
 
