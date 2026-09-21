@@ -831,6 +831,7 @@ else
 fi
         """
     return script,title
+    #
     if executable:
         script += f"""
 if [ -x \"{file_to_test}\" ] ; then

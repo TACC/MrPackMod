@@ -50,7 +50,8 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( "-g","--grep" )
 
     # universal
-    parser.add_argument( '-i','--title',default="some cmake test" )
+    parser.add_argument( '--title',default="some cmake test" )
+    parser.add_argument( '--note' )
     parser.add_argument( 'program', nargs=1, help=f"program.c" )
 
     argument_list = shlex.split( f"{test_options}" )
@@ -415,6 +416,8 @@ def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : An
     else: error_abort( "Expecting program parameter",**kwargs )
 
     testtitle     = run_config.pop("title") # need to remove because we pass a new title below
+    if ( note := run_config.get("note") ) is not None:
+        testtitle = f"{testtitle}\n>>>> {note} <<<<"
     run_config["testtitle"] = testtitle
     cleantitle = clean_title( testtitle )
     run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
