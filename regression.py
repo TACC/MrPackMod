@@ -16,7 +16,7 @@ from MrPackMod.basics  import clean_title,remove_macros,\
     isnull,nonnull, nonzero_keyword,\
     line_strip_conditionals,create_dir,ModuleLoadStrategy
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
-    DirNamesDict
+    dir_variable,DirNamesDict
 from MrPackMod.process import process_execute, process_initiate, \
     get_value_from_loaded,package_version_available
 from MrPackMod.scripts import export_compilers_script,\
@@ -86,22 +86,20 @@ fi
 
 def do_ldd_test(
         title : str,
-        package : str, dirtype : str, program : str,
+        fileargs : list[str,str,str],
+        # package : str, dirtype : str, program : str,
         success : list[str],failure : list[str],**kwargs : Any,
         ) -> tuple[list[str],list[str]]:
 
-    filedir,file_to_test,file_to_report = \
-        file_to_exist_names(
-            package,dirtype,program,**kwargs )
+    package,dirtype,program = fileargs
     program_clean : str = re.sub( '/','',program )
     output : OutputDict = \
         start_test_stage( f"{title}, ldd test", **{ **kwargs, "package":program_clean }, )
-    # prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
     dirnames : DirNamesDict = {
         "scriptsdir":output["logdir"],
         "srcdir":kwargs.get("startdir",".")+"/"+dirtype,
         "builddir":create_dir( "build",**kwargs ),
-        "prefixdir":"" # for testing it's enough to have the result in `build',
+        "prefixdir":os.getenv( dir_variable(package,dirtype) )
     }
     res : Optional[str] = get_value_from_loaded(
         ldd_script,[program,dirnames],**{ **kwargs,**output } )
@@ -144,11 +142,12 @@ def do_existence_test(
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
-    # run and ldd
+    # ldd
     #
-
     if run_config.get("ldd"):
-        print("ldd test temporarily disabled")
+        success,failure = do_ldd_test\
+            ( f"ldd on {program}",fileargs[:3],success,failure,
+              **{ **kwargs,**run_config } )
     if False:
         dirnames : DirNamesDict = {
             "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),
@@ -352,7 +351,7 @@ def do_make_test(
 ####
 #### Run bare application
 ####
-def do_run_test(
+def do_application_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
 
     run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
@@ -504,7 +503,7 @@ Module {name}/{version} not available
     if tests := kwargs.get( "RUNTEST" ):
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
-                success,failure = do_run_test( test,**kwargs )
+                success,failure = do_application_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:

@@ -802,12 +802,9 @@ fi
 ## Test file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    # _,filedir,file_to_test,file_to_report = args
     package,dirtype,program,grep,executable = args
     dirvar : str = dir_variable(package,dirtype)
     title : str = f"Test existence of {dirtype}:{program}"
-    # filedir,file_to_test,file_to_report =
-    # file_to_exist_names(package,dirtype,program,**kwargs)
     script : str = f"""
 echo "{title}"
 
@@ -863,9 +860,7 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    rundir   = dirnames["rundir"]
-    if isnull( rundir ):
-        rundir = "build"
+    rundir : str = dirnames.get("rundir","build")
     script += f"""
 if [ ! -d "{rundir}" ] ; then
     echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
@@ -878,7 +873,7 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     # what do we run?
     #  - prefix is empty for runing along path
     #  - prefix can be ./
-    prefix  : str = dirnames["prefix"]
+    prefix  : str = dirnames.get("prefix","")
     #print( f"prefix=<<{prefix}>> out of dirnames={dirnames}" )
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
