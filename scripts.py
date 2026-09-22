@@ -96,7 +96,7 @@ modulecommand "load blas" "load {blas}"
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
     if nonnull( modulestoload ) or zero_keyword( "skipmodules",**kwargs ):
-        loadscript += modulesloadscript( modulestoload,**kwargs )
+        loadscript += modules_load_script( modulestoload,**kwargs )
     else:
         echo_warning( "not loading any modules",**kwargs )
     loadscript += f"""
@@ -297,7 +297,7 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 modulecommand "Load mpi" "load {mpi}"
     """
 
-def modulesloadscript( modulestoload : list[str],**kwargs ) -> str:
+def modules_load_script( modulestoload : list[str],**kwargs ) -> str:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
 echo ".... Load packages <<{modulestoload}>>" {redirect}

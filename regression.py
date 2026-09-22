@@ -21,7 +21,7 @@ from MrPackMod.process import process_execute, process_initiate, \
     get_value_from_loaded,package_version_available
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,make_build_script,\
-    file_to_exist_script,ldd_script,run_script
+    file_to_exist_script,ldd_script,run_script,modules_load_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
@@ -83,6 +83,18 @@ fi
 """,
           **kwargs, )
     return grep_output_file
+
+def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
+        -> tuple[list[str],list[str]]:
+    success : list[str] = [ "SUCCESS we are not testing this yet" ]
+    failure : list[str] = []
+    return success,failure
+    output : OutputDict = \
+        start_test_stage( title, **{ **kwargs, "package":modver }, )
+    res : Optional[str] = get_value_from_loaded(
+        modules_load_script,[modver],**{ **kwargs,**output } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+    return success,failure
 
 def do_ldd_test(
         title : str,
@@ -460,6 +472,10 @@ def do_tests( **kwargs: Any ) -> None:
 Module {name}/{version} not available
         """,file=sys.stderr )
         return
+
+    success,failure = can_load_module( f"module {name} loadability",f"{name}/{version}",**kwargs )
+    if len(failure)>0:
+        print( failure[0] ) ; return
 
     #
     # existence tests
