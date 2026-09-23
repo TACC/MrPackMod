@@ -91,8 +91,14 @@ def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
     return success,failure
     output : OutputDict = \
         start_test_stage( title, **{ **kwargs, "package":modver }, )
+    dirnames : DirNamesDict = {
+        "scriptsdir":output.get("logdir","mpmscripts"),
+        "srcdir":kwargs.get("startdir","."),
+        "builddir":create_dir( "build",**kwargs ),
+        "prefixdir":".",
+    }
     res : Optional[str] = get_value_from_loaded(
-        modules_load_script,[modver],**{ **kwargs,**output } )
+        modules_load_script,[modver,dirnames],**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     return success,failure
 

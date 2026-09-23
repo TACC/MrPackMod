@@ -95,10 +95,11 @@ modulecommand "load blas" "load {blas}"
         if mpi is not None:
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
-    if nonnull( modulestoload ) or zero_keyword( "skipmodules",**kwargs ):
+    if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ) \
+       and zero_keyword("NOMODULE",**kwargs) :
         loadscript += modules_load_script( modulestoload,**kwargs )
     else:
-        echo_warning( "not loading any modules",**kwargs )
+        trace_string( "Not loading any modules",**kwargs )
     loadscript += f"""
 echo Module listing:
 modulelist
@@ -310,7 +311,7 @@ echo ".... Load packages <<{modulestoload}>>" {redirect}
 modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
 {modulepropertest}
         """
-    return loadscript
+    return loadscript,f"module loading {modulestoload}"
 
 modulelonglist : str = """
 function modulelist ()
