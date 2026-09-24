@@ -97,7 +97,8 @@ modulecommand "load blas" "load {blas}"
         else: error_abort( "No mpi defined",**kwargs )
     if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ) \
        and zero_keyword("NOMODULE",**kwargs) :
-        loadscript += modules_load_script( modulestoload,**kwargs )
+        scr,tit = modules_load_script( modulestoload,**kwargs )
+        loadscript += scr
     else:
         trace_string( "Not loading any modules",**kwargs )
     loadscript += f"""
@@ -187,7 +188,7 @@ function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2
     echo Output: && module -t $3
-    exit
+    echo "Aborting this script" && exit
 else
     echo SUCCESS module command succeeded: $2
     local cmd="$3"
@@ -298,7 +299,7 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 modulecommand "Load mpi" "load {mpi}"
     """
 
-def modules_load_script( modulestoload : list[str],**kwargs ) -> str:
+def modules_load_script( modulestoload : list[str],**kwargs ) -> tuple[str,str]:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
 echo ".... Load packages <<{modulestoload}>>" {redirect}
@@ -311,7 +312,8 @@ echo ".... Load packages <<{modulestoload}>>" {redirect}
 modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
 {modulepropertest}
         """
-    return loadscript,f"module loading {modulestoload}"
+    modulesstring : str = re.sub( '/','',"-".join(modulestoload) )
+    return loadscript,f"module loading {modulesstring}"
 
 modulelonglist : str = """
 function modulelist ()
@@ -371,8 +373,9 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 ####
 ################################################################
 
-def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames = pcmakedirs
+def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict,Optional[str]],
+                            **kwargs : Any ) -> tuple[str,str]:
+    program,dirnames,cmakeopts = pcmakedirs
     program = re.sub( r'\..*','',program )
 
     script : str = ""
@@ -387,7 +390,7 @@ def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any 
 
     # cmake
     cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( **kwargs )
+    cmakeflags = cmake_options( cmakeopts,**kwargs )
     buildsettings = cmake_build_settings( **kwargs )
     # set src, build, prefix
     pathsettings = cmake_paths_settings( dirnames,**kwargs )
@@ -434,7 +437,8 @@ echo "Builddir {builddir} contents:"
 ls {builddir}
     """
 
-def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],
+                        **kwargs : Any ) -> tuple[str,str]:
     _,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
@@ -489,7 +493,7 @@ def cmake_basic_command( **kwargs : Any ) -> str:
 -D CMAKE_COLOR_MAKEFILE=OFF \
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
-def cmake_options( **kwargs: Any ) -> str:
+def cmake_options( opts : Optional[str],**kwargs: Any ) -> str:
     cmakeflags : str = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if ( standard := kwargs.get("CPPSTANDARD") ) is not None:
         cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
@@ -502,6 +506,8 @@ def cmake_options( **kwargs: Any ) -> str:
             flags += conflags
         elif envflags is not None:
             flags += f" -D CMAKE_C_FLAGS={envflags}"
+        if nonnull( opts ):
+            flags += f" {opts}"
         cmakeflags += f"{flags} -D MPM_CUSTOM_FLAGS=END "
     return cmakeflags.lstrip(" ")
 

@@ -36,8 +36,9 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     # running
     parser.add_argument( '-r',"--run",        action='store_true', default=False )
     parser.add_argument( '--run_in_dir' )
-    parser.add_argument( '--run_args',        default="" )
+    parser.add_argument( '--run_args',        default="" ) # should be no default
     parser.add_argument( '-t',"--test_value", default="0" )
+    parser.add_argument( '--cmake' )
 
     parser.add_argument( '-k','--keywords'  , default="" )
     parser.add_argument( '-p',"--run_prefix", default="./" )
@@ -86,9 +87,7 @@ fi
 
 def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
         -> tuple[list[str],list[str]]:
-    success : list[str] = [ "SUCCESS we are not testing this yet" ]
-    failure : list[str] = []
-    return success,failure
+    #return [ "SUCCESS we are not testing this yet" ],[]
     output : OutputDict = \
         start_test_stage( title, **{ **kwargs, "package":modver }, )
     dirnames : DirNamesDict = {
@@ -97,9 +96,11 @@ def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
         "builddir":create_dir( "build",**kwargs ),
         "prefixdir":".",
     }
+    # Execute script and get success msg or None
     res : Optional[str] = get_value_from_loaded(
-        modules_load_script,[modver,dirnames],**{ **kwargs,**output } )
-    success,failure = end_test_stage( success,failure,output,**kwargs )
+        modules_load_script,[modver],**{ **kwargs,**output,**dirnames } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    print( f"load {modver}: {failure}" )
     return success,failure
 
 def do_ldd_test(
@@ -213,12 +214,16 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    #print( f"convert test definition=<<{test_definition}>>" )
+    trace_string( f"cmake test definition: {test_definition}",**kwargs )
+    # convert definition option to dict
     run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
-    #print( f" .. gives run_config=<<{run_config}>>" )
-    testtitle : str = run_config["testtitle"]
-    program : str = run_config["program"]
-    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+
+    # get test parameters
+    testtitle  : str           = run_config["testtitle"]
+    cmakeopts  : Optional[str] = run_config.get("cmake")
+    program    : str           = run_config["program"]
+    scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
+
     # settings for building, later overwritten for running
     tester_dirnames = get_tester_dirnames(program,**kwargs)
 
@@ -231,7 +236,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         start_test_stage(
             "cmake build and make",**{ **kwargs,"package":program } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ program,tester_dirnames ],
+        cmake_configure_script,[ program,tester_dirnames,cmakeopts ],
         **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
