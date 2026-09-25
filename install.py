@@ -44,7 +44,7 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
+        cmake_configure_script,[ "",get_dir_names(**kwargs),None ],
         **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
