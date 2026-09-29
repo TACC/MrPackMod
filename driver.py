@@ -264,6 +264,8 @@ def configure_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_configure( **kwargs )
     elif system == "autotools":
         return install.autotools_configure( **kwargs )
+    elif system == "scons":
+        return install.scons_configure( **kwargs )
     elif system == "make":
         return install.make_configure( **kwargs )
     elif system == "petsc":
@@ -277,6 +279,8 @@ def build_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_build( **kwargs )
     elif system == "autotools":
         return install.autotools_build( **kwargs )
+    elif system == "scons":
+        return install.scons_build( **kwargs )
     elif system == "make":
         return install.make_build( **kwargs )
     elif system == "petsc":

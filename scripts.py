@@ -527,7 +527,9 @@ def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
         effectivesrcdir : str = f"{srcdir}/{source}"
     else: effectivesrcdir = srcdir
     if not os.path.isdir(effectivesrcdir):
-        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+        error_abort\
+            ( f"Can not find source dir {effectivesrcdir}; did you forget to download?",
+              **kwargs )
     settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
         error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
@@ -663,6 +665,114 @@ echo "SUCCESS: autotools build succeeded"
     """
 
     return script,"Autotools make and install"
+
+################################################################
+####
+#### Scons
+####
+################################################################
+
+def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    setupscript : str = ""
+    ##
+    ## go to the right location for configure
+    ## do autogen stuff before configure
+    ##
+    configsetupscript : str = config_setup_script( srcdir,**kwargs )
+
+    ##
+    ## do configure
+    ##
+    if ( option := nonzero_keyword( "PREFIXOPTION",**kwargs ) ) is not None:
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if ( flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ) ) is not None:
+        flags = f" {flags}"
+    else: flags = ""
+    configurescript : str = f"""
+./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+echo "SUCCESS: scons configure succeeded"
+    """
+    return setup_script+configsetupscript+configurescript,"Scons configuring"
+
+def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
+    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+        trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
+        configloc : str = builddir
+        config_cmdline : str = f"{srcdir}/configure"
+    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
+        configloc = f"{srcdir}/{subdir}"
+        config_cmdline = f"./configure"
+    else:
+        configloc = f"{srcdir}"
+        config_cmdline = f"./configure"
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    return f"""
+cd {configloc}
+echo Starting configure process in $(pwd)
+if [ -f \"configure\" ] ; then
+  has_configure=1
+  echo has configure script
+else has_configure= ; echo no configure script ; fi
+if [ -f \"autogen.sh\" ] ; then
+  has_autogen=1
+  echo has autogen
+else has_autogen= ; echo no autogen ; fi
+if [ -f \"configure.ac\" ] ; then
+  has_ac=1
+  echo has configure.ac 
+else has_ac= ; echo no configure.ac ; fi
+
+if [ -z "${{has_configure}}" ] ; then 
+  if [ ! -z "${{has_ac}}" ] ; then
+    aclocal && autoconf
+  elif [ ! -z "${{has_autogen}}" ] ; then 
+    ./autogen.sh
+  else
+    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
+  fi
+fi
+{autoupdate}
+    """
+
+def scons_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    if ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ) is None:
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"make --no-print-directory -j {jval}"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    #
+    # install
+    #
+    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
+    script += f"""
+{makecommand} install {extra}
+echo "SUCCESS: scons build succeeded"
+    """
+
+    return script,"Scons make and install"
 
 ################################################################
 ####
