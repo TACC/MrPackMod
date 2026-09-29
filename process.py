@@ -250,15 +250,15 @@ UNEXPECTED: {outputfilename} has no success/failure lines
             if re.match( 'Finished',line): continue
             returnvalue : str = line
             if fail := re.match( r'FAILURE[:\s]*(.*)',line ):
-                msg = fail.groups()[0]
+                failmsg : str = fail.groups()[0]
                 print( f"""\
 FAILURE: {scripttitle}; 
-failed with: {msg}
+failed with: {failmsg}
 see for details: {outputfilename}
                 """ )
                 return None
             elif fine := re.match( r'SUCCESS[:\s]*(.*)',line ):
-                msg = fine.groups()[0]
+                successmsg = fine.groups()[0] # this is discarded
     print( f"""\
 SUCCEEDED: {scripttitle}
     """.strip() ) # no newlines before/after

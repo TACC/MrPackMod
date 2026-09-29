@@ -60,7 +60,7 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
         'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
                                       "actions", "url", "show", "test",
-                                      "listmodules", "modules", "public", "version",
+                                      "modules", "public", "version",
                                       "download", "unpack", "clone", "pull",
                                       "prerequisitesinstall", # this only needs the MODULE line
                                      ]
@@ -106,7 +106,7 @@ package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
     # Auxiliary actions
-    elif action=="dependencies":
+    elif action in ["dependencies","modules",]:
         print( configuration['MODULES'] )
     elif action=="find_string":
         if args := nonnull( arguments.args ):
@@ -124,9 +124,6 @@ utility_actions : {utility_actions}
             print( configuration[displayvar] )
         except:
             print( f"No configuration variable: {displayvar}" )
-    elif action=="listmodules":
-        if modulelist := configuration.get("MODULES"):
-            print( modulelist )
     ##
     ## By category
     ##
@@ -267,6 +264,8 @@ def configure_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_configure( **kwargs )
     elif system == "autotools":
         return install.autotools_configure( **kwargs )
+    elif system == "scons":
+        return install.scons_configure( **kwargs )
     elif system == "make":
         return install.make_configure( **kwargs )
     elif system == "petsc":
@@ -280,6 +279,8 @@ def build_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_build( **kwargs )
     elif system == "autotools":
         return install.autotools_build( **kwargs )
+    elif system == "scons":
+        return install.scons_build( **kwargs )
     elif system == "make":
         return install.make_build( **kwargs )
     elif system == "petsc":

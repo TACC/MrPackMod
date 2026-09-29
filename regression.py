@@ -16,12 +16,12 @@ from MrPackMod.basics  import clean_title,remove_macros,\
     isnull,nonnull, nonzero_keyword,\
     line_strip_conditionals,create_dir,ModuleLoadStrategy
 from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
-    DirNamesDict
+    dir_variable,DirNamesDict
 from MrPackMod.process import process_execute, process_initiate, \
     get_value_from_loaded,package_version_available
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,make_build_script,\
-    file_to_exist_script,ldd_script,run_script
+    file_to_exist_script,ldd_script,run_script,modules_load_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
@@ -36,8 +36,9 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     # running
     parser.add_argument( '-r',"--run",        action='store_true', default=False )
     parser.add_argument( '--run_in_dir' )
-    parser.add_argument( '--run_args',        default="" )
+    parser.add_argument( '--run_args',        default="" ) # should be no default
     parser.add_argument( '-t',"--test_value", default="0" )
+    parser.add_argument( '--cmake' )
 
     parser.add_argument( '-k','--keywords'  , default="" )
     parser.add_argument( '-p',"--run_prefix", default="./" )
@@ -50,7 +51,8 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( "-g","--grep" )
 
     # universal
-    parser.add_argument( '-i','--title',default="some cmake test" )
+    parser.add_argument( '--title',default="some cmake test" )
+    parser.add_argument( '--note' )
     parser.add_argument( 'program', nargs=1, help=f"program.c" )
 
     argument_list = shlex.split( f"{test_options}" )
@@ -83,24 +85,40 @@ fi
           **kwargs, )
     return grep_output_file
 
+def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
+        -> tuple[list[str],list[str]]:
+    #return [ "SUCCESS we are not testing this yet" ],[]
+    output : OutputDict = \
+        start_test_stage( title, **{ **kwargs, "package":modver }, )
+    dirnames : DirNamesDict = {
+        "scriptsdir":output.get("logdir","mpmscripts"),
+        "srcdir":kwargs.get("startdir","."),
+        "builddir":create_dir( "build",**kwargs ),
+        "prefixdir":".",
+    }
+    # Execute script and get success msg or None
+    res : Optional[str] = get_value_from_loaded(
+        modules_load_script,[modver],**{ **kwargs,**output,**dirnames } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    print( f"load {modver}: {failure}" )
+    return success,failure
+
 def do_ldd_test(
         title : str,
-        package : str, dirtype : str, program : str,
+        fileargs : list[str,str,str],
+        # package : str, dirtype : str, program : str,
         success : list[str],failure : list[str],**kwargs : Any,
         ) -> tuple[list[str],list[str]]:
 
-    filedir,file_to_test,file_to_report = \
-        file_to_exist_names(
-            package,dirtype,program,**kwargs )
+    package,dirtype,program = fileargs
     program_clean : str = re.sub( '/','',program )
     output : OutputDict = \
         start_test_stage( f"{title}, ldd test", **{ **kwargs, "package":program_clean }, )
-    # prog_and_dirs : list[Optional[str]] = [file_to_test,file_to_report,".",filedir]
     dirnames : DirNamesDict = {
         "scriptsdir":output["logdir"],
         "srcdir":kwargs.get("startdir",".")+"/"+dirtype,
         "builddir":create_dir( "build",**kwargs ),
-        "prefixdir":"" # for testing it's enough to have the result in `build',
+        "prefixdir":os.getenv( dir_variable(package,dirtype) )
     }
     res : Optional[str] = get_value_from_loaded(
         ldd_script,[program,dirnames],**{ **kwargs,**output } )
@@ -143,11 +161,12 @@ def do_existence_test(
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
     #
-    # run and ldd
+    # ldd
     #
-
     if run_config.get("ldd"):
-        print("ldd test temporarily disabled")
+        success,failure = do_ldd_test\
+            ( f"ldd on {program}",fileargs[:3],success,failure,
+              **{ **kwargs,**run_config } )
     if False:
         dirnames : DirNamesDict = {
             "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),
@@ -195,12 +214,16 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    #print( f"convert test definition=<<{test_definition}>>" )
+    trace_string( f"cmake test definition: {test_definition}",**kwargs )
+    # convert definition option to dict
     run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
-    #print( f" .. gives run_config=<<{run_config}>>" )
-    testtitle : str = run_config["testtitle"]
-    program : str = run_config["program"]
-    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+
+    # get test parameters
+    testtitle  : str           = run_config["testtitle"]
+    cmakeopts  : Optional[str] = run_config.get("cmake")
+    program    : str           = run_config["program"]
+    scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
+
     # settings for building, later overwritten for running
     tester_dirnames = get_tester_dirnames(program,**kwargs)
 
@@ -213,7 +236,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         start_test_stage(
             "cmake build and make",**{ **kwargs,"package":program } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ program,tester_dirnames ],
+        cmake_configure_script,[ program,tester_dirnames,cmakeopts ],
         **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
@@ -245,7 +268,6 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         }
         tester_dirnames["rundir"]  = run_config.get("run_in_dir","build")
         tester_dirnames["prefix"] = run_config.get("run_prefix","./")
-        #print( f"dirnames for run section: {dirnames}" )
         success,failure = do_run_test(
             testtitle,
             program,tester_dirnames,run_config.get("run_args"),
@@ -304,6 +326,76 @@ def do_make_test(
 
     return success,failure
 
+def do_make_test(
+        test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
+
+    run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+    program : str = run_config["program"]
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    tester_dirnames = get_tester_dirnames(program,**kwargs)
+    success : list[str] = []; failure : list[str] = []
+
+    # if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+    #     programname,programext = name_ext.groups()
+    #     run_config["programname"] = programname
+    #     run_config["programext"]  = programext
+    # else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+
+    # programsrcdir    : str = os.getcwd()+"/"+programext
+    # programbuilddir  : str = create_dir( "build",**kwargs )
+    # prefixdir        : str = "" # for testing it's enough to have the result in `build'
+    # prog_and_dirs : list[str] = [programname,programsrcdir,programbuilddir,prefixdir]
+
+    #
+    # Make compilation
+    #
+    output : OutputDict = \
+        start_test_stage( "make compile",**{ **kwargs,"package":program, } )
+    res : Optional[str] = get_value_from_loaded(
+        make_build_script,[program,tester_dirnames],
+        **{ **kwargs,**output,'scriptsdir':scriptsdir } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+    return success,failure
+
+    #
+    # execution
+    #
+    output = start_test_stage( "exec",**{ **kwargs,"package":name,"installing":False, } )
+    # are library dependencies satisfied
+    process_execute( f"ldd {name}",**kwargs,**output )
+    # run!
+    if do_run:
+        process_execute( f"./{name}",**kwargs,**output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    return success,failure
+
+####
+#### Run bare application
+####
+def do_application_test(
+        test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
+
+    run_config : dict = test_definition_to_dict( "make",test_definition,**kwargs )
+    testtitle : str = run_config["testtitle"]
+    program : str = run_config["program"]
+    scriptsdir : str = kwargs.get("startdir")+"/mpmscripts_"+program
+    #tester_dirnames = get_tester_dirnames(program,**kwargs)
+    success : list[str] = []; failure : list[str] = []
+
+    #
+    # execution
+    #
+    output = start_test_stage( "exec",**{ **kwargs,"package":program,"installing":False, } )
+    # are library dependencies satisfied
+    process_execute( f"ldd {program}",**kwargs,**output )
+    # run!
+    process_execute( f"./{program}",**kwargs,**output )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    return success,failure
+
 #
 # If no filters and no matches, accept.
 # If testname matches a filter, discard.
@@ -346,6 +438,8 @@ def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : An
     else: error_abort( "Expecting program parameter",**kwargs )
 
     testtitle     = run_config.pop("title") # need to remove because we pass a new title below
+    if ( note := run_config.get("note") ) is not None:
+        testtitle = f"{testtitle}\n>>>> {note} <<<<"
     run_config["testtitle"] = testtitle
     cleantitle = clean_title( testtitle )
     run_config["scriptsdir"] = f"{os.getcwd()}/mpmscripts_exist_{cleantitle}"
@@ -390,6 +484,10 @@ Module {name}/{version} not available
         """,file=sys.stderr )
         return
 
+    success,failure = can_load_module( f"module {name} loadability",f"{name}/{version}",**kwargs )
+    if len(failure)>0:
+        print( failure[0] ) ; return
+
     #
     # existence tests
     #
@@ -421,6 +519,18 @@ Module {name}/{version} not available
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_make_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
+    #
+    # run tests
+    #
+    if tests := kwargs.get( "RUNTEST" ):
+        for test in tests:
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_application_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:

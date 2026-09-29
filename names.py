@@ -256,15 +256,19 @@ def install_extension( **kwargs: Any ) -> str:
         installext = f"{installext}-{variant}"
     return installext
 
-def gitdir_local_name( **kwargs: Any ) -> str:
-    packagebasename,_ = package_names( **kwargs )
-    packageversion : str = "git"
+def gitdir_src_extension( **kwargs: Any ) -> str:
+    versionext : str = "git"
     if stamp := nonzero_keyword( "GITDATE",**kwargs):
         if stamp=="today":
-            packageversion += str( datetime.date.today() ).replace('-','')
+            versionext += str( datetime.date.today() ).replace('-','')
         else:
-            packageversion += stamp
-    return f"{packagebasename}-{packageversion}"
+            versionext += stamp
+    return f"{versionext}"
+
+def gitdir_local_name( **kwargs : dict[str,Any] ) -> str:
+    package,_ = package_names( **kwargs )
+    ext : str = gitdir_src_extension( **kwargs )
+    return f"{package}-{ext}"
 
 ##
 ## Name of source directory,
@@ -282,7 +286,11 @@ def srcdir_name( **kwargs: Any ) -> str:
 
 def srcdir_local_name( **kwargs: Any ) -> str:
     packagebasename,packageversion = package_names_nonnull( **kwargs )
-    return f"{packagebasename}-{packageversion}"
+    if packageversion == "git":
+        extension : str = gitdir_src_extension( **kwargs )
+    else:
+        extension = packageversion
+    return f"{packagebasename}-{extension}"
 
 def builddir_name( **kwargs: Any ) -> str:
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):

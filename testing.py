@@ -104,6 +104,7 @@ def end_test_stage(
         **kwargs : dict[str, Any], 
         ) -> tuple[list[str], list[str]]:
     # close the log file to finish all writes
+    trace_string( "End of test stage",**kwargs )
     if ( loghandle := output.get("loghandle") ) is None:
         error_abort( "Need logfile handle",**kwargs )
     loghandle.close()
@@ -111,8 +112,9 @@ def end_test_stage(
     # then analyze the now completed log file
     if ( logfile := output.get("logfile") ) is None:
         error_abort( "Need logfile name",**kwargs )
+    trace_string( f"End of test stage, analyzing logfile={logfile}",**kwargs )
     success,failure = success_failure_in_logfile\
-        ( logfile,success=success,failure=failure,**kwargs )
+        ( logfile,**{ **kwargs, 'success':success, 'failure':failure, } )
     return success,failure
 
 ##

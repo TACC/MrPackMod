@@ -44,7 +44,7 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
+        cmake_configure_script,[ "",get_dir_names(**kwargs),None ],
         **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -81,6 +81,31 @@ def autotools_build( **kwargs : Any ) ->Optional[str]:
         start_test_stage( "build",**kwargs )
     retval : Optional[str] = get_value_from_loaded(
         autotools_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+################################################################
+####
+#### Scons
+####
+################################################################
+
+def scons_configure( **kwargs : Any ) -> Optional[str]:
+    output : OutputDict = start_test_stage( "configure",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        scons_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+def scons_build( **kwargs : Any ) ->Optional[str]:
+    if nonzero_keyword("noinstall",**kwargs):
+        return "No installation needed"
+    output : OutputDict = \
+        start_test_stage( "build",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        scons_build_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval

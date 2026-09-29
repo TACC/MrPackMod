@@ -95,10 +95,12 @@ modulecommand "load blas" "load {blas}"
         if mpi is not None:
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
-    if nonnull( modulestoload ) or zero_keyword( "skipmodules",**kwargs ):
-        loadscript += modulesloadscript( modulestoload,**kwargs )
+    if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ) \
+       and zero_keyword("NOMODULE",**kwargs) :
+        scr,tit = modules_load_script( modulestoload,**kwargs )
+        loadscript += scr
     else:
-        echo_warning( "not loading any modules",**kwargs )
+        trace_string( "Not loading any modules",**kwargs )
     loadscript += f"""
 echo Module listing:
 modulelist
@@ -186,7 +188,7 @@ function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2
     echo Output: && module -t $3
-    exit
+    echo "Aborting this script" && exit
 else
     echo SUCCESS module command succeeded: $2
     local cmd="$3"
@@ -297,7 +299,7 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 modulecommand "Load mpi" "load {mpi}"
     """
 
-def modulesloadscript( modulestoload : list[str],**kwargs ) -> str:
+def modules_load_script( modulestoload : list[str],**kwargs ) -> tuple[str,str]:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
 echo ".... Load packages <<{modulestoload}>>" {redirect}
@@ -310,7 +312,8 @@ echo ".... Load packages <<{modulestoload}>>" {redirect}
 modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
 {modulepropertest}
         """
-    return loadscript
+    modulesstring : str = re.sub( '/','',"-".join(modulestoload) )
+    return loadscript,f"module loading {modulesstring}"
 
 modulelonglist : str = """
 function modulelist ()
@@ -370,8 +373,9 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 ####
 ################################################################
 
-def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames = pcmakedirs
+def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict,Optional[str]],
+                            **kwargs : Any ) -> tuple[str,str]:
+    program,dirnames,cmakeopts = pcmakedirs
     program = re.sub( r'\..*','',program )
 
     script : str = ""
@@ -386,7 +390,7 @@ def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any 
 
     # cmake
     cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( **kwargs )
+    cmakeflags = cmake_options( cmakeopts,**kwargs )
     buildsettings = cmake_build_settings( **kwargs )
     # set src, build, prefix
     pathsettings = cmake_paths_settings( dirnames,**kwargs )
@@ -433,7 +437,8 @@ echo "Builddir {builddir} contents:"
 ls {builddir}
     """
 
-def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],
+                        **kwargs : Any ) -> tuple[str,str]:
     _,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
@@ -488,7 +493,7 @@ def cmake_basic_command( **kwargs : Any ) -> str:
 -D CMAKE_COLOR_MAKEFILE=OFF \
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
-def cmake_options( **kwargs: Any ) -> str:
+def cmake_options( opts : Optional[str],**kwargs: Any ) -> str:
     cmakeflags : str = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if ( standard := kwargs.get("CPPSTANDARD") ) is not None:
         cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
@@ -501,6 +506,8 @@ def cmake_options( **kwargs: Any ) -> str:
             flags += conflags
         elif envflags is not None:
             flags += f" -D CMAKE_C_FLAGS={envflags}"
+        if nonnull( opts ):
+            flags += f" {opts}"
         cmakeflags += f"{flags} -D MPM_CUSTOM_FLAGS=END "
     return cmakeflags.lstrip(" ")
 
@@ -520,7 +527,9 @@ def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
         effectivesrcdir : str = f"{srcdir}/{source}"
     else: effectivesrcdir = srcdir
     if not os.path.isdir(effectivesrcdir):
-        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+        error_abort\
+            ( f"Can not find source dir {effectivesrcdir}; did you forget to download?",
+              **kwargs )
     settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
         error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
@@ -656,6 +665,126 @@ echo "SUCCESS: autotools build succeeded"
     """
 
     return script,"Autotools make and install"
+
+################################################################
+####
+#### Scons
+####
+################################################################
+
+def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    setupscript : str = ""
+    ##
+    ## go to the right location for configure
+    ## do autogen stuff before configure
+    ##
+    configsetupscript : str = config_setup_script( srcdir,**kwargs )
+
+    ##
+    ## do configure
+    ##
+    if ( option := nonzero_keyword( "PREFIXOPTION",**kwargs ) ) is not None:
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if ( flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ) ) is not None:
+        flags = f" {flags}"
+    else: flags = ""
+    configurescript : str = f"""
+scons build env_vars=all \
+         CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
+          prefix={prefixdir} \
+          system_eigen='y' system_fmt='y' system_highfive='y' \
+          system_sundials='y' system_yamlcpp='y' \
+          extra_inc_dirs=${{SCONS_EXTRA_INCS}} \
+          extra_lib_dirs=${{SCONS_EXTRA_LIBS}} \
+          boost_inc_dir=${{TACC_BOOST_INC}} \
+          \
+          hdf_support='y' hdf_include=${{TACC_HDF5_INC}} hdf_libdir=${{TACC_HDF5_LIB}} \
+          googletest='none' \
+          blas_lapack_libs=mkl_rt blas_lapack_dir=$(MKLROOT)/lib/intel64
+
+echo "SUCCESS: scons configure succeeded"
+    """
+    return setup_script+configsetupscript+configurescript,"Scons configuring"
+
+def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
+    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+        trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
+        configloc : str = builddir
+        config_cmdline : str = f"{srcdir}/configure"
+    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
+        configloc = f"{srcdir}/{subdir}"
+        config_cmdline = f"./configure"
+    else:
+        configloc = f"{srcdir}"
+        config_cmdline = f"./configure"
+    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
+        autoupdate : str = "./autoupdate"
+    else: autoupdate = ""
+    return f"""
+cd {configloc}
+echo Starting configure process in $(pwd)
+if [ -f \"configure\" ] ; then
+  has_configure=1
+  echo has configure script
+else has_configure= ; echo no configure script ; fi
+if [ -f \"autogen.sh\" ] ; then
+  has_autogen=1
+  echo has autogen
+else has_autogen= ; echo no autogen ; fi
+if [ -f \"configure.ac\" ] ; then
+  has_ac=1
+  echo has configure.ac 
+else has_ac= ; echo no configure.ac ; fi
+
+if [ -z "${{has_configure}}" ] ; then 
+  if [ ! -z "${{has_ac}}" ] ; then
+    aclocal && autoconf
+  elif [ ! -z "${{has_autogen}}" ] ; then 
+    ./autogen.sh
+  else
+    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
+  fi
+fi
+{autoupdate}
+    """
+
+def scons_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    if ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ) is None:
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"make --no-print-directory -j {jval}"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    #
+    # install
+    #
+    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
+    script += f"""
+{makecommand} install {extra}
+echo "SUCCESS: scons build succeeded"
+    """
+
+    return script,"Scons make and install"
 
 ################################################################
 ####
@@ -802,12 +931,9 @@ fi
 ## Test file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    # _,filedir,file_to_test,file_to_report = args
     package,dirtype,program,grep,executable = args
     dirvar : str = dir_variable(package,dirtype)
     title : str = f"Test existence of {dirtype}:{program}"
-    # filedir,file_to_test,file_to_report =
-    # file_to_exist_names(package,dirtype,program,**kwargs)
     script : str = f"""
 echo "{title}"
 
@@ -831,6 +957,7 @@ else
 fi
         """
     return script,title
+    #
     if executable:
         script += f"""
 if [ -x \"{file_to_test}\" ] ; then
@@ -862,8 +989,7 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    
-    rundir = dirnames.get("rundir","build")
+    rundir : str = dirnames.get("rundir","build")
     script += f"""
 if [ ! -d "{rundir}" ] ; then
     echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
