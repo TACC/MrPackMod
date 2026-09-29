@@ -85,10 +85,11 @@ def add_settings_from_config(
             else:
                 # VLE move the abort into the process function
                 if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
-                    if status in ["exit","return"] :
-                        info : str = re.sub(r'(exit|return)\s*','',totalline)
-                        if nonnull(info) : print(info)
-                        break
+                    if status in ["exit","return","note",] :
+                        info : str = re.sub(r'(exit|return|note)\s*','',totalline)
+                        if nonnull(info) : print( f"\n{info}\n" )
+                        if status in ["exit","return",] :
+                            break
                     saving = False ; totalline = ""
                 else:
                     error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
@@ -109,6 +110,7 @@ def process_total_line( line : str,configfile : str,
         trace_string( f" .. expanded     : {line}",**{ **config_dict,**kwargs } )
     if re.match( r'exit',line )  : return "exit"
     if re.match( r'return',line ): return "return"
+    if re.match( r'note',line ): return "note"
     if callitaday := re.match( r'\s*abort\s+(.*)$',line ):
         if nonnull( msg := callitaday.groups()[0] ):
             print( f"\nAbort: {msg}\n" )

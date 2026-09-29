@@ -694,7 +694,19 @@ def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,
         flags = f" {flags}"
     else: flags = ""
     configurescript : str = f"""
-./configure {prefixoption}={prefixdir} --libdir={prefixdir}/lib {flags}
+scons build env_vars=all \
+         CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
+          prefix={prefixdir} \
+          system_eigen='y' system_fmt='y' system_highfive='y' \
+          system_sundials='y' system_yamlcpp='y' \
+          extra_inc_dirs=${{SCONS_EXTRA_INCS}} \
+          extra_lib_dirs=${{SCONS_EXTRA_LIBS}} \
+          boost_inc_dir=${{TACC_BOOST_INC}} \
+          \
+          hdf_support='y' hdf_include=${{TACC_HDF5_INC}} hdf_libdir=${{TACC_HDF5_LIB}} \
+          googletest='none' \
+          blas_lapack_libs=mkl_rt blas_lapack_dir=$(MKLROOT)/lib/intel64
+
 echo "SUCCESS: scons configure succeeded"
     """
     return setup_script+configsetupscript+configurescript,"Scons configuring"
