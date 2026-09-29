@@ -862,9 +862,8 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    rundir   = dirnames["rundir"]
-    if isnull( rundir ):
-        rundir = "build"
+    
+    rundir = dirnames.get("rundir","build")
     script += f"""
 if [ ! -d "{rundir}" ] ; then
     echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
@@ -877,7 +876,7 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     # what do we run?
     #  - prefix is empty for runing along path
     #  - prefix can be ./
-    prefix  : str = dirnames["prefix"]
+    prefix  : str = dirnames.get("prefix","")
     #print( f"prefix=<<{prefix}>> out of dirnames={dirnames}" )
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
