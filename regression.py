@@ -103,6 +103,8 @@ def can_load_module( title : str, modver : str,**kwargs : dict[str,Any] ) \
     print( f"load {modver}: {failure}" )
     return success,failure
 
+## VLE
+## this one doesn't seem to be used....
 def do_ldd_test(
         title : str,
         fileargs : list[str,str,str],
@@ -164,9 +166,18 @@ def do_existence_test(
     # ldd
     #
     if run_config.get("ldd"):
-        success,failure = do_ldd_test\
-            ( f"ldd on {program}",fileargs[:3],success,failure,
-              **{ **kwargs,**run_config } )
+        tester_dirnames : DirNamesDict = get_tester_dirnames(program,**kwargs )
+        tester_dirnames["builddir"] = os.getenv( dir_variable(package,dirtype) )
+        tester_dirnames["prefixdir"] = tester_dirnames["builddir"]
+        output = start_test_stage( "ldd",**{ **kwargs,"package":program } )
+        res = get_value_from_loaded(
+            ldd_script,[ program,tester_dirnames ],
+            **{ **kwargs,**output,'scriptsdir':scriptsdir } )
+        success,failure = end_test_stage( success,failure,output,**kwargs )
+        # success,failure = do_ldd_test\
+        #     ( f"ldd on {program}",fileargs[:3],success,failure,
+        #       **{ **kwargs,**run_config } )
+
     if False:
         dirnames : DirNamesDict = {
             "scriptsdir":kwargs.get( "scriptsdir",kwargs.get("startdir",".")+"/mpmscripts" ),

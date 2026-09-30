@@ -905,24 +905,21 @@ cd {where}
 if [ ! -d "{scriptsdir}" ] ; then
     echo "FAILURE: scripts dir {scriptsdir} does not exist" && exit 1
 fi
-lddout="{scriptsdir}/ldd_{program}.out"
-rm -f "${{lddout}}"
 
-if [ -f \"{program}\" ] ; then
-    ldd {program} 2>&1 | tee "${{lddout}}"
+program_full_path={where}/{program}"
+if [ ! -f \"${{program_full_path}}\" ] ; then
+    echo "FAILURE: could not find file=${{program_full_path}} to run ldd on"
 else
-    touch "${{lddout}}"
-fi
-
-if [ -f \"{program}\" ] ; then
+    echo "Going to ldd on ${{program_full_path}}"
+    lddout="{scriptsdir}/ldd_{program}.out"
+    rm -f "${{lddout}}"
+    ldd ${{program_full_path}} 2>&1 | tee "${{lddout}}"
     notfound=$( grep \"not found\" "${{lddout}}" | wc -l )
     if [ $notfound -eq 0 ] ; then
         echo "SUCCESS: all libraries resolved"
     else
         echo "FAILURE: $notfound references not found"
     fi
-else
-    echo "FAILURE: could not find program={program} to run ldd on"
 fi
     """
     return script,f"ldd test on {program}"
