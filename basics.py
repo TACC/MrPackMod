@@ -87,10 +87,11 @@ def unimplemented( var: str ) -> None:
 ## stripping of macros
 ##
 
-def remove_macros( string : str,**kwargs : Any ) -> str:
+def remove_macros( string : str,**kwargs : dict[str,Any] ) -> str:
     macro_search = re.compile( r'\${([a-zA-Z0-9_-]+)}' )
     while found_one := re.search( macro_search,string ):
         macroname : str = found_one.groups()[0]
+        trace_string( f" .. trying to expand macro: {macroname}",**kwargs )
         if ( macrovalue := kwargs.get(macroname) ) is not None:
             string = re.sub( macro_search,str(macrovalue),string,1 )
         elif ( macrovalue := os.getenv(macroname) ) is not None:

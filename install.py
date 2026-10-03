@@ -29,6 +29,7 @@ from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,\
     autotools_configure_script,autotools_build_script,\
+    scons_configure_script,scons_build_script,\
     petsc_configure_script,petsc_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     test_proper_prerequisites,OutputDict

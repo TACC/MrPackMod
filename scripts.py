@@ -68,9 +68,11 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     #
     # Start by defining some functions
     #
-    loadscript += modulereportfunction(  )
+    loadscript += successfailurefunction()
+    loadscript += modulereportfunction()
     loadscript += modulelistfunction()
-    loadscript += modulecommandfunction( )
+    loadscript += modulelonglistfunction()
+    loadscript += modulecommandfunction()
     loadscript += moduleproperfunction()
 
     #
@@ -79,7 +81,9 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     loadscript += modulepurgefunction()
     if not mode_is_core( **kwargs ):
         if compiler is not None:
-            loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+            if ( blasroot := kwargs.get("BLASLAPACK_ROOT") ) is None:
+                blasroot = ""
+            loadscript += compilerloadfunction( modulepath,compiler,compilerversion,blasroot )
         else: error_abort( "No compiler defined",**kwargs )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
@@ -103,7 +107,7 @@ modulecommand "load blas" "load {blas}"
         trace_string( "Not loading any modules",**kwargs )
     loadscript += f"""
 echo Module listing:
-modulelist
+modulelonglist
     """
     return loadscript,title
 
@@ -178,6 +182,18 @@ echo \"<<<< end of test proper of module {modver}\"
 ## Some long literals,
 ## to make function above more readable
 ##
+def successfailurefunction() -> str:
+    return f"""
+function report_success_failure () {{
+    if [ $? -eq 0 ] ; then
+        echo "SUCCESS: $1"
+    else
+        echo "FAILURE: $2"
+        exit 1
+    fi
+}}
+"""
+
 def modulereportfunction( redirect="" ) -> str:
     return f"""
 # Non-redirected return code reporting
@@ -193,7 +209,7 @@ else
     echo SUCCESS module command succeeded: $2
     local cmd="$3"
     # echo "cmd was <<$cmd>>"
-    echo "Now loaded:"
+    echo -e "\\nNow loaded:"
     if [[ $cmd =~ load* ]] ; then
         module -t show ${{cmd##load}}
     fi 
@@ -210,6 +226,28 @@ function modulelist ()
 }
         """
 
+def modulelonglistfunction() -> str:
+    return """
+function modulelonglist ()
+{
+    local compiler=$( module -t list ${TACC_FAMILY_COMPILER} 2>&1 );
+    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
+    local modules=$( module -t list 2>&1 | grep -v $compiler 2>/dev/null | grep -v $mpi 2>/dev/null | sort 2>/dev/null );
+    for m in $compiler $mpi cont $modules;
+    do
+        if [ $m = "cont" ]; then
+            echo "----------------";
+        else
+            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?WORK?' );
+            echo "$m : $loc";
+        fi;
+    done
+    echo "----------------";
+    echo -e "LD_LIBRARY_PATH=\\n$( echo ${LD_LIBRARY_PATH} | tr ':' '\\n' )"
+    echo -e "PYTHONPATH=\\n$( echo ${PYTHONPATH} | tr ':' '\\n' )"
+}
+"""
+
 def modulecommandfunction( redirect="" ) -> str:
     return f"""
 # Execute a module command and report result:
@@ -224,7 +262,7 @@ function modulecommand () {{
     fi
     modulereport $? "$1" "$2"
 }}
-    """
+"""
 
 def moduleproperfunction() -> str:
     return """
@@ -265,6 +303,7 @@ modulecommand "module purge" "purge"
     """
 
 def compilerloadfunction( modulepath : str,compiler : str,compilerversion : Optional[str],
+                          blasroot : Optional[str],
                           redirect="" ) -> str:
     if compilerversion is None:
         compver : str = compiler
@@ -280,12 +319,19 @@ modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
 echo .... After reset: {redirect}
 modulelist {redirect}
 
-echo .... Set modulepath {redirect}
+echo ".... Set modulepath" {redirect}
 export MODULEPATH={modulepath}
-echo MODULEPATH=${{MODULEPATH}} {redirect}
+echo "MODULEPATH=${{MODULEPATH}}" {redirect}
 modulecommand "Can we load compiler?" "avail {compver}" display
 
 modulecommand "Load compiler" "load {compver}"
+
+echo "\n.... Can we find BLASLAPACK_ROOT?" {redirect}
+if [ -z "{blasroot}" ] ; then
+    echo "WARNING: no BLASLAPACK_ROOT defined"
+else
+    echo "BLASLAPACK_ROOT={blasroot}"
+fi {redirect}
     """
 
 # VLE Should be insist on an mpi version?
@@ -314,24 +360,6 @@ modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{vers
         """
     modulesstring : str = re.sub( '/','',"-".join(modulestoload) )
     return loadscript,f"module loading {modulesstring}"
-
-modulelonglist : str = """
-function modulelist ()
-{
-    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
-    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
-    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
-    for m in $compiler $mpi cont $modules;
-    do
-        if [ $m = "cont" ]; then
-            echo "----------------";
-        else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
-            echo "$m : $loc";
-        fi;
-    done
-}
-        """
 
 ##
 ## Now the big scripts!
@@ -405,11 +433,7 @@ echo " .. with cmake=$( which cmake )"
 echo " .. cmake cmdline=$cmdline" \
     | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
 eval $cmdline
-if [ $? -eq 0 ] ; then
-    echo SUCCESS: configure succeeded
-else
-    echo FAILURE: cmake failed
-fi
+report_success_failure "configure succeeded" "cmake failed"
     """
     ## maybe only in the log file? script += configure_postreport( dirnames,**kwargs )
     script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
@@ -443,7 +467,7 @@ def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
     script : str = f"""
-echo -e "\n>>> Start of cmake build"
+echo -e "\\n>>> Start of cmake build"
     """
     # flags and options
     jcount          : str = kwargs.get("jcount","6")
@@ -673,16 +697,12 @@ echo "SUCCESS: autotools build succeeded"
 ################################################################
 
 def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    package,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
 
+    sconsflags : str = kwargs.get("SCONSFLAGS","")
     setupscript : str = ""
-    ##
-    ## go to the right location for configure
-    ## do autogen stuff before configure
-    ##
-    configsetupscript : str = config_setup_script( srcdir,**kwargs )
 
     ##
     ## do configure
@@ -694,65 +714,36 @@ def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,
         flags = f" {flags}"
     else: flags = ""
     configurescript : str = f"""
-scons build env_vars=all \
-         CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
-          prefix={prefixdir} \
-          system_eigen='y' system_fmt='y' system_highfive='y' \
-          system_sundials='y' system_yamlcpp='y' \
-          extra_inc_dirs=${{SCONS_EXTRA_INCS}} \
-          extra_lib_dirs=${{SCONS_EXTRA_LIBS}} \
-          boost_inc_dir=${{TACC_BOOST_INC}} \
-          \
-          hdf_support='y' hdf_include=${{TACC_HDF5_INC}} hdf_libdir=${{TACC_HDF5_LIB}} \
-          googletest='none' \
-          blas_lapack_libs=mkl_rt blas_lapack_dir=$(MKLROOT)/lib/intel64
+echo "Test for Scons module"
+PYTHONPATH=/scratch/00434/eijkhout/installation/scons/installation-scons-4.9.1-stampede3-gcc13.2.0 python3 -c "import SCons"
+report_success_failure "python can load SCons" "python could not load SCons module"
+python3 -c "from SCons.Script.Main import main"
+report_success_failure "python can load scons script main" "python could not load scons module script main"
 
-echo "SUCCESS: scons configure succeeded"
-    """
-    return setup_script+configsetupscript+configurescript,"Scons configuring"
+echo -e "\\nCheck validity of scons:\\n$(which scons)\\nuses:\\n$( head -1 $(which scons) )\\nand python is:\\n$(which python3)"
 
-def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
-    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
-        trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
-        configloc : str = builddir
-        config_cmdline : str = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
-        trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
-        configloc = f"{srcdir}/{subdir}"
-        config_cmdline = f"./configure"
-    else:
-        configloc = f"{srcdir}"
-        config_cmdline = f"./configure"
-    if nonzero_keyword( "AUTOUPDATE",**kwargs ):
-        autoupdate : str = "./autoupdate"
-    else: autoupdate = ""
-    return f"""
-cd {configloc}
-echo Starting configure process in $(pwd)
-if [ -f \"configure\" ] ; then
-  has_configure=1
-  echo has configure script
-else has_configure= ; echo no configure script ; fi
-if [ -f \"autogen.sh\" ] ; then
-  has_autogen=1
-  echo has autogen
-else has_autogen= ; echo no autogen ; fi
-if [ -f \"configure.ac\" ] ; then
-  has_ac=1
-  echo has configure.ac 
-else has_ac= ; echo no configure.ac ; fi
-
-if [ -z "${{has_configure}}" ] ; then 
-  if [ ! -z "${{has_ac}}" ] ; then
-    aclocal && autoconf
-  elif [ ! -z "${{has_autogen}}" ] ; then 
-    ./autogen.sh
-  else
-    echo FAILURE Need configure.ac or autogen.sh to generate configure script && exit 1
-  fi
+echo "Go to srcdir={srcdir}"
+cd {srcdir}
+echo -e "\\nTest for SConstruct file"
+if [ ! -f SConstruct ] ; then
+    echo "No SConstruct" && exit 1
+else
+    if [ -f {package}.conf ] ; then
+        echo "removing {package}.conf"
+        rm -f {package}.conf
+    fi
+    echo "scons=$(which scons)"
+    PYTHONPATH=/scratch/00434/eijkhout/installation/scons/installation-scons-4.11.1-stampede3-gcc13.2.0/:${{PYTHONPATH}} \
+    scons \
+        build env_vars=all \
+        CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
+        prefix={prefixdir} \
+        {sconsflags} \
+        googletest='none'
+    report_success_failure "scons build succeeded" "scons build failed"
 fi
-{autoupdate}
-    """
+"""
+    return setupscript+configurescript,"Scons configuring"
 
 def scons_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
@@ -766,7 +757,7 @@ def scons_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
     # Make
     #
     jval : str = kwargs.get("jcount",6)
-    makecommand : str = f"make --no-print-directory -j {jval}"
+    makecommand : str = f"scons install"
     script : str = f"""
 cd {subdir}
 {makecommand}
@@ -774,15 +765,6 @@ cd {subdir}
     if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
         trace_string( f" .. making extra targets: {extra}",**kwargs )
         script += f"\n{makecommand} {extra}\n"
-
-    #
-    # install
-    #
-    extra = kwargs.get( "EXTRAINSTALLTARGET","" )
-    script += f"""
-{makecommand} install {extra}
-echo "SUCCESS: scons build succeeded"
-    """
 
     return script,"Scons make and install"
 
