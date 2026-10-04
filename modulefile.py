@@ -134,7 +134,12 @@ def other_paths( **kwargs: Any ) -> str:
                      ["PYTHONPATHADD","PYTHONPATH"],
                 ]:
         if ( val := nonzero_keyword(cfg,**kwargs) ) is not None:
-            if cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD", ]:
+            if val in [ "1","prefix", ]:
+                #
+                # use prefix as such
+                #
+                paths += f"prepend_path( \"{var}\", prefixdir )\n"
+            elif cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD", ]:
                 #
                 # add path relative to prefix
                 #
