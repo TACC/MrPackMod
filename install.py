@@ -209,8 +209,9 @@ echo "Pipping into: {prefixdir}"
 if [ $? -gt 0 ] ; then
     echo "FAILURE: pipping failed" && exit 1
 fi
-echo "SUCCESS: installed in $( ls {prefixdir} )"
-    """
+echo "SUCCESS: installed in {prefixdir}"
+echo -e "contents:\n$( ls {prefixdir} )"
+"""
     return script,"Pip build install"
 
 def pip_build( **kwargs : Any ) -> Optional[str]:
