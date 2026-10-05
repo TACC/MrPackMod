@@ -82,7 +82,9 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     if not mode_is_core( **kwargs ):
         if compiler is not None:
             if ( blasroot := kwargs.get("BLASLAPACK_ROOT") ) is None:
+                trace_string( f"Not finding BLASLAPACK_ROOT in {kwargs}",**kwargs )
                 blasroot = ""
+            else: trace_string( f"Found BLASLAPACK_ROOT as {blasroot}",**kwargs )
             loadscript += compilerloadfunction( modulepath,compiler,compilerversion,blasroot )
         else: error_abort( "No compiler defined",**kwargs )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
@@ -160,7 +162,21 @@ def one_module_proper_script( modverlist : list[str],**kwargs : Any ) -> tuple[s
     modver : str = modverlist[0]
     title : str = f"test proper of module {modver}"
     module,_    = f"{modver}/".split("/",maxsplit=1)
-    script : str = f"""
+    script : str = ""
+    #
+    # First make sure module is loaded
+    #
+    modvar : str = dir_variable(module)
+    script += f"""
+if [ -z "${{{modvar}}}" ] ; then
+    echo "FAILURE: variable {modvar} is not set"
+    exit 1
+fi
+"""
+    #
+    # Test all directories exist
+    #
+    f"""
 echo \">>>> Test proper of module {modver}\"
 testmoduleproper {modver}
     """
@@ -282,7 +298,7 @@ function testmoduleproper () {
     else
         echo "SUCCESS: package ${modver} is at $pkgdir"
     fi
-    for e in BIN LIB INC ; do
+    for e in DIR BIN LIB INC ; do
         nam=TACC_${MODULE}_${e}
         eval cmpdir=\\${$nam}
         if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
@@ -332,7 +348,7 @@ modulecommand "Load compiler" "load {compver}"
 
 echo "\n.... Can we find BLASLAPACK_ROOT?" {redirect}
 if [ -z "{blasroot}" ] ; then
-    echo "WARNING: no BLASLAPACK_ROOT defined"
+    echo "WARNING: no BLASLAPACK_ROOT variable defined"
 else
     echo "BLASLAPACK_ROOT={blasroot}"
 fi {redirect}

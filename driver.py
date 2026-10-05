@@ -6,6 +6,7 @@
 import argparse
 import os
 import pdb
+import re
 import sys
 from typing import Any,Optional
 
@@ -136,7 +137,7 @@ utility_actions : {utility_actions}
     # build stuff
     elif action=="install":
         prelimtesting : bool = True
-        for a in ["configure","build","module","public",]:
+        for a in ["test", "configure","build","module","public",]:
             screen_report_action(a,**configuration )
             returncode = mpm_action(
                 a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )

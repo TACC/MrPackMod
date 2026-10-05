@@ -31,6 +31,7 @@ def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
     moduleslist  : list[str] = package_prerequisites( **kwargs )
+    trace_string( f"Testing proper prerequisites for: {moduleslist}",**kwargs )
     if len(moduleslist)==0:
         return "SUCCESS: no modules to be tested"
     success : list[str] = []; failure : list[str] = []
@@ -42,8 +43,8 @@ def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
                 )
         retval : str = get_value_from_virgin(
             modules_proper_script,[module],**{ **kwargs,**output } )
-        msuccess,mfailure = end_test_stage( [],[],output,**kwargs )
-        success += msuccess; failure += mfailure
+        success,failure = end_test_stage( success,failure,output,**kwargs )
+        # success += msuccess; failure += mfailure
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:
