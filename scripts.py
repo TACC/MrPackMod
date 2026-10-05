@@ -238,7 +238,11 @@ function modulelonglist ()
         if [ $m = "cont" ]; then
             echo "----------------";
         else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?WORK?' );
+            if [ ! -z "${WORK}" ] ; then
+                loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?WORK?' );
+            else
+                loc=$(module -t show $m 2>&1 );
+            fi
             echo "$m : $loc";
         fi;
     done
