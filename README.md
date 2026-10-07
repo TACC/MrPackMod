@@ -1,5 +1,7 @@
 # MrPackMod: Package installer with LMod integration
 
+Copyright Victor Eijkhout 2025-2026
+
 Usage:
 
 ``` 
