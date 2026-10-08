@@ -90,11 +90,11 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
 
 def mpm_action( action : str,arguments,**configuration ) -> bool:
     # what are the possible actions
-    file_actions    : str = configuration.get( "file_actions" ) 
-    build_actions   : str = configuration.get( "build_actions" )
-    context_actions : str = configuration.get( "context_actions" )
-    package_actions : str = configuration.get( "package_actions" )
-    utility_actions : str = configuration.get( "utility_actions" )
+    file_actions    : str = configuration.get( "file_actions","" ) 
+    build_actions   : str = configuration.get( "build_actions","" )
+    context_actions : str = configuration.get( "context_actions","" )
+    package_actions : str = configuration.get( "package_actions","" )
+    utility_actions : str = configuration.get( "utility_actions","" )
     
     returncode : bool = True
     # informative
@@ -148,7 +148,7 @@ utility_actions : {utility_actions}
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
-        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
+        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
         install_options : dict = {
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites,
@@ -164,9 +164,11 @@ utility_actions : {utility_actions}
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
-            returncode = configure_action( **{ **configuration,**install_options } )
+            returncode = configure_action( **{ **configuration,**install_options } ) \
+                is not None
         elif action=="build":
-            returncode = build_action( **{ **configuration,**install_options } )
+            returncode = build_action( **{ **configuration,**install_options } ) \
+                is not None
             if not returncode: return False
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.none
             install.post_install_actions(
@@ -179,7 +181,7 @@ utility_actions : {utility_actions}
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
-        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_module"
+        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_module"
         install_options = {
             "immediate_output":False,
             # VLE we need to be able to get the version of prereqs
@@ -200,7 +202,7 @@ utility_actions : {utility_actions}
         os.system( f"rm -rf {clean_targets}" )
     elif action=="regression":
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
-        install_options : dict = {
+        install_options = {
             "immediate_output":False,
             "moduleloadstrategy":ModuleLoadStrategy.all,
             "scriptsdir":None,

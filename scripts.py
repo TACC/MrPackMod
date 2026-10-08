@@ -605,7 +605,8 @@ fi
 ####
 ################################################################
 
-def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+def autotools_configure_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs : dict[str,Any] ) \
+    -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
@@ -636,11 +637,11 @@ echo "SUCCESS: autotools configure succeeded"
     return setup_script+configsetupscript+configurescript,"Autotools configuring"
 
 def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
-    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+    if ( builddir := nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ) ) is not None:
         trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
         configloc : str = builddir
         config_cmdline : str = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+    elif ( subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ) ) is not None:
         trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
         configloc = f"{srcdir}/{subdir}"
         config_cmdline = f"./configure"
@@ -678,7 +679,8 @@ fi
 {autoupdate}
     """
 
-def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+def autotools_build_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs: dict[str,Any] ) \
+    -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
@@ -716,7 +718,8 @@ echo "SUCCESS: autotools build succeeded"
 ####
 ################################################################
 
-def scons_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+def scons_configure_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs : dict[str,Any] ) \
+    -> tuple[str,str]:
     package,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
@@ -765,7 +768,8 @@ fi
 """
     return setupscript+configurescript,"Scons configuring"
 
-def scons_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+def scons_build_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs: dict[str,Any] ) \
+    -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]

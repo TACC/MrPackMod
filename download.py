@@ -13,6 +13,7 @@ from typing import Any,Optional
 from MrPackMod.basics  import echo_string,trace_string,\
     abort_on_zero_keyword,nonzero_keyword
 import MrPackMod.names as names
+from MrPackMod.names import DirNamesDict
 from MrPackMod.process import get_value_from_loaded,\
     process_execute,process_execute_immediate
 from MrPackMod.scripts import download_url_script
