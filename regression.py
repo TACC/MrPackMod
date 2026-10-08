@@ -138,7 +138,6 @@ def do_existence_test(
         test_definition: str, **kwargs: Any,
         ) -> tuple[list[str], list[str]]:
 
-    trace_string( f"Existence test: {test_definition}",**kwargs )
     run_config : dict = test_definition_to_dict( "existence",test_definition,**kwargs )
     trace_string( f" .. as dict: {run_config}",**kwargs )
     testtitle : str = run_config["testtitle"]
@@ -210,12 +209,13 @@ def do_existence_test(
     return success,failure
 
 def do_run_test( title : str,
-                 programname : str,dirnames : DirNamesDict,runargs : str,
+                 programname : str,dirnames : DirNamesDict,
+                 runargs : str,testvalue : str,
                  success : list[str],failure : list[str],**kwargs : Any
                 ) -> tuple[list[str],list[str]]:
     output = start_test_stage( f"{title}, run", **{ **kwargs,"package":programname } )
     res : Optional[str] = get_value_from_loaded(
-        run_script,[ programname,dirnames,runargs ],**{ **kwargs,**output } )
+        run_script,[ programname,dirnames,runargs,testvalue ],**{ **kwargs,**output } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
     if ( res is not None ) and ( returnval := re.search( r"SUCCESS.*\[([^\[\]]+)\]",res ) ):
         outputval = returnval.groups()[0]
@@ -225,7 +225,6 @@ def do_run_test( title : str,
 
 def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
 
-    trace_string( f"cmake test definition: {test_definition}",**kwargs )
     # convert definition option to dict
     run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
 
@@ -236,7 +235,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
 
     # settings for building, later overwritten for running
-    tester_dirnames = get_tester_dirnames(program,**kwargs)
+    dirnames = get_tester_dirnames(program,**kwargs)
 
     success : list[str] = []; failure : list[str] = []
 
@@ -247,12 +246,12 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         start_test_stage(
             "cmake build and make",**{ **kwargs,"package":program } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ program,tester_dirnames,cmakeopts ],
+        cmake_configure_script,[ program,dirnames,cmakeopts ],
         **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
         res = get_value_from_loaded(
-            cmake_build_script,[ program,tester_dirnames ],
+            cmake_build_script,[ program,dirnames ],
             **{ **kwargs,**output,'scriptsdir':scriptsdir } )
         failed = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     success,failure = end_test_stage( success,failure,output,**kwargs )
@@ -262,7 +261,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     #
     output = start_test_stage( "ldd",**{ **kwargs,"package":program } )
     res = get_value_from_loaded(
-        ldd_script,[ program,tester_dirnames ],
+        ldd_script,[ program,dirnames ],
         **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     success,failure = end_test_stage( success,failure,output,**kwargs )
 
@@ -270,18 +269,11 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     # Run
     #
     if run_config.get("do_run"):
-        testvalue = run_config.get("test_value")
-        dirnames : DirNamesDict = {
-            "scriptsdir" : "",
-            "scrdir"     : None,
-            "builddir"   : run_config.get("run_in_dir"),
-            "prefix"     : run_config.get("run_prefix","./"),
-        }
-        tester_dirnames["rundir"]  = run_config.get("run_in_dir","build")
-        tester_dirnames["prefix"] = run_config.get("run_prefix","./")
         success,failure = do_run_test(
             testtitle,
-            program,tester_dirnames,run_config.get("run_args"),
+            program,dirnames,
+            run_config.get("run_args"),
+            run_config.get("test_value"),            
             success,failure,
             **{ **kwargs,**output,'scriptsdir':scriptsdir } )
     return success,failure
@@ -436,7 +428,8 @@ def test_match( testname : str,matching : str,filtering : str,**kwargs ) -> bool
     return False
 
 def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : Any ) -> dict:
-    #parsed_options
+
+    trace_string( f"Test type: {test_type}, definition={test_definition}",**kwargs )
     run_config : dict = parse_command( test_type,test_definition,**kwargs )
     trace_string( f"Test options: {run_config}",**kwargs )
 

@@ -979,8 +979,8 @@ fi
 ##
 ## Run a program
 ##
-def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames,args = dirnamesl
+def run_script( dirnamesl : tuple[str,DirNamesDict,str,str],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames,args,val = dirnamesl
     # strip any extension
     program = re.sub( r'\..*','',program )
 
@@ -988,7 +988,7 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    rundir : str = dirnames.get("rundir","build")
+    rundir : str = dirnames.get("builddir","build")
     script += f"""
 if [ ! -d "{rundir}" ] ; then
     echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
