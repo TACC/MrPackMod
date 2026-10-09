@@ -584,7 +584,7 @@ def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
 
 def cmake_build_pre( dirnames : DirNamesDict,**kwargs : Any ) -> str:
     builddir = dirnames["builddir"]
-    return f"""
+    prescript : str = f"""
 if [ ! -d "{builddir}" ] ; then
     echo "FAILURE: no such build dir: {builddir}"
     exit  1
@@ -592,12 +592,15 @@ else
     echo "entering builddir: {builddir}"
 fi
 cd {builddir}
-
+"""
+    if kwargs.get( "CMAKEUSENINJA" ) is None:
+        prescript += f"""
 if [ ! -f makefile -a ! -f Makefile ] ; then
     echo "FAILURE: build dir {builddir} has no makefile or Makefile"
     exit 1
 fi
-    """
+"""
+    return prescript
 
 ################################################################
 ####
