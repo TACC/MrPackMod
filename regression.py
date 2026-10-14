@@ -37,7 +37,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( '-r',"--run",        action='store_true', default=False )
     parser.add_argument( '--run_in_dir' )
     parser.add_argument( '--run_args',        default="" ) # should be no default
-    parser.add_argument( '-t',"--test_value", default="0" )
+    parser.add_argument( '-v',"--value" )
     parser.add_argument( '--cmake' )
 
     parser.add_argument( '-k','--keywords'  , default="" )
