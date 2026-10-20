@@ -58,7 +58,7 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     title : str = f"Load compiler and mpi and modules: {modulestoload}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modulestoload}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
-    trace_string( f"Loading compiler={compiler}/{compilerversion} and mpi={mpi}/{mpiversion}",
+    trace_string( f"Loading {compiler=}/{compilerversion} and {mpi=}/{mpiversion}",
                   **kwargs )
     if ( modulepath := nonzero_keyword( "modulepath",**kwargs ) ) is None:
         error_abort( "Need a module path",**kwargs )
@@ -482,7 +482,7 @@ ls {builddir}
     """
 
 def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],
-                        **kwargs : Any ) -> tuple[str,str]:
+                        **kwargs : dict[str,Any] ) -> tuple[str,str]:
     _,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 

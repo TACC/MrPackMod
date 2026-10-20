@@ -147,14 +147,19 @@ def make_configure( **kwargs : Any ) -> Optional[str]:
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
-def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir,prefixdir = srcpfx
+def make_build_script( pmakedirs : tuple[str,DirNamesDict],
+                       **kwargs : dict[str,Any] ) -> tuple[str,str]:
+    _,dirnames = pmakedirs
+    srcdir = dirnames["srcdir"]
+    prefixdir = dirnames["prefixdir"]
+    #builddir = dirnames["builddir"]; 
+
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
     trace_string( f"making targets: {targets}",**kwargs )
     script = f"""
 cd {srcdir}
-report_success_failure "does not exist srcdir={srcdir}" "entering srcdir={srcdir}"
+report_success_failure "does not exist {srcdir=}" "entering {srcdir=}"
 make -j {jcount} {targets}
 report_success_failure "make succeeded" "make failed"
     """
