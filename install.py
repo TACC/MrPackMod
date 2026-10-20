@@ -128,16 +128,20 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
         startdir = kwargs.get("startdir")
         script += f"""\n
 cd {startdir}
+report_success_failure \
+    "startdir={startdir} for premake does not exist" \
+    "enter {startdir} for premake actions"
 echo "Doing premake in $(pwd)"
 ( {premake} ) {redirect}
+report_success_failure "premake succeeded" "premake failed"
         """
     return script,"Make setup"
 
 def make_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"make configure", } )
+            "configure", **kwargs )
+    #**{ **kwargs,"title":"make configure", } )
     retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
@@ -150,7 +154,9 @@ def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
     trace_string( f"making targets: {targets}",**kwargs )
     script = f"""
 cd {srcdir}
+report_success_failure "does not exist srcdir={srcdir}" "entering srcdir={srcdir}"
 make -j {jcount} {targets}
+report_success_failure "make succeeded" "make failed"
     """
 
     if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
