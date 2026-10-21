@@ -23,7 +23,7 @@ additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
                               "CMAKEFLAGS","CONFIGUREFLAGS","PETSCFLAGS",
                              ]
 list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", "RUNTEST",
-                              "CLEANTARGET",
+                              "CMAKEVARTEST", "CLEANTARGET",
                              ]
 
 def add_new_dict_item(

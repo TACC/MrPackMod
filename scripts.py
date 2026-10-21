@@ -421,10 +421,11 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 ####
 ################################################################
 
-def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict,Optional[str]],
+def cmake_configure_script( pcmakedirs : tuple[str,dict[str,Any]],
                             **kwargs : Any ) -> tuple[str,str]:
-    program,dirnames,cmakeopts = pcmakedirs
+    program,dirnames = pcmakedirs
     program = re.sub( r'\..*','',program )
+    cmakeopts = dirnames.get("cmakeopts")
 
     script : str = ""
     # setup
@@ -437,11 +438,14 @@ def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict,Optional[str]],
     script += configure_preclean( dirnames,**kwargs )
 
     # cmake
-    cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( cmakeopts,**kwargs )
+    cmake         = cmake_basic_command( **kwargs )
+    cmakeflags    = cmake_options( cmakeopts,**kwargs )
     buildsettings = cmake_build_settings( **kwargs )
+
     # set src, build, prefix
-    pathsettings = cmake_paths_settings( dirnames,**kwargs )
+    pathsettings  = cmake_paths_settings( dirnames,**kwargs )
+    builddir      = dirnames["builddir"]
+
     # for the regression case only: define project macro
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
@@ -454,7 +458,13 @@ echo " .. cmake cmdline=$cmdline" \
     | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
 eval $cmdline
 report_success_failure "configure succeeded" "cmake failed"
-    """
+"""
+    if ( grep := dirnames.get("grep") ) is not None:
+        script += f"""
+cd {builddir}
+
+"""
+
     ## maybe only in the log file? script += configure_postreport( dirnames,**kwargs )
     script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
@@ -566,7 +576,9 @@ def cmake_build_settings( **kwargs ) -> str:
     return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
 
 def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
-    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
+    srcdir    = dirnames["srcdir"]
+    builddir  = dirnames["builddir"]
+    prefixdir = dirnames["prefixdir"]
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         effectivesrcdir : str = f"{srcdir}/{source}"
     else: effectivesrcdir = srcdir
