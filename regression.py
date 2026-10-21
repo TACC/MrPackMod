@@ -38,7 +38,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( '--run_in_dir' )
     parser.add_argument( '--run_args',        default="" ) # should be no default
     parser.add_argument( '-v',"--value" )
-    parser.add_argument( '--cmake' )
+    parser.add_argument( '--cmake_options' )
 
     parser.add_argument( '-k','--keywords'  , default="" )
     parser.add_argument( '-p',"--run_prefix", default="./" )
@@ -230,7 +230,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
 
     # get test parameters
     testtitle  : str           = run_config["testtitle"]
-    cmakeopts  : Optional[str] = run_config.get("cmake")
+    cmakeopts  : Optional[str] = run_config.get("cmake_options")
     program    : str           = run_config["program"]
     scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
 
@@ -296,7 +296,7 @@ def do_cmakevar_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str],
 
     # get test parameters
     testtitle  : str           = run_config["testtitle"]
-    cmakeopts  : Optional[str] = run_config.get("cmake")
+    cmakeopts  : Optional[str] = run_config.get("cmake_options")
     program    : str           = run_config["program"]
     grep       : str           = run_config.get("grep")
     scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
@@ -467,6 +467,9 @@ def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : An
 
     trace_string( f"Test type: {test_type}, definition={test_definition}",**kwargs )
     run_config : dict = parse_command( test_type,test_definition,**kwargs )
+    for k,v in run_config.items():
+        if type(v) is str:
+            run_config[k] = v.lstrip(r'\\')
     trace_string( f"Test options: {run_config}",**kwargs )
 
     if ( package := package_names( **kwargs )[0] ) is not None:

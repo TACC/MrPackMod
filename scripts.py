@@ -426,6 +426,7 @@ def cmake_configure_script( pcmakedirs : tuple[str,dict[str,Any]],
     program,dirnames = pcmakedirs
     program = re.sub( r'\..*','',program )
     cmakeopts = dirnames.get("cmakeopts")
+    print(f"found {cmakeopts=}")
 
     script : str = ""
     # setup
@@ -552,7 +553,8 @@ def cmake_options( opts : Optional[str],**kwargs: Any ) -> str:
     if ( standard := kwargs.get("CPPSTANDARD") ) is not None:
         cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if ( conflags := nonzero_keyword("CMAKEFLAGS",**kwargs) ) is not None \
-       or ( envflags := os.getenv("CMAKE_C_FLAGS") ) is not None:
+       or ( envflags := os.getenv("CMAKE_C_FLAGS") ) is not None \
+       or nonnull( opts ):
         flags : str = f" -D MPM_CUSTOM_FLAGS=START "
         # VLE we need to cover the case that both are nonzero:
         # we need to edit the envflags into the conflags
