@@ -263,6 +263,9 @@ def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
     else: error_abort( f"Unimplemented package action: {action}",**kwargs )
 
 def configure_action( **kwargs : Any ) -> Optional[str]:
+    if ( system := kwargs.get("BUILDSYSTEM") ) is None:
+        error_abort( f"No BUILDSYSTEM defined in:\n{kwargs}",**kwargs )
+    else: system=system.lower() 
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
         return install.cmake_configure( **kwargs )
     elif system == "autotools":

@@ -45,7 +45,7 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ "",get_dir_names(**kwargs),None ],
+        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -290,7 +290,13 @@ echo "Linking lib64 to lib, any previous lib is first erased"
 cd {prefixdir}
 rm -rf lib
 ln -s lib64 lib
-        """
+"""
+    if ( cplibib := nonzero_keyword("CPLIBtoLIB64",**kwargs) ) is not None:
+        script += f"""
+echo "Copying lib to lib64"
+cd {prefixdir}
+cp -r lib/* lib64/
+"""
     return script,"Post-install actions"
 
 def post_install_actions( **kwargs ) -> Optional[str]:

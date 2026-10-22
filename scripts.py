@@ -426,7 +426,6 @@ def cmake_configure_script( pcmakedirs : tuple[str,dict[str,Any]],
     program,dirnames = pcmakedirs
     program = re.sub( r'\..*','',program )
     cmakeopts = dirnames.get("cmakeopts")
-    print(f"found {cmakeopts=}")
 
     script : str = ""
     # setup
