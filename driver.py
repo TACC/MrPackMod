@@ -132,8 +132,12 @@ utility_actions : {utility_actions}
         scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
         package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action in file_actions:
-        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_download"
-        file_action( action,**{ **configuration,'scriptsdir':scriptsdir } )
+        install_options : dict = {
+            "immediate_output":False,
+            "moduleloadstrategy":ModuleLoadStrategy.none,
+            "scriptsdir":configuration.get("startdir",".")+"/mpmscripts_download",
+        }
+        file_action( action,**{ **configuration,**install_options } )
     # build stuff
     elif action=="install":
         prelimtesting : bool = True
@@ -149,7 +153,7 @@ utility_actions : {utility_actions}
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
         scriptsdir = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
-        install_options : dict = {
+        install_options = {
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites,
             "scriptsdir":scriptsdir,
@@ -181,14 +185,13 @@ utility_actions : {utility_actions}
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
-        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_module"
         install_options = {
             "immediate_output":False,
             # VLE we need to be able to get the version of prereqs
             # for dependency clauses. Do we also need to be able to
             # load the package itself?
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites, #package
-            'scriptsdir':scriptsdir,
+            'scriptsdir':configuration.get("startdir",".")+"/mpmscripts_module",
         }
         success,failure = install.write_module_file(
             **{ **configuration,**install_options } )
@@ -245,11 +248,10 @@ def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
         if url := kwargs.get("SOFTWAREURL"): print( url )
         if url := kwargs.get("DOCURL"): print( url )
     elif action=="test":
-        scriptsdir = kwargs.get("startdir",".")+"/mpmscripts_test"
         install_options : dict = {
             "immediate_output":False,
             "moduleloadstrategy":ModuleLoadStrategy.none,
-            "scriptsdir":scriptsdir,
+            "scriptsdir":kwargs.get("startdir",".")+"/mpmscripts_test",
         }
         abort_on_failure_result(
             test_proper_prerequisites(
