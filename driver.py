@@ -67,12 +67,15 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
                                      ]
                           for action in actions ] ) or len(actions)==0,
     }
-    not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
+    not_create_home   : bool      = any( [ a in actions for a in ["regression","version",] ] )
+    file_actions      : list[str] = actionsdict.get("file_actions")
+    skip_build_config : bool      = any( [ a in file_actions for a in actions ] )
     # VLE this call generates a spurious blank line
     read_config( configuration,configfile,
                  # test_stage mechanism is used here, but is missing some info
                  # so we set dummy values
-                 no_home=not_create_home,PACKAGE="setup",PACKAGEVERSION="0.0"
+                 no_home=not_create_home,no_build=skip_build_config,
+                 skip_build_config=skip_build_config,
                 )
     # make sure we have triggered derived settings
     if not any( [ nonnull(configuration.get(key)) for key in derived_setting_triggers ] ):
@@ -90,11 +93,11 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
 
 def mpm_action( action : str,arguments,**configuration ) -> bool:
     # what are the possible actions
-    file_actions    : str = configuration.get( "file_actions","" ) 
-    build_actions   : str = configuration.get( "build_actions","" )
-    context_actions : str = configuration.get( "context_actions","" )
-    package_actions : str = configuration.get( "package_actions","" )
-    utility_actions : str = configuration.get( "utility_actions","" )
+    file_actions    : list[str] = configuration.get( "file_actions",[] ) 
+    build_actions   : list[str] = configuration.get( "build_actions",[] )
+    context_actions : list[str] = configuration.get( "context_actions",[] )
+    package_actions : list[str] = configuration.get( "package_actions",[] )
+    utility_actions : list[str] = configuration.get( "utility_actions",[] )
     
     returncode : bool = True
     # informative

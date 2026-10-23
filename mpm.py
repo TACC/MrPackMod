@@ -28,7 +28,7 @@ parser.add_argument( '-A','--args',default="" )
 ## what actions do we support?
 ##
 file_actions    : list[str] = \
-    [ "download", "unpack", "untar", "retar", "betar", "clone", "pull" ]
+    [ "download", "unpack", "untar", "retar", "betar", "clone", "newclone", "pull" ]
 build_actions   : list[str] = \
     [ "configure", "build", "module", "public" ]
 context_actions : list[str] = \

@@ -59,7 +59,8 @@ def add_new_dict_item(
 
 def add_settings_from_config(
         configfile: str, config_dict: dict[str, Any], **output : Any ) -> None:
-    tracing: bool = config_dict.get("tracing", False)
+    tracing  : bool = config_dict.get("tracing", False)
+    no_build : bool = config_dict.get("no_build",False)
     with open(configfile,"r") as configuration_file:
         trace_string( f"Read configuration: {configfile}",**config_dict,**output )
         saving: bool = False
@@ -90,6 +91,8 @@ def add_settings_from_config(
                         if status in ["exit","return",] :
                             break
                     saving = False ; totalline = ""
+                elif no_build and re.search("BUILDSYSTEM",totalline):
+                    break
                 else:
                     error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
 
@@ -407,8 +410,8 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     # this may try to make the src dir, which should not if we are testing
     no_home : bool = kwargs.get("no_home",False)
     add_settings_from_config(
-        configfile,configuration_dict,no_home=no_home,
-        **output )
+        configfile,configuration_dict,
+        **{ **kwargs, **output } )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure
