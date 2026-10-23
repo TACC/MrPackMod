@@ -3,6 +3,7 @@
 ##
 import re
 import os
+import pdb
 import sys
 from typing import Any,Optional,Tuple
 
@@ -59,12 +60,12 @@ def add_new_dict_item(
 
 def add_settings_from_config(
         configfile: str, config_dict: dict[str, Any], **kwargs : Any ) -> None:
+    trace_string( f"Read configuration: {configfile}",**{ **config_dict,**kwargs } )
     tracing  : bool = config_dict.get("tracing", False)
-    no_build : bool = config_dict.get("no_build",False)
-    trace_string( "abort read at BUILDSYSTEM: {no_build}",**kwargs )
+    no_build : bool = kwargs.get("no_build",False)
+    #breakpoint()
+    trace_string( f"abort read at BUILDSYSTEM: {no_build}",**{**config_dict,**kwargs} )
     with open(configfile,"r") as configuration_file:
-        trace_string( f"Read configuration: {configfile}",
-                      **{ **config_dict,**kwargs } )
         saving: bool = False
         totalline : str = ""
         for line in configuration_file.readlines():

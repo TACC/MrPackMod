@@ -16,7 +16,7 @@ from MrPackMod import info
 from MrPackMod import install
 from MrPackMod import names 
 from MrPackMod.process import process_initiate,process_terminate,process_execute
-from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
+from MrPackMod.basics  import echo_string,echo_warning,error_abort,trace_string,\
     nonnull, nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_failure_result
@@ -71,6 +71,8 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
     file_actions      : list[str] = actionsdict.get("file_actions")
     skip_build_config : bool      = any( [ a in file_actions for a in actions ] )
     # VLE this call generates a spurious blank line
+    trace_string( f"Reading configuration {configuration} with \
+no_home={not_create_home}, no_build={skip_build_config}",**configuration )
     read_config( configuration,configfile,
                  # test_stage mechanism is used here, but is missing some info
                  # so we set dummy values
