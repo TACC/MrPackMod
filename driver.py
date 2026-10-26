@@ -233,7 +233,7 @@ def file_action( action : str,**kwargs : dict[str,Any] ) -> None:
         srcdir_local = names.srcdir_local_name( **kwargs )
         download.unpack_from_url(
             **{ **kwargs,'srcdir':srcdir_local, } )
-    elif action=="retar":
+    elif action in ["retar", "betar", ]:
         download.retar_to_standard_name(**kwargs )
     elif action in [ "clone","pull" ]:
         download.clone_or_pull( **{ **kwargs,'gitaction':action } )
