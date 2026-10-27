@@ -140,7 +140,8 @@ utility_actions : {utility_actions}
         install_options : dict = {
             "immediate_output":False,
             "moduleloadstrategy":ModuleLoadStrategy.none,
-            "scriptsdir":configuration.get("startdir",".")+"/mpmscripts_download",
+            "without_context":True,
+            "scriptsdir":configuration.get("startdir",".")+f"/mpmscripts_{action}",
         }
         file_action( action,**{ **configuration,**install_options } )
     # build stuff
@@ -228,7 +229,7 @@ utility_actions : {utility_actions}
 def file_action( action : str,**kwargs : dict[str,Any] ) -> None:
     if action=="download":
         download.download_from_url(
-            **{ **kwargs,"immediate_output":True,"without_context":True, } )
+            **{ **kwargs,"immediate_output":True, } )
     elif action in [ "unpack", "untar", ]:
         srcdir_local = names.srcdir_local_name( **kwargs )
         download.unpack_from_url(

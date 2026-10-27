@@ -70,14 +70,9 @@ def start_test_stage(
         **kwargs: dict[str, Any],
         ) -> OutputDict:
 
-    title      : str  = str( kwargs.get("title","notitle") )
     cleantitle : str  = clean_title(stage,**kwargs)
     package    : str  = str( kwargs.get("package","nopackage") )
     linedisplay = kwargs.pop("linedisplay",echo_string)
-
-    # Create log file for this test stage, and add it to the stack of logfiles, write header
-    # note: kwargs does not contain "scriptsdir",
-    # then logfile will go to default dir
 
     # VLE this log file is more or less empty. Get rid?
     # except that we use `scriptsdir' left and right
@@ -92,11 +87,7 @@ def start_test_stage(
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
     }
-    if nonnull(title):
-        trace_string( f"Starting stage for: {title}",**kwargs )
-    else:
-        trace_string( f"Starting stage",**kwargs )
-    # linedisplay( f"see logfile: {logname}",**{ **kwargs,**output } )
+    trace_string( f"Starting stage for: {stage}",**kwargs )
     return output
 
 def end_test_stage(

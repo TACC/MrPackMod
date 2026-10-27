@@ -156,10 +156,11 @@ git checkout {commit}
     return script,"clone pull repo"
 
 def clone_or_pull( **kwargs: Any ) -> Optional[str]:
+    gitaction : str = kwargs.get("gitaction","unknown")
     output : OutputDict = \
-        start_test_stage( "git",**{ **kwargs,"installing":True } )
+        start_test_stage( f"git action: {gitaction}",**{ **kwargs,"installing":True } )
     retval : Optional[str] = get_value_from_loaded(
-        clone_pull_script,[],**kwargs,**output, )
+        clone_pull_script,[],**{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
