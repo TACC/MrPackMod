@@ -975,16 +975,16 @@ else
     exit 1
 fi
         """
-    return script,title
-    #
-    if executable:
+    if nonnull(executable):
         script += f"""
-if [ -x \"{file_to_test}\" ] ; then
+if [ -x "${{file_to_test}}" ] ; then
     echo "SUCCESS: file is executable"
 else
     echo "FAILURE: file is not executable"
 fi
-        """
+"""
+    return script,title
+    #
     if nonnull( grep ):
         program_clean = re.sub( '/','',program )
         grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"

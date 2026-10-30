@@ -150,10 +150,10 @@ def do_existence_test(
     #
     # existence
     #
-    args = run_config["package"],run_config["dirtype"],run_config["program"],\
+    package,dirtype,program,grep,executable = \
+        run_config["package"],run_config["dirtype"],run_config["program"],\
         run_config["grep"],run_config["executable"]
-    package,dirtype,program,grep,executable = args
-    fileargs : list[str] = [ package,dirtype,program,"","" ] # grep,executable
+    fileargs : list[str] = [ package,dirtype,program,"",executable ] # grep,executable
     output : OutputDict = \
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
