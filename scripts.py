@@ -477,7 +477,7 @@ echo "Remove any builddir: {builddir}"
 rm -rf {builddir}
     """
     # netcdf installs c & f into the same prefix
-    if kwargs.get("NOSCRATCHINSTALL") is not None:
+    if kwargs.get("NOSCRATCHINSTALL") is None:
         script += f"""
 echo "Remove any prefixdir: {prefixdir}"
 rm -rf {prefixdir}
