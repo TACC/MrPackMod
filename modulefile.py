@@ -66,7 +66,8 @@ def module_help_string( **kwargs: Any ) -> str:
     if nonzero_keyword( "PKGCONFIG",**kwargs ) or \
        nonzero_keyword( "PKGCONFIGLIB",**kwargs ):
         notes += "Discoverable by CMake through pkg-config.\n"
-    if note := nonzero_keyword( "MODULENOTE",**kwargs ):
+    if ( note := nonzero_keyword( "MODULENOTE",**kwargs ) ) is not None:
+        trace_string( f"Adding module note:\n{note}",**kwargs )
         notes += f"\n{note}"
     notes += f"\n(modulefile generated {datetime.date.today()})"
 

@@ -112,29 +112,20 @@ def clone_from_url( **kwargs: Any ) -> None:
         process_execute( f"rm -rf {gitdir_local}",**kwargs )
     process_execute( f"git clone {url} {gitdir_local}",**kwargs )
 
-def pull_from_url( **kwargs: Any ) -> None:
-    gitlog = kwargs.pop( "logfile",open( f"{os.getcwd()}/git.log","a" ) )
-    cd_download_path( **kwargs,logfile=gitlog )
-    gitdir_local = names.gitdir_local_name( **kwargs )
-    cmdline = f"cd {gitdir_local} && git pull"
-    if branch := nonzero_keyword( "BRANCH",**kwargs ):
-        cmdline += f" && git checkout {branch}"
-    if commit := nonzero_keyword( "GITCOMMIT",**kwargs ):
-        cmdline += f" && git checkout {commit}"
-    process_execute( cmdline,**kwargs,logfile=gitlog )
-
 def clone_pull_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
     if ( url := nonzero_keyword( "GITREPO",** kwargs ) ) is None:
         raise Exception( "No git repo url given for clone" )
     downloadpath : str = names.ensure_download_path( **kwargs )
     if ( action := nonzero_keyword( "gitaction",**kwargs ) ) is None:
         raise Exception( "Need git action" )
+    trace_string( f"Git action: {action} on path: {downloadpath}",**kwargs )
     script : str = f"""
 echo change dir for clone to {downloadpath}
 cd {downloadpath}
     """
     gitdir_local : str = names.gitdir_local_name( **kwargs )
     if action=="clone":
+        trace_string( f" .. cloning into {gitdir_local}",**kwargs )
         script += f"""
 if [ -d \"{gitdir_local}\" ] ; then
     echo \" .... removing previous clone f{gitdir_local}\"
@@ -144,11 +135,13 @@ git clone {url} {gitdir_local}
         """
     script += f"\ncd {gitdir_local} && git pull\n"
     if branch := nonzero_keyword( "BRANCH",**kwargs ):
+        trace_string( f" .. using branch={branch}",**kwargs )
         script += f"""
 echo \"Switching to branch {branch}\"
 git checkout {branch}
         """
-    if commit := nonzero_keyword( "GITCOMMIT",**kwargs ):
+    if commit := nonzero_keyword( "COMMIT",**kwargs ):
+        trace_string( f" .. using commit={commit}",**kwargs )
         script += f"""
 echo \"Checkout specific commit {commit}\"
 git checkout {commit}
@@ -156,10 +149,11 @@ git checkout {commit}
     return script,"clone pull repo"
 
 def clone_or_pull( **kwargs: Any ) -> Optional[str]:
+    gitaction : str = kwargs.get("gitaction","unknown")
     output : OutputDict = \
-        start_test_stage( "git",**{ **kwargs,"installing":True } )
+        start_test_stage( f"git action: {gitaction}",**{ **kwargs,"installing":True } )
     retval : Optional[str] = get_value_from_loaded(
-        clone_pull_script,[],**kwargs,**output, )
+        clone_pull_script,[],**{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 

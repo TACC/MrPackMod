@@ -22,7 +22,9 @@ def isnull( val: Any ) -> bool:
     return not nonnull( val )
 
 def nonzero_env( envvar: str, **kwargs: Any ) -> Optional[str]:
+    #print( f"Query env={envvar}" )
     if nonnull( val := os.getenv( envvar ) ):
+        #print( f" .. found: {val}" )
         return val
     else: return None
 

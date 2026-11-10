@@ -196,6 +196,7 @@ def modules_to_load( **kwargs : Any ) -> tuple[list[str],str]:
         prereqmodules : list[str] = package_prerequisites( **kwargs )
         systemmodules : list[str] = os.getenv("SYSTEMMODULES","").split()
         prereqmodules += systemmodules
+        trace_string( f"Using module load strategy: {strategy}",**kwargs )
         if strategy==ModuleLoadStrategy.prerequisites:
             return prereqmodules,f"# Loading environment for prerequisites: {prereqmodules}"
         elif strategy==ModuleLoadStrategy.package:
@@ -234,7 +235,7 @@ def get_value_from_loaded( script_function : Callable[ list[str],tuple[str,str] 
     # not sure what this return value is. ignore?
     processvalue : str = process_execute_immediate(
         execute_execute_script( scriptfilename,outputfilename,**kwargs ),
-        **kwargs,title=scripttitle )
+        **{ **kwargs,'title':scripttitle } )
 
     #
     # Parse script output for success/failure

@@ -45,7 +45,7 @@ def cmake_configure( **kwargs: Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage( "cmake configure",**kwargs, )
     retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ "",get_dir_names(**kwargs),None ],
+        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
         **{ **kwargs,**output, } )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
@@ -128,29 +128,40 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
         startdir = kwargs.get("startdir")
         script += f"""\n
 cd {startdir}
+report_success_failure \
+    "startdir={startdir} for premake does not exist" \
+    "enter {startdir} for premake actions"
 echo "Doing premake in $(pwd)"
 ( {premake} ) {redirect}
+report_success_failure "premake succeeded" "premake failed"
         """
     return script,"Make setup"
 
 def make_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"make configure", } )
+            "configure", **kwargs )
+    #**{ **kwargs,"title":"make configure", } )
     retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
-def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir,prefixdir = srcpfx
+def make_build_script( pmakedirs : tuple[str,DirNamesDict],
+                       **kwargs : dict[str,Any] ) -> tuple[str,str]:
+    _,dirnames = pmakedirs
+    srcdir = dirnames["srcdir"]
+    prefixdir = dirnames["prefixdir"]
+    #builddir = dirnames["builddir"]; 
+
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
     trace_string( f"making targets: {targets}",**kwargs )
     script = f"""
 cd {srcdir}
+report_success_failure "does not exist {srcdir=}" "entering {srcdir=}"
 make -j {jcount} {targets}
+report_success_failure "make succeeded" "make failed"
     """
 
     if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
@@ -279,7 +290,13 @@ echo "Linking lib64 to lib, any previous lib is first erased"
 cd {prefixdir}
 rm -rf lib
 ln -s lib64 lib
-        """
+"""
+    if ( cplibib := nonzero_keyword("CPLIBtoLIB64",**kwargs) ) is not None:
+        script += f"""
+echo "Copying lib to lib64"
+cd {prefixdir}
+cp -r lib/* lib64/
+"""
     return script,"Post-install actions"
 
 def post_install_actions( **kwargs ) -> Optional[str]:

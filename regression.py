@@ -38,7 +38,7 @@ def parse_command( testtype : str, test_options: str, **kwargs: Any ) -> dict[st
     parser.add_argument( '--run_in_dir' )
     parser.add_argument( '--run_args',        default="" ) # should be no default
     parser.add_argument( '-v',"--value" )
-    parser.add_argument( '--cmake' )
+    parser.add_argument( '--cmake_options' )
 
     parser.add_argument( '-k','--keywords'  , default="" )
     parser.add_argument( '-p',"--run_prefix", default="./" )
@@ -150,10 +150,10 @@ def do_existence_test(
     #
     # existence
     #
-    args = run_config["package"],run_config["dirtype"],run_config["program"],\
+    package,dirtype,program,grep,executable = \
+        run_config["package"],run_config["dirtype"],run_config["program"],\
         run_config["grep"],run_config["executable"]
-    package,dirtype,program,grep,executable = args
-    fileargs : list[str] = [ package,dirtype,program,"","" ] # grep,executable
+    fileargs : list[str] = [ package,dirtype,program,"",executable ] # grep,executable
     output : OutputDict = \
         start_test_stage( f"{testtitle}, existence test",**{ **kwargs,**run_config } )
     retval : Optional[str] = get_value_from_loaded(
@@ -230,7 +230,7 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
 
     # get test parameters
     testtitle  : str           = run_config["testtitle"]
-    cmakeopts  : Optional[str] = run_config.get("cmake")
+    cmakeopts  : Optional[str] = run_config.get("cmake_options")
     program    : str           = run_config["program"]
     scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
 
@@ -246,7 +246,8 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
         start_test_stage(
             "cmake build and make",**{ **kwargs,"package":program } )
     res : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ program,dirnames,cmakeopts ],
+        cmake_configure_script,
+        [ program,{ **dirnames,'cmakeopts':cmakeopts} ],
         **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
     failed : bool = ( res is not None ) and ( re.match( 'FAILURE',res ) is not None )
     if not failed:
@@ -283,6 +284,41 @@ def do_cmake_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], li
     #     run_config["programname"] = programname
     #     run_config["programext"]  = programext
     # else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
+
+##
+## test for cmake output;
+## this does the configuration part of a cmake test
+##
+def do_cmakevar_test( test_definition: str, **kwargs: Any, ) -> tuple[list[str], list[str]]:
+
+    # convert definition option to dict
+    run_config : dict = test_definition_to_dict( "cmake",test_definition,**kwargs )
+
+    # get test parameters
+    testtitle  : str           = run_config["testtitle"]
+    cmakeopts  : Optional[str] = run_config.get("cmake_options")
+    program    : str           = run_config["program"]
+    grep       : str           = run_config.get("grep")
+    scriptsdir : str           = kwargs.get("startdir")+"/mpmscripts_"+program
+
+    # settings for building, later overwritten for running
+    dirnames = get_tester_dirnames(program,**kwargs)
+
+    success : list[str] = []; failure : list[str] = []
+
+    #
+    # Cmake & compile
+    #
+    output : OutputDict = \
+        start_test_stage(
+            "cmake build and make",**{ **kwargs,"package":program } )
+    res : Optional[str] = get_value_from_loaded(
+        cmake_configure_script,
+        [ program,{ **dirnames,'cmakeopts':cmakeopts,'grep':grep } ],
+        **{ **kwargs, **output, 'pkgconfig':"yes", 'cmakeconfig':"yes",'scriptsdir':scriptsdir } )
+    success,failure = end_test_stage( success,failure,output,**kwargs )
+
+    return success,failure
 
 def do_make_test(
         test_definition: str,**kwargs: Any, ) -> tuple[list[str], list[str]]:
@@ -431,6 +467,9 @@ def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : An
 
     trace_string( f"Test type: {test_type}, definition={test_definition}",**kwargs )
     run_config : dict = parse_command( test_type,test_definition,**kwargs )
+    for k,v in run_config.items():
+        if type(v) is str:
+            run_config[k] = v.lstrip(r'\\')
     trace_string( f"Test options: {run_config}",**kwargs )
 
     if ( package := package_names( **kwargs )[0] ) is not None:
@@ -535,6 +574,18 @@ Module {name}/{version} not available
         for test in tests:
             if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
                 success,failure = do_application_test( test,**kwargs )
+                for s in success:
+                    echo_string( f"    {s}",**kwargs, )
+                for f in failure:
+                    echo_string( f"    ERROR: {f}",**kwargs, )
+            else: report_skipped_test( test,**kwargs )
+    #
+    # cmake variable tests
+    #
+    if tests := kwargs.get( "CMAKEVARTEST" ):
+        for test in tests:
+            if test_match( test,kwargs["match"],kwargs["filter"],**kwargs ):
+                success,failure = do_cmakevar_test( test,**kwargs )
                 for s in success:
                     echo_string( f"    {s}",**kwargs, )
                 for f in failure:

@@ -3,6 +3,7 @@
 ##
 import re
 import os
+import pdb
 import sys
 from typing import Any,Optional,Tuple
 
@@ -23,7 +24,7 @@ additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
                               "CMAKEFLAGS","CONFIGUREFLAGS","PETSCFLAGS",
                              ]
 list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", "RUNTEST",
-                              "CLEANTARGET",
+                              "CMAKEVARTEST", "CLEANTARGET",
                              ]
 
 def add_new_dict_item(
@@ -58,10 +59,13 @@ def add_new_dict_item(
                   **{ **config_dict,**kwargs } )
 
 def add_settings_from_config(
-        configfile: str, config_dict: dict[str, Any], **output : Any ) -> None:
-    tracing: bool = config_dict.get("tracing", False)
+        configfile: str, config_dict: dict[str, Any], **kwargs : Any ) -> None:
+    trace_string( f"Read configuration: {configfile}",**{ **config_dict,**kwargs } )
+    tracing  : bool = config_dict.get("tracing", False)
+    no_build : bool = kwargs.get("no_build",False)
+    #breakpoint()
+    trace_string( f"abort read at BUILDSYSTEM: {no_build}",**{**config_dict,**kwargs} )
     with open(configfile,"r") as configuration_file:
-        trace_string( f"Read configuration: {configfile}",**config_dict,**output )
         saving: bool = False
         totalline : str = ""
         for line in configuration_file.readlines():
@@ -72,7 +76,7 @@ def add_settings_from_config(
             if re.match( r'^[ \t]*$',line ): continue
 
             if saving:
-                trace_string( f" .. building up line with: {line}",**output )
+                trace_string( f" .. building up line with: {line}",**kwargs )
                 totalline += " "+line
             else: totalline = line
 
@@ -82,16 +86,18 @@ def add_settings_from_config(
                 saving = True
                 continue
             else:
-                # VLE move the abort into the process function
-                if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
-                    if status in ["exit","return","note",] :
-                        info : str = re.sub(r'(exit|return|note)\s*','',totalline)
-                        if nonnull(info) : print( f"\n{info}\n" )
-                        if status in ["exit","return",] :
-                            break
-                    saving = False ; totalline = ""
+                # process line and add to `config_dict', maybe abort
+                status : str = process_total_line( totalline,configfile,config_dict,**kwargs )
+                if no_build and re.search("BUILDSYSTEM",totalline):
+                    trace_string( "break config read at buildsystem",**kwargs )
+                    break
+                elif status in ["exit","return","note",] :
+                    info : str = re.sub(r'(exit|return|note)\s*','',totalline)
+                    if nonnull(info) : print( f"\n{info}\n" )
+                    if status in ["exit","return",] :
+                        break
                 else:
-                    error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
+                    saving = False ; totalline = ""
 
 
 def process_total_line( line : str,configfile : str,
@@ -130,7 +136,8 @@ def process_total_line( line : str,configfile : str,
     elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
         process_key_setting( keyval.groups(),config_dict,**kwargs )
         return "normal"
-    else: return None
+    else: 
+        error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
 
 ##
 ## We have determined a variable assignment
@@ -407,8 +414,8 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     # this may try to make the src dir, which should not if we are testing
     no_home : bool = kwargs.get("no_home",False)
     add_settings_from_config(
-        configfile,configuration_dict,no_home=no_home,
-        **output )
+        configfile,configuration_dict,
+        **{ **kwargs, **output } )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure
