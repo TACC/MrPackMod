@@ -57,7 +57,7 @@ def unpack_from_url( **kwargs: Any ) -> None:
     echo_string( f"Unpacking file: <<{file}>> ext: <<{ext}>>",logfile=downloadlog )
     if ext in [ "gz","tgz", "", ]: 
         unpackdir : str = process_execute( f"tar ftz {file} | head -n 1" )
-        unpackdir = unpackdir.rstrip("/")
+        unpackdir = re.sub( r'/.*','',unpackdir ) # .rstrip("/")
         echo_string( f"Packed file contains directory: {unpackdir}",**kwargs )
         if dotslash := re.match( r'^\./(.*)$',unpackdir):
             echo_string( " .. removing dot-slash",**kwargs )
