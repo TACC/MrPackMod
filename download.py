@@ -117,9 +117,9 @@ def pull_from_url( **kwargs: Any ) -> None:
     gitdir_local = names.gitdir_local_name( **kwargs )
     cmdline = f"cd {gitdir_local} && git pull"
     if branch := nonzero_keyword( "BRANCH",**kwargs ):
-        cmdline += f" && git checkout {branch}"
+        cmdline += f" && git checkout {branch} && git pull"
     if commit := nonzero_keyword( "GITCOMMIT",**kwargs ):
-        cmdline += f" && git checkout {commit}"
+        cmdline += f" && git checkout {commit} && git pull"
     process_execute( cmdline,**kwargs,logfile=gitlog )
 
 def clone_pull_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:

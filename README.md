@@ -247,3 +247,21 @@ More settings:
 - `URL`, `SOFTWAREURL` are URLs for homepage and software page;
 - `DEPENDSON = package` : inserts a `depends_on( "package" )` line;
 - `DEPENDSONCURRENT = package` generates a `depends_on` clause that additionally includes the version number of the currently loaded package.
+
+## List of Configuration Options
+
+The following block of options needs to come first.
+
+- `PACKAGE` : should be lowercase. This usually corresponds to the name of the dowloaded software, but not necessarily the installed software: you can set `MODULENAME` for that.
+- `PACKAGEVERSION` : is used for the module version unless you set `MODULEVERSION`.
+- `ABOUT` : purely informative, for the help section of the modulefile.
+- `URL` : homepage of the package.
+- `DOCURL` : separate link to documentation or installation instructions.
+- `DOWNLOADURL` : the URL that is passed to `wget` for downloading. This will probably use the `PACKAGEVERSION` macro to make it portable.
+- `MODE` : one of `core,seq,mpi,hybrid`. This mostly determines the location of the module file: for `core` it winds up outside compiler control; `seq` places it under compiler control; `mpi` places it under compiler and mpi control.
+- `BUILDSYSTEM`: one of `autotools, cmake, make, petsc, pip`.
+
+Next you need to specify options for the build.
+
+- `MODULES` : space-separated list of modules that need to be loaded prior to configure/build. Note: the environment variable `SYSTEMMODULES` can be used for things like `automake, cmake`: if the system version is too old you can `SYSTEMMODULES=cmake mpm.py ...`.
+- `CMAKEFLAGS, CONFIGUREFLAGS, ...FLAGS` : options for the configure stage of the build.
