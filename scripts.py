@@ -58,6 +58,8 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     title : str = f"Load compiler and mpi and modules: {modulestoload}"
     errmsg : str = f"Failed to load compiler and mpi and modules: {modulestoload}"
     _,compiler,compilerversion,_,mpi,mpiversion = family_names( **kwargs )
+    trace_string( f"Loading {compiler=}/{compilerversion} and {mpi=}/{mpiversion}",
+                  **kwargs )
     if ( modulepath := nonzero_keyword( "modulepath",**kwargs ) ) is None:
         error_abort( "Need a module path",**kwargs )
     if not ( redirect := nonzero_keyword( "redirect",**kwargs ) ):
@@ -66,9 +68,11 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     #
     # Start by defining some functions
     #
-    loadscript += modulereportfunction(  )
+    loadscript += successfailurefunction()
+    loadscript += modulereportfunction()
     loadscript += modulelistfunction()
-    loadscript += modulecommandfunction( )
+    loadscript += modulelonglistfunction()
+    loadscript += modulecommandfunction()
     loadscript += moduleproperfunction()
 
     #
@@ -77,13 +81,17 @@ def load_compiler_and_mpi_and_modules_script( modulestoload : list[str],**kwargs
     loadscript += modulepurgefunction()
     if not mode_is_core( **kwargs ):
         if compiler is not None:
-            loadscript += compilerloadfunction( modulepath,compiler,compilerversion )
+            if ( blasroot := kwargs.get("BLASLAPACK_ROOT") ) is None:
+                trace_string( f"Not finding BLASLAPACK_ROOT in {kwargs}",**kwargs )
+                blasroot = ""
+            else: trace_string( f"Found BLASLAPACK_ROOT as {blasroot}",**kwargs )
+            loadscript += compilerloadfunction( modulepath,compiler,compilerversion,blasroot )
         else: error_abort( "No compiler defined",**kwargs )
     if nonzero_keyword( "BLASLAPACK",**kwargs ):
         if comp := abort_on_zero_keyword( "COMPILER",**kwargs ):
             blas : str = ""
-            if comp=="gcc"    : blas = "mkl"
-            if comp=="nvidia" : blas = "nvpl"
+            # if comp=="gcc"    : blas = "mkl"
+            # if comp=="nvidia" : blas = "nvpl"
             if nonnull(blas):
                 loadscript += f"""
 echo "Load blas/lapack library: {blas}"
@@ -93,13 +101,15 @@ modulecommand "load blas" "load {blas}"
         if mpi is not None:
             loadscript += mpiloadfunction( mpi,mpiversion )
         else: error_abort( "No mpi defined",**kwargs )
-    if nonnull( modulestoload ) or zero_keyword( "skipmodules",**kwargs ):
-        loadscript += modulesloadscript( modulestoload,**kwargs )
+    if nonnull( modulestoload ) and zero_keyword( "skipmodules",**kwargs ) \
+       and zero_keyword("NOMODULE",**kwargs) :
+        scr,tit = modules_load_script( modulestoload,**kwargs )
+        loadscript += scr
     else:
-        echo_warning( "not loading any modules",**kwargs )
+        trace_string( "Not loading any modules",**kwargs )
     loadscript += f"""
 echo Module listing:
-modulelist
+modulelonglist
     """
     return loadscript,title
 
@@ -152,7 +162,21 @@ def one_module_proper_script( modverlist : list[str],**kwargs : Any ) -> tuple[s
     modver : str = modverlist[0]
     title : str = f"test proper of module {modver}"
     module,_    = f"{modver}/".split("/",maxsplit=1)
-    script : str = f"""
+    script : str = ""
+    #
+    # First make sure module is loaded
+    #
+    modvar : str = dir_variable(module)
+    script += f"""
+if [ -z "${{{modvar}}}" ] ; then
+    echo "FAILURE: variable {modvar} is not set"
+    exit 1
+fi
+"""
+    #
+    # Test all directories exist
+    #
+    f"""
 echo \">>>> Test proper of module {modver}\"
 testmoduleproper {modver}
     """
@@ -174,6 +198,18 @@ echo \"<<<< end of test proper of module {modver}\"
 ## Some long literals,
 ## to make function above more readable
 ##
+def successfailurefunction() -> str:
+    return f"""
+function report_success_failure () {{
+    if [ $? -eq 0 ] ; then
+        echo "SUCCESS: $1"
+    else
+        echo "FAILURE: $2"
+        exit 1
+    fi
+}}
+"""
+
 def modulereportfunction( redirect="" ) -> str:
     return f"""
 # Non-redirected return code reporting
@@ -184,12 +220,12 @@ function modulereport () {{
 if [ $1 -gt 0 ] ; then
     echo FAILURE module command failed: $2
     echo Output: && module -t $3
-    exit
+    echo "Aborting this script" && exit
 else
     echo SUCCESS module command succeeded: $2
     local cmd="$3"
     # echo "cmd was <<$cmd>>"
-    echo "Now loaded:"
+    echo -e "\\nNow loaded:"
     if [[ $cmd =~ load* ]] ; then
         module -t show ${{cmd##load}}
     fi 
@@ -206,6 +242,32 @@ function modulelist ()
 }
         """
 
+def modulelonglistfunction() -> str:
+    return """
+function modulelonglist ()
+{
+    local compiler=$( module -t list ${TACC_FAMILY_COMPILER} 2>&1 );
+    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
+    local modules=$( module -t list 2>&1 | grep -v $compiler 2>/dev/null | grep -v $mpi 2>/dev/null | sort 2>/dev/null );
+    for m in $compiler $mpi cont $modules;
+    do
+        if [ $m = "cont" ]; then
+            echo "----------------";
+        else
+            if [ ! -z "${WORK}" ] ; then
+                loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?WORK?' );
+            else
+                loc=$(module -t show $m 2>&1 );
+            fi
+            echo "$m : $loc";
+        fi;
+    done
+    echo "----------------";
+    echo -e "LD_LIBRARY_PATH=\\n$( echo ${LD_LIBRARY_PATH} | tr ':' '\\n' )"
+    echo -e "PYTHONPATH=\\n$( echo ${PYTHONPATH} | tr ':' '\\n' )"
+}
+"""
+
 def modulecommandfunction( redirect="" ) -> str:
     return f"""
 # Execute a module command and report result:
@@ -220,7 +282,7 @@ function modulecommand () {{
     fi
     modulereport $? "$1" "$2"
 }}
-    """
+"""
 
 def moduleproperfunction() -> str:
     return """
@@ -236,7 +298,7 @@ function testmoduleproper () {
     else
         echo "SUCCESS: package ${modver} is at $pkgdir"
     fi
-    for e in BIN LIB INC ; do
+    for e in DIR BIN LIB INC ; do
         nam=TACC_${MODULE}_${e}
         eval cmpdir=\\${$nam}
         if [ ! -z "${cmpdir}" -a ! -d "${cmpdir}" ] ; then 
@@ -261,6 +323,7 @@ modulecommand "module purge" "purge"
     """
 
 def compilerloadfunction( modulepath : str,compiler : str,compilerversion : Optional[str],
+                          blasroot : Optional[str],
                           redirect="" ) -> str:
     if compilerversion is None:
         compver : str = compiler
@@ -276,12 +339,19 @@ modulecommand "unload compiler" "unload ${{TACC_FAMILY_COMPILER}}"
 echo .... After reset: {redirect}
 modulelist {redirect}
 
-echo .... Set modulepath {redirect}
+echo ".... Set modulepath" {redirect}
 export MODULEPATH={modulepath}
-echo MODULEPATH=${{MODULEPATH}} {redirect}
+echo "MODULEPATH=${{MODULEPATH}}" {redirect}
 modulecommand "Can we load compiler?" "avail {compver}" display
 
 modulecommand "Load compiler" "load {compver}"
+
+echo "\n.... Can we find BLASLAPACK_ROOT?" {redirect}
+if [ -z "{blasroot}" ] ; then
+    echo "WARNING: no BLASLAPACK_ROOT variable defined"
+else
+    echo "BLASLAPACK_ROOT={blasroot}"
+fi {redirect}
     """
 
 # VLE Should be insist on an mpi version?
@@ -295,7 +365,7 @@ modulecommand "Load mpi" "load {mpi}/{mpiversion}"
 modulecommand "Load mpi" "load {mpi}"
     """
 
-def modulesloadscript( modulestoload : list[str],**kwargs ) -> str:
+def modules_load_script( modulestoload : list[str],**kwargs ) -> tuple[str,str]:
     redirect : str = kwargs.get( "redirect","" )
     loadscript : str = f"""
 echo ".... Load packages <<{modulestoload}>>" {redirect}
@@ -308,25 +378,8 @@ echo ".... Load packages <<{modulestoload}>>" {redirect}
 modulecommand "load module: {module}{slash}{version}" "load {module}{slash}{version}"
 {modulepropertest}
         """
-    return loadscript
-
-modulelonglist : str = """
-function modulelist ()
-{
-    local compiler=$( module -t list "${TACC_FAMILY_COMPILER}" 2>&1 );
-    local mpi=$( module -t list ${TACC_FAMILY_MPI} 2>&1 );
-    local modules=$( module -t list 2>&1 | grep -v $compiler | grep -v $mpi | sort );
-    for m in $compiler $mpi cont $modules;
-    do
-        if [ $m = "cont" ]; then
-            echo "----------------";
-        else
-            loc=$(module -t show $m 2>&1 | sed -e 's?'${WORK}'?${WORK}?' );
-            echo "$m : $loc";
-        fi;
-    done
-}
-        """
+    modulesstring : str = re.sub( '/','',"-".join(modulestoload) )
+    return loadscript,f"module loading {modulesstring}"
 
 ##
 ## Now the big scripts!
@@ -368,9 +421,11 @@ echo "SUCCESS: package {package} downloaded as ${{tgz}}"
 ####
 ################################################################
 
-def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+def cmake_configure_script( pcmakedirs : tuple[str,dict[str,Any]],
+                            **kwargs : Any ) -> tuple[str,str]:
     program,dirnames = pcmakedirs
     program = re.sub( r'\..*','',program )
+    cmakeopts = dirnames.get("cmakeopts")
 
     script : str = ""
     # setup
@@ -383,11 +438,14 @@ def cmake_configure_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any 
     script += configure_preclean( dirnames,**kwargs )
 
     # cmake
-    cmake = cmake_basic_command( **kwargs )
-    cmakeflags = cmake_options( **kwargs )
+    cmake         = cmake_basic_command( **kwargs )
+    cmakeflags    = cmake_options( cmakeopts,**kwargs )
     buildsettings = cmake_build_settings( **kwargs )
+
     # set src, build, prefix
-    pathsettings = cmake_paths_settings( dirnames,**kwargs )
+    pathsettings  = cmake_paths_settings( dirnames,**kwargs )
+    builddir      = dirnames["builddir"]
+
     # for the regression case only: define project macro
     if nonnull(program) : pathsettings += f" -D PROJECTNAME={program}"
     script += f"""
@@ -396,14 +454,17 @@ echo "PKG_CONFIG_PATH=$(   echo ${{PKG_CONFIG_PATH}}   | tr ':' '\\n' )"
 cmdline="{cmake} {buildsettings} {cmakeflags} {pathsettings}"
 echo "Doing cmake in pwd=${{PWD}}"
 echo " .. with cmake=$( which cmake )"
-echo " .. cmake cmdline=$cmdline | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /' "
+echo " .. cmake cmdline=$cmdline" \
+    | sed -e 's/-D/\\n    -D/g' -e 's/-S /\\n    -S /' -e 's/-B /\\n    -B /'
 eval $cmdline
-if [ $? -eq 0 ] ; then
-    echo SUCCESS: configure succeeded
-else
-    echo FAILURE: cmake failed
-fi
-    """
+report_success_failure "configure succeeded" "cmake failed"
+"""
+    if ( grep := dirnames.get("grep") ) is not None:
+        script += f"""
+cd {builddir}
+
+"""
+
     ## maybe only in the log file? script += configure_postreport( dirnames,**kwargs )
     script = script.replace( r'^ +-D(.*)$',r'  -D \1\\\n' )
     return script,"CMake configuring"
@@ -416,7 +477,7 @@ echo "Remove any builddir: {builddir}"
 rm -rf {builddir}
     """
     # netcdf installs c & f into the same prefix
-    if kwargs.get("NOSCRATCHINSTALL") is not None:
+    if kwargs.get("NOSCRATCHINSTALL") is None:
         script += f"""
 echo "Remove any prefixdir: {prefixdir}"
 rm -rf {prefixdir}
@@ -430,12 +491,13 @@ echo "Builddir {builddir} contents:"
 ls {builddir}
     """
 
-def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],**kwargs : Any ) -> tuple[str,str]:
+def cmake_build_script( pcmakedirs : tuple[str,DirNamesDict],
+                        **kwargs : dict[str,Any] ) -> tuple[str,str]:
     _,dirnames = pcmakedirs
     srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
 
     script : str = f"""
-echo -e "\n>>> Start of cmake build"
+echo -e "\\n>>> Start of cmake build"
     """
     # flags and options
     jcount          : str = kwargs.get("jcount","6")
@@ -485,12 +547,13 @@ def cmake_basic_command( **kwargs : Any ) -> str:
 -D CMAKE_COLOR_MAKEFILE=OFF \
 -D CMAKE_TERM_SUPPORTS_ANSI=OFF"
 
-def cmake_options( **kwargs: Any ) -> str:
+def cmake_options( opts : Optional[str],**kwargs: Any ) -> str:
     cmakeflags : str = "  -D CMAKE_VERBOSE_MAKEFILE=ON  -D CMAKE_EXPORT_COMPILE_COMMANDS=ON"
     if ( standard := kwargs.get("CPPSTANDARD") ) is not None:
         cmakeflags += f"  -D CMAKE_CXX_FLAGS=-std=c++{standard}"
     if ( conflags := nonzero_keyword("CMAKEFLAGS",**kwargs) ) is not None \
-       or ( envflags := os.getenv("CMAKE_C_FLAGS") ) is not None:
+       or ( envflags := os.getenv("CMAKE_C_FLAGS") ) is not None \
+       or nonnull( opts ):
         flags : str = f" -D MPM_CUSTOM_FLAGS=START "
         # VLE we need to cover the case that both are nonzero:
         # we need to edit the envflags into the conflags
@@ -498,6 +561,8 @@ def cmake_options( **kwargs: Any ) -> str:
             flags += conflags
         elif envflags is not None:
             flags += f" -D CMAKE_C_FLAGS={envflags}"
+        if nonnull( opts ):
+            flags += f" {opts}"
         cmakeflags += f"{flags} -D MPM_CUSTOM_FLAGS=END "
     return cmakeflags.lstrip(" ")
 
@@ -512,12 +577,16 @@ def cmake_build_settings( **kwargs ) -> str:
     return f""" -D BUILD_SHARED_LIBS={buildsharedlibs}  -D CMAKE_BUILD_TYPE={cmakebuildtype} """
 
 def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
-    srcdir = dirnames["srcdir"]; builddir = dirnames["builddir"]; prefixdir = dirnames["prefixdir"]
+    srcdir    = dirnames["srcdir"]
+    builddir  = dirnames["builddir"]
+    prefixdir = dirnames["prefixdir"]
     if nonnull( source := kwargs.get("CMAKESUBDIR") ):
         effectivesrcdir : str = f"{srcdir}/{source}"
     else: effectivesrcdir = srcdir
     if not os.path.isdir(effectivesrcdir):
-        error_abort( f"Can not find source dir {effectivesrcdir}; did you forget to download?",**kwargs )
+        error_abort\
+            ( f"Can not find source dir {effectivesrcdir}; did you forget to download?",
+              **kwargs )
     settingsfile : str = f"{effectivesrcdir}/CMakeLists.txt"
     if not os.path.exists( f"{settingsfile}" ):
         error_abort( f"Can not find cmake settings file: {settingsfile}",**kwargs )
@@ -528,7 +597,7 @@ def cmake_paths_settings( dirnames : DirNamesDict,**kwargs ) -> str:
 
 def cmake_build_pre( dirnames : DirNamesDict,**kwargs : Any ) -> str:
     builddir = dirnames["builddir"]
-    return f"""
+    prescript : str = f"""
 if [ ! -d "{builddir}" ] ; then
     echo "FAILURE: no such build dir: {builddir}"
     exit  1
@@ -536,12 +605,15 @@ else
     echo "entering builddir: {builddir}"
 fi
 cd {builddir}
-
+"""
+    if kwargs.get( "CMAKEUSENINJA" ) is None:
+        prescript += f"""
 if [ ! -f makefile -a ! -f Makefile ] ; then
     echo "FAILURE: build dir {builddir} has no makefile or Makefile"
     exit 1
 fi
-    """
+"""
+    return prescript
 
 ################################################################
 ####
@@ -549,7 +621,8 @@ fi
 ####
 ################################################################
 
-def autotools_configure_script( pmakedirs : list[str],**kwargs : Any ) -> tuple[str,str]:
+def autotools_configure_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs : dict[str,Any] ) \
+    -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
@@ -580,11 +653,11 @@ echo "SUCCESS: autotools configure succeeded"
     return setup_script+configsetupscript+configurescript,"Autotools configuring"
 
 def config_setup_script( srcdir : str,**kwargs : dict[str,Any] ) -> str:    
-    if nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ):
+    if ( builddir := nonzero_keyword( "CONFIGINBUILDDIR",**kwargs ) ) is not None:
         trace_string( f" .. going to configure in build dir {builddir}",**kwargs )
         configloc : str = builddir
         config_cmdline : str = f"{srcdir}/configure"
-    elif subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ):
+    elif ( subdir := nonzero_keyword( "CONFIGURESUBDIR",**kwargs ) ) is not None:
         trace_string( f" .. going to configure in subdir: {subdir}.",**kwargs )
         configloc = f"{srcdir}/{subdir}"
         config_cmdline = f"./configure"
@@ -622,7 +695,8 @@ fi
 {autoupdate}
     """
 
-def autotools_build_script( pmakedirs : list[str],**kwargs: Any ) -> tuple[str,str]:
+def autotools_build_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs: dict[str,Any] ) \
+    -> tuple[str,str]:
     program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
     srcdir    : str = dirnames["srcdir"]
     prefixdir : str = dirnames["prefixdir"]
@@ -653,6 +727,86 @@ echo "SUCCESS: autotools build succeeded"
     """
 
     return script,"Autotools make and install"
+
+################################################################
+####
+#### Scons
+####
+################################################################
+
+def scons_configure_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs : dict[str,Any] ) \
+    -> tuple[str,str]:
+    package,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    sconsflags : str = kwargs.get("SCONSFLAGS","")
+    setupscript : str = ""
+
+    ##
+    ## do configure
+    ##
+    if ( option := nonzero_keyword( "PREFIXOPTION",**kwargs ) ) is not None:
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if ( flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ) ) is not None:
+        flags = f" {flags}"
+    else: flags = ""
+    configurescript : str = f"""
+echo "Test for Scons module"
+PYTHONPATH=/scratch/00434/eijkhout/installation/scons/installation-scons-4.9.1-stampede3-gcc13.2.0 python3 -c "import SCons"
+report_success_failure "python can load SCons" "python could not load SCons module"
+python3 -c "from SCons.Script.Main import main"
+report_success_failure "python can load scons script main" "python could not load scons module script main"
+
+echo -e "\\nCheck validity of scons:\\n$(which scons)\\nuses:\\n$( head -1 $(which scons) )\\nand python is:\\n$(which python3)"
+
+echo "Go to srcdir={srcdir}"
+cd {srcdir}
+echo -e "\\nTest for SConstruct file"
+if [ ! -f SConstruct ] ; then
+    echo "No SConstruct" && exit 1
+else
+    if [ -f {package}.conf ] ; then
+        echo "removing {package}.conf"
+        rm -f {package}.conf
+    fi
+    echo "scons=$(which scons)"
+    PYTHONPATH=/scratch/00434/eijkhout/installation/scons/installation-scons-4.11.1-stampede3-gcc13.2.0/:${{PYTHONPATH}} \
+    scons \
+        build env_vars=all \
+        CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
+        prefix={prefixdir} \
+        {sconsflags} \
+        googletest='none'
+    report_success_failure "scons build succeeded" "scons build failed"
+fi
+"""
+    return setupscript+configurescript,"Scons configuring"
+
+def scons_build_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs: dict[str,Any] ) \
+    -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    if ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ) is None:
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"scons install"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    return script,"Scons make and install"
 
 ################################################################
 ####
@@ -773,24 +927,21 @@ cd {where}
 if [ ! -d "{scriptsdir}" ] ; then
     echo "FAILURE: scripts dir {scriptsdir} does not exist" && exit 1
 fi
-lddout="{scriptsdir}/ldd_{program}.out"
-rm -f "${{lddout}}"
 
-if [ -f \"{program}\" ] ; then
-    ldd {program} 2>&1 | tee "${{lddout}}"
+program_full_path={where}/{program}"
+if [ ! -f \"${{program_full_path}}\" ] ; then
+    echo "FAILURE: could not find file=${{program_full_path}} to run ldd on"
 else
-    touch "${{lddout}}"
-fi
-
-if [ -f \"{program}\" ] ; then
+    echo "Going to ldd on ${{program_full_path}}"
+    lddout="{scriptsdir}/ldd_{program}.out"
+    rm -f "${{lddout}}"
+    ldd ${{program_full_path}} 2>&1 | tee "${{lddout}}"
     notfound=$( grep \"not found\" "${{lddout}}" | wc -l )
     if [ $notfound -eq 0 ] ; then
         echo "SUCCESS: all libraries resolved"
     else
         echo "FAILURE: $notfound references not found"
     fi
-else
-    echo "FAILURE: could not find program={program} to run ldd on"
 fi
     """
     return script,f"ldd test on {program}"
@@ -799,12 +950,9 @@ fi
 ## Test file existence
 ##
 def file_to_exist_script( args : list[str],**kwargs : Any, ) -> tuple[str,str]:
-    # _,filedir,file_to_test,file_to_report = args
     package,dirtype,program,grep,executable = args
     dirvar : str = dir_variable(package,dirtype)
     title : str = f"Test existence of {dirtype}:{program}"
-    # filedir,file_to_test,file_to_report =
-    # file_to_exist_names(package,dirtype,program,**kwargs)
     script : str = f"""
 echo "{title}"
 
@@ -827,15 +975,16 @@ else
     exit 1
 fi
         """
-    return script,title
-    if executable:
+    if nonnull(executable):
         script += f"""
-if [ -x \"{file_to_test}\" ] ; then
+if [ -x "${{file_to_test}}" ] ; then
     echo "SUCCESS: file is executable"
 else
     echo "FAILURE: file is not executable"
 fi
-        """
+"""
+    return script,title
+    #
     if nonnull( grep ):
         program_clean = re.sub( '/','',program )
         grep_output_file : str = f"{os.getcwd()}/{program_clean}_grep.out"
@@ -850,8 +999,8 @@ fi
 ##
 ## Run a program
 ##
-def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tuple[str,str]:
-    program,dirnames,args = dirnamesl
+def run_script( dirnamesl : tuple[str,DirNamesDict,str,str],**kwargs : Any ) -> tuple[str,str]:
+    program,dirnames,args,val = dirnamesl
     # strip any extension
     program = re.sub( r'\..*','',program )
 
@@ -859,9 +1008,7 @@ def run_script( dirnamesl : tuple[str,DirNamesDict,str],**kwargs : Any ) -> tupl
 
     script : str = ""
     # where do we run?
-    rundir   = dirnames["builddir"]
-    if isnull( rundir ):
-        rundir = "build"
+    rundir : str = dirnames.get("builddir","build")
     script += f"""
 if [ ! -d "{rundir}" ] ; then
     echo "FAILURE: rundir does not exist: <<{rundir}>> in pwd=<<$(pwd)>>"
@@ -874,7 +1021,8 @@ echo "Running in rundir={rundir} full path=$( pwd )"
     # what do we run?
     #  - prefix is empty for runing along path
     #  - prefix can be ./
-    prefix  : str = dirnames["prefixdir"]
+    prefix  : str = dirnames.get("prefix","")
+    #print( f"prefix=<<{prefix}>> out of dirnames={dirnames}" )
     cmdline : str = f"{prefix}{program}"
     if nonnull( args ):
         cmdline += f" {args}"
@@ -885,8 +1033,9 @@ echo "cmdline={cmdline}"
 echo ">>>> start execution"
 runout=run_{program}.out
 {cmdline} >${{runout}} 2>&1
+runcode=$?
 echo "<<<< end execution"
-if [ $? -eq 0 ] ; then 
+if [ ${{runcode}} -eq 0 ] ; then 
     echo "SUCCESS: running {program}"
 else
     echo "FAILURE: running {program}"

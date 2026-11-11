@@ -22,7 +22,9 @@ def isnull( val: Any ) -> bool:
     return not nonnull( val )
 
 def nonzero_env( envvar: str, **kwargs: Any ) -> Optional[str]:
+    #print( f"Query env={envvar}" )
     if nonnull( val := os.getenv( envvar ) ):
+        #print( f" .. found: {val}" )
         return val
     else: return None
 
@@ -87,10 +89,11 @@ def unimplemented( var: str ) -> None:
 ## stripping of macros
 ##
 
-def remove_macros( string : str,**kwargs : Any ) -> str:
+def remove_macros( string : str,**kwargs : dict[str,Any] ) -> str:
     macro_search = re.compile( r'\${([a-zA-Z0-9_-]+)}' )
     while found_one := re.search( macro_search,string ):
         macroname : str = found_one.groups()[0]
+        trace_string( f" .. trying to expand macro: {macroname}",**kwargs )
         if ( macrovalue := kwargs.get(macroname) ) is not None:
             string = re.sub( macro_search,str(macrovalue),string,1 )
         elif ( macrovalue := os.getenv(macroname) ) is not None:
@@ -116,8 +119,11 @@ def clean_title( title : str,**kwargs : Any ) -> str:
 #### Error handling
 ####
 def error_abort( string: str, **kwargs: Any ) -> NoReturn:
-    echo_string( f"\nERROR {string}\n\ntraceback:",**kwargs )
-    traceback.print_stack()
+    if kwargs.get("notraceback"):
+        echo_string( f"\nERROR {string}\n",**kwargs )
+    else:
+        echo_string( f"\nERROR {string}\n\ntraceback:",**kwargs )
+        traceback.print_stack()
     sys.exit(1)
 
 
@@ -188,19 +194,22 @@ def line_strip_conditionals( line: str, **config_dict: Any ) -> tuple[str, bool]
     """ returns: line,accept """
     trace_string( f"Test line for conditions: {line}",**config_dict )
     # VLE should we allow any nonblank string as rhs of the test?
-    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=)([a-zA-Z0-9_\.]+|"")\s+(.*)$',line ):
+    if test := re.search( r'^([a-zA-Z0-9_]+)(==|\!=|\*=|~=)([a-zA-Z0-9_\.]+|"")\s+(.*)$',line ):
         value1,comparison,value2,line = condition_split( test,**config_dict )
         trace_string( f"Line has conditions {line} : {value1}{comparison}{value2}",
                       **config_dict )
-        if ( comparison=="==" and value1!=value2 ) or \
-           ( comparison=="!=" and value1==value2 ):
-            trace_string( f" .. reject because not {value1}{comparison}{value2}",
-                          **config_dict )
-            return line,False
-        else: 
+        if ( comparison=="==" and value1==value2 ) or \
+           ( comparison=="!=" and value1!=value2 ) or \
+           ( comparison=="*=" and re.search(value2,value1) ) or \
+           ( comparison=="~=" and not re.search(value2,value1) ) \
+           :
             trace_string( f" .. accept because {value1}{comparison}{value2}",
                           **config_dict )
             return line_strip_conditionals( line,**config_dict )
+        else:
+            trace_string( f" .. reject because not {value1}{comparison}{value2}",
+                          **config_dict )
+            return line,False
     else:
         trace_string( f" .. accept because no conditionals detected: {line}",
                       **config_dict )

@@ -44,6 +44,15 @@ def package_names_nonnull( **kwargs: Any ) -> tuple[str, str]:
         error_abort( "package is null/unspecified",**kwargs )
     return p,v
 
+def package_prerequisite_modulenames( **kwargs : Any ) -> list[str]:
+    modules : list[str] = [
+        re.sub( r'/.*','',m )
+        for m in kwargs.get( "MODULES","" ).split(" ")
+        if m != ""
+    ]
+    trace_string( f"Prerequisite modules: {modules}",**kwargs )
+    return modules
+
 def package_prerequisites( **kwargs : Any ) -> list[str]:
     versionedmodules : list[str] = [
         vm
@@ -98,7 +107,9 @@ class DirNamesDict(TypedDict):
     scriptsdir : str
     srcdir     : str
     builddir   : str
+    rundir     : str
     prefixdir  : str
+    prefix     : str
 
 def ensure_download_path( **kwargs: Any ) -> str:
     if downloadpath := nonzero_keyword("downloadpath",**kwargs):
@@ -245,15 +256,19 @@ def install_extension( **kwargs: Any ) -> str:
         installext = f"{installext}-{variant}"
     return installext
 
-def gitdir_local_name( **kwargs: Any ) -> str:
-    packagebasename,_ = package_names( **kwargs )
-    packageversion : str = "git"
+def gitdir_src_extension( **kwargs: Any ) -> str:
+    versionext : str = "git"
     if stamp := nonzero_keyword( "GITDATE",**kwargs):
         if stamp=="today":
-            packageversion += str( datetime.date.today() ).replace('-','')
+            versionext += str( datetime.date.today() ).replace('-','')
         else:
-            packageversion += stamp
-    return f"{packagebasename}-{packageversion}"
+            versionext += stamp
+    return f"{versionext}"
+
+def gitdir_local_name( **kwargs : dict[str,Any] ) -> str:
+    package,_ = package_names( **kwargs )
+    ext : str = gitdir_src_extension( **kwargs )
+    return f"{package}-{ext}"
 
 ##
 ## Name of source directory,
@@ -271,7 +286,11 @@ def srcdir_name( **kwargs: Any ) -> str:
 
 def srcdir_local_name( **kwargs: Any ) -> str:
     packagebasename,packageversion = package_names_nonnull( **kwargs )
-    return f"{packagebasename}-{packageversion}"
+    if packageversion == "git":
+        extension : str = gitdir_src_extension( **kwargs )
+    else:
+        extension = packageversion
+    return f"{packagebasename}-{extension}"
 
 def builddir_name( **kwargs: Any ) -> str:
     if bdir := nonzero_keyword( "builddirroot",**kwargs ):

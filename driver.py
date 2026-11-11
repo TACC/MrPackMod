@@ -6,6 +6,7 @@
 import argparse
 import os
 import pdb
+import re
 import sys
 from typing import Any,Optional
 
@@ -15,11 +16,12 @@ from MrPackMod import info
 from MrPackMod import install
 from MrPackMod import names 
 from MrPackMod.process import process_initiate,process_terminate,process_execute
-from MrPackMod.basics  import echo_string,echo_warning,error_abort,\
+from MrPackMod.basics  import echo_string,echo_warning,error_abort,trace_string,\
     nonnull, nonzero_keyword, zero_keyword,\
     ModuleLoadStrategy
 from MrPackMod.error   import abort_on_failure_result
-from MrPackMod.testing import test_proper_prerequisites,report_success_failure
+from MrPackMod.testing import test_proper_prerequisites,test_prerequisites_loaded,\
+    report_success_failure
 from MrPackMod import regression
 
 def screen_report_action( action: str, **kwargs: Any ) -> None:
@@ -59,17 +61,23 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
         'scriptdir':os.getcwd(), # VLE confusing name, abandon in favor of `startdir'?
         'nowarn' : any( [ action in [ "clean","configurelog","dependencies",
                                       "actions", "url", "show", "test",
-                                      "listmodules", "modules", "public", "version",
+                                      "modules", "public", "version",
                                       "download", "unpack", "clone", "pull",
                                       "prerequisitesinstall", # this only needs the MODULE line
                                      ]
                           for action in actions ] ) or len(actions)==0,
     }
-    not_create_home : bool = any( [ a in actions for a in ["regression","version",] ] )
+    not_create_home   : bool      = any( [ a in actions for a in ["regression","version",] ] )
+    file_actions      : list[str] = actionsdict.get("file_actions")
+    skip_build_config : bool      = any( [ a in file_actions for a in actions ] )
+    # VLE this call generates a spurious blank line
+    trace_string( f"Reading configuration {configuration} with \
+no_home={not_create_home}, no_build={skip_build_config}",**configuration )
     read_config( configuration,configfile,
                  # test_stage mechanism is used here, but is missing some info
                  # so we set dummy values
-                 no_home=not_create_home,PACKAGE="setup",PACKAGEVERSION="0.0"
+                 no_home=not_create_home,no_build=skip_build_config,
+                 skip_build_config=skip_build_config,
                 )
     # make sure we have triggered derived settings
     if not any( [ nonnull(configuration.get(key)) for key in derived_setting_triggers ] ):
@@ -87,11 +95,11 @@ def mpm( parser: argparse.ArgumentParser, **actionsdict: dict[str,list[str]] ) -
 
 def mpm_action( action : str,arguments,**configuration ) -> bool:
     # what are the possible actions
-    file_actions    : str = configuration.get( "file_actions" ) 
-    build_actions   : str = configuration.get( "build_actions" )
-    context_actions : str = configuration.get( "context_actions" )
-    package_actions : str = configuration.get( "package_actions" )
-    utility_actions : str = configuration.get( "utility_actions" )
+    file_actions    : list[str] = configuration.get( "file_actions",[] ) 
+    build_actions   : list[str] = configuration.get( "build_actions",[] )
+    context_actions : list[str] = configuration.get( "context_actions",[] )
+    package_actions : list[str] = configuration.get( "package_actions",[] )
+    utility_actions : list[str] = configuration.get( "utility_actions",[] )
     
     returncode : bool = True
     # informative
@@ -104,7 +112,7 @@ package_actions : {package_actions}
 utility_actions : {utility_actions}
 """ ) ; sys.exit(0)
     # Auxiliary actions
-    elif action=="dependencies":
+    elif action in ["dependencies","modules",]:
         print( configuration['MODULES'] )
     elif action=="find_string":
         if args := nonnull( arguments.args ):
@@ -122,9 +130,6 @@ utility_actions : {utility_actions}
             print( configuration[displayvar] )
         except:
             print( f"No configuration variable: {displayvar}" )
-    elif action=="listmodules":
-        if modulelist := configuration.get("MODULES"):
-            print( modulelist )
     ##
     ## By category
     ##
@@ -132,12 +137,17 @@ utility_actions : {utility_actions}
         scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_package"
         package_action( action, **{ **configuration,'scriptsdir':scriptsdir } )
     elif action in file_actions:
-        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_download"
-        file_action( action,**{ **configuration,'scriptsdir':scriptsdir } )
+        install_options : dict = {
+            "immediate_output":False,
+            "moduleloadstrategy":ModuleLoadStrategy.none,
+            "without_context":True,
+            "scriptsdir":configuration.get("startdir",".")+f"/mpmscripts_{action}",
+        }
+        file_action( action,**{ **configuration,**install_options } )
     # build stuff
     elif action=="install":
         prelimtesting : bool = True
-        for a in ["configure","build","module","public",]:
+        for a in ["test", "configure","build","module","public",]:
             screen_report_action(a,**configuration )
             returncode = mpm_action(
                 a,arguments,**{ **configuration,'prelimtesting':prelimtesting } )
@@ -148,22 +158,27 @@ utility_actions : {utility_actions}
     elif action=="prerequisitesinstall":
         prerequisites_action( **configuration )
     elif action in [ "configure", "build", "public", ]:
-        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
-        install_options : dict = {
+        scriptsdir = configuration.get("startdir",".")+"/mpmscripts_"+configuration.get("PACKAGE")
+        install_options = {
             "immediate_output":True,
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites,
             "scriptsdir":scriptsdir,
         }
         if configuration.get( "prelimtesting",True ):
             abort_on_failure_result(
-                test_proper_prerequisites( **configuration,scriptsdir=scriptsdir ),
-                **configuration )
+                test_prerequisites_loaded( **{ **configuration,"scriptsdir":scriptsdir, } ),
+                **{ **configuration,'notraceback':True} )
+            abort_on_failure_result(
+                test_proper_prerequisites( **{ **configuration,"scriptsdir":scriptsdir, } ),
+                **{ **configuration,'notraceback':True} )
         success : list[str] = []
         failure : list[str] = []
         if action=="configure":
-            returncode = configure_action( **{ **configuration,**install_options } )
+            returncode = configure_action( **{ **configuration,**install_options } ) \
+                is not None
         elif action=="build":
-            returncode = build_action( **{ **configuration,**install_options } )
+            returncode = build_action( **{ **configuration,**install_options } ) \
+                is not None
             if not returncode: return False
             install_options["moduleloadstrategy"] = ModuleLoadStrategy.none
             install.post_install_actions(
@@ -176,14 +191,13 @@ utility_actions : {utility_actions}
                 install.public_module( 
                     **{ **configuration,**install_options } )
     elif action=="module" and zero_keyword( "NOMODULE",**configuration ):
-        scriptsdir : str = configuration.get("startdir",".")+"/mpmscripts_module"
         install_options = {
             "immediate_output":False,
             # VLE we need to be able to get the version of prereqs
             # for dependency clauses. Do we also need to be able to
             # load the package itself?
             "moduleloadstrategy":ModuleLoadStrategy.prerequisites, #package
-            'scriptsdir':scriptsdir,
+            'scriptsdir':configuration.get("startdir",".")+"/mpmscripts_module",
         }
         success,failure = install.write_module_file(
             **{ **configuration,**install_options } )
@@ -197,7 +211,7 @@ utility_actions : {utility_actions}
         os.system( f"rm -rf {clean_targets}" )
     elif action=="regression":
         package : str = str( configuration.get("PACKAGE") ) # str only for mypy
-        install_options : dict = {
+        install_options = {
             "immediate_output":False,
             "moduleloadstrategy":ModuleLoadStrategy.all,
             "scriptsdir":None,
@@ -215,12 +229,12 @@ utility_actions : {utility_actions}
 def file_action( action : str,**kwargs : dict[str,Any] ) -> None:
     if action=="download":
         download.download_from_url(
-            **{ **kwargs,"immediate_output":True,"without_context":True, } )
+            **{ **kwargs,"immediate_output":True, } )
     elif action in [ "unpack", "untar", ]:
         srcdir_local = names.srcdir_local_name( **kwargs )
         download.unpack_from_url(
             **{ **kwargs,'srcdir':srcdir_local, } )
-    elif action=="retar":
+    elif action in ["retar", "betar", ]:
         download.retar_to_standard_name(**kwargs )
     elif action in [ "clone","pull" ]:
         download.clone_or_pull( **{ **kwargs,'gitaction':action } )
@@ -240,11 +254,10 @@ def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
         if url := kwargs.get("SOFTWAREURL"): print( url )
         if url := kwargs.get("DOCURL"): print( url )
     elif action=="test":
-        scriptsdir = kwargs.get("startdir",".")+"/mpmscripts_test"
         install_options : dict = {
             "immediate_output":False,
             "moduleloadstrategy":ModuleLoadStrategy.none,
-            "scriptsdir":scriptsdir,
+            "scriptsdir":kwargs.get("startdir",".")+"/mpmscripts_test",
         }
         abort_on_failure_result(
             test_proper_prerequisites(
@@ -258,10 +271,15 @@ def package_action( action : str,**kwargs : dict[str,Any] ) -> None:
     else: error_abort( f"Unimplemented package action: {action}",**kwargs )
 
 def configure_action( **kwargs : Any ) -> Optional[str]:
+    if ( system := kwargs.get("BUILDSYSTEM") ) is None:
+        error_abort( f"No BUILDSYSTEM defined in:\n{kwargs}",**kwargs )
+    else: system=system.lower() 
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
         return install.cmake_configure( **kwargs )
     elif system == "autotools":
         return install.autotools_configure( **kwargs )
+    elif system == "scons":
+        return install.scons_configure( **kwargs )
     elif system == "make":
         return install.make_configure( **kwargs )
     elif system == "petsc":
@@ -275,6 +293,8 @@ def build_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_build( **kwargs )
     elif system == "autotools":
         return install.autotools_build( **kwargs )
+    elif system == "scons":
+        return install.scons_build( **kwargs )
     elif system == "make":
         return install.make_build( **kwargs )
     elif system == "petsc":

@@ -3,6 +3,7 @@
 ##
 import re
 import os
+import pdb
 import sys
 from typing import Any,Optional,Tuple
 
@@ -11,11 +12,10 @@ from typing import Any,Optional,Tuple
 #
 from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     abort_on_zero_keyword,error_abort,\
-    line_strip_conditionals
+    line_strip_conditionals,remove_macros
 from MrPackMod.modulefile import loaded_modules
 from MrPackMod.error      import nonnull,nonzero_env
 from MrPackMod.names      import srcdir_name,builddir_name,prefixdir_name
-from MrPackMod.process    import remove_macros
 from MrPackMod.testing    import start_test_stage,end_test_stage,\
     OutputDict
 
@@ -23,8 +23,8 @@ additive_keys : list[str] = [ "DEPENDSON", "DEPENDSONCURRENT",
                               "MODULE", 
                               "CMAKEFLAGS","CONFIGUREFLAGS","PETSCFLAGS",
                              ]
-list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST",
-                              "CLEANTARGET",
+list_keys     : list[str] = [ "CMAKETEST", "MAKETEST", "EXISTENCETEST", "RUNTEST",
+                              "CMAKEVARTEST", "CLEANTARGET",
                              ]
 
 def add_new_dict_item(
@@ -59,10 +59,13 @@ def add_new_dict_item(
                   **{ **config_dict,**kwargs } )
 
 def add_settings_from_config(
-        configfile: str, config_dict: dict[str, Any], **output : Any ) -> None:
-    tracing: bool = config_dict.get("tracing", False)
+        configfile: str, config_dict: dict[str, Any], **kwargs : Any ) -> None:
+    trace_string( f"Read configuration: {configfile}",**{ **config_dict,**kwargs } )
+    tracing  : bool = config_dict.get("tracing", False)
+    no_build : bool = kwargs.get("no_build",False)
+    #breakpoint()
+    trace_string( f"abort read at BUILDSYSTEM: {no_build}",**{**config_dict,**kwargs} )
     with open(configfile,"r") as configuration_file:
-        trace_string( f"Read configuration: {configfile}",**config_dict,**output )
         saving: bool = False
         totalline : str = ""
         for line in configuration_file.readlines():
@@ -73,7 +76,7 @@ def add_settings_from_config(
             if re.match( r'^[ \t]*$',line ): continue
 
             if saving:
-                trace_string( f" .. building up line with: {line}",**output )
+                trace_string( f" .. building up line with: {line}",**kwargs )
                 totalline += " "+line
             else: totalline = line
 
@@ -83,14 +86,19 @@ def add_settings_from_config(
                 saving = True
                 continue
             else:
-                # VLE move the abort into the process function
-                if ( status := process_total_line( totalline,configfile,config_dict,**output ) ) is not None:
-                    if status in ["exit","return"] :
-                        print( re.sub(r'(exit|return)\s*','',totalline) )
+                # process line and add to `config_dict', maybe abort
+                status : str = process_total_line( totalline,configfile,config_dict,**kwargs )
+                if no_build and re.search("BUILDSYSTEM",totalline):
+                    trace_string( "break config read at buildsystem",**kwargs )
+                    break
+                elif status in ["exit","return","note",] :
+                    info : str = re.sub(r'(exit|return|note)\s*','',totalline)
+                    if nonnull(info) : print( f"\n{info}\n" )
+                    if status in ["exit","return",] :
                         break
-                    saving = False ; totalline = ""
                 else:
-                    error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
+                    saving = False ; totalline = ""
+
 
 def process_total_line( line : str,configfile : str,
                         config_dict : dict[str,Any],**kwargs : Any ) -> Optional[str]:
@@ -107,9 +115,10 @@ def process_total_line( line : str,configfile : str,
         trace_string( f" .. expanded     : {line}",**{ **config_dict,**kwargs } )
     if re.match( r'exit',line )  : return "exit"
     if re.match( r'return',line ): return "return"
+    if re.match( r'note',line ): return "note"
     if callitaday := re.match( r'\s*abort\s+(.*)$',line ):
         if nonnull( msg := callitaday.groups()[0] ):
-            print( f"\n{msg}\n" )
+            print( f"\nAbort: {msg}\n" )
             sys.exit(1)
     if include := re.search( r'^\s*include\s+(.+)$',line ):
         includefile = include.groups()[0]
@@ -127,7 +136,8 @@ def process_total_line( line : str,configfile : str,
     elif keyval := re.search( r'^\s*([A-Za-z0-9_]*)\s*([\+\*]?=)\s*(.*)$',line ):
         process_key_setting( keyval.groups(),config_dict,**kwargs )
         return "normal"
-    else: return None
+    else: 
+        error_abort( f"Can not parse: <<{line}>>\nin: {configfile}",**config_dict )
 
 ##
 ## We have determined a variable assignment
@@ -150,26 +160,27 @@ def process_key_setting( keyval,config_dict,**output ) -> None:
         # use value deduced from file
         add_new_dict_item( key,assign,val,config_dict,**output )
 
-def setting_from_env_or_rc( name: str, env: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
-    val : str = ""
+def setting_from_env_or_rc( key: str, envvar: str, default: str, rc_files: list[str], **kwargs: Any ) -> str:
+    # first find `key' literally in rc files
     for file in rc_files:
         with open( file,"r" ) as rc:
             for line in rc.readlines():
                 line = line.strip()
                 if re.match( r"\s*#",line ): continue
-                if re.match( name,line ):
+                if re.match( key,line ):
                     m = re.search(
-                        fr"^\s*{name}\s*=\s*([A-Za-z0-9_]+)\s*$",
+                        fr"^\s*{key}\s*=\s*([A-Za-z0-9_]+)\s*$",
                         line,
                     )
                     assert m is not None
                     val = m.groups()[0]
                     trace_string(
-                        f"Setting {name}={val} found in file <<{file}>>.",
+                        f"Setting {key}={val} found in file <<{file}>>.",
                         **kwargs )
                     return val
-    osval = os.getenv( env,default )
-    trace_string( f"Setting {name}={osval} found in environment.",**kwargs )
+    # otherwise find `key' as `envvar' in environment
+    osval : str = os.getenv( envvar,default )
+    trace_string( f"Setting {key}={osval} found in environment.",**kwargs )
     return osval
 
 ##
@@ -194,7 +205,7 @@ def system_settings(
                 rc_files,**kwargs  ),
             # mpi family
             'MPI':setting_from_env_or_rc(
-                "MPI", "TACC_FAMILY_MPI","",
+                "MPI", "TACC_FAMILY_MPI","mpich",
                 rc_files,**kwargs  ),
             'MPIVERSION':setting_from_env_or_rc(
                 "MPIVERSION", "TACC_FAMILY_MPI_VERSION","",
@@ -292,36 +303,41 @@ def config_from_rc_files( config_dict: dict[str, Any],**output ) -> None:
     # assume that we are in the makefiles/package dir
     rc_dir = f"{os.getcwd()}/.."
     if os.path.isdir(rc_dir):
-        trace_string( f"Looking for rc files in{rc_dir}",**config_dict,**output )
+        trace_string\
+            ( f"Looking for rc files in {rc_dir} for SYSTEM={system}, COMPILER={compiler}",
+              **{ **config_dict,**output} )
     else:
-        error_abort( f"Non-existing dir for rc files: {rc_dir}",**config_dict,**output )
-    ##
-    ## General settings,
-    ## first system specific, then general
-    ##
-    rc0 = f"{rc_dir}/.mrpackmodrc"
-    if os.path.exists( f"{rc0}" ):
-        add_settings_from_config( f"{rc0}",config_dict,
-                                  **{ **output,'noexpand_macros':True} )
-    else:
-        rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
-        if os.path.exists( f"{rc2}" ):
-            add_settings_from_config( f"{rc2}",config_dict,
-                                      **{ **output,'noexpand_macros':True} )
-    ##
-    ## Compiler settings,
-    ## first system specific, then general
-    ##
+        error_abort( f"Non-existing dir for rc files: {rc_dir}",
+                     **{ **config_dict,**output} )
+        
     if nonnull(compiler):
         rc3 = f"{rc_dir}/.mrpackmod_{system}_{compiler}rc"
         if os.path.exists( f"{rc3}" ):
             add_settings_from_config( f"{rc3}",config_dict,
                                       **{ **output,'noexpand_macros':True} )
-        else:
-            rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
-            if os.path.exists( f"{rc1}" ):
-                add_settings_from_config( f"{rc1}",config_dict,
-                                          **{ **output,'noexpand_macros':True} )
+            return
+        else: trace_string( f"No such rc file: {rc3}",**{ **config_dict,**output} )
+
+    rc2 = f"{rc_dir}/.mrpackmod_{system}rc"
+    if os.path.exists( f"{rc2}" ):
+        add_settings_from_config\
+            ( f"{rc2}",config_dict, **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc2}",**output )
+
+    rc1 = f"{rc_dir}/.mrpackmod_{compiler}rc"
+    if os.path.exists( f"{rc1}" ):
+        add_settings_from_config( f"{rc1}",config_dict,
+                                  **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc1}",**{ **config_dict,**output} )
+
+    rc0 = f"{rc_dir}/.mrpackmodrc"
+    if os.path.exists( f"{rc0}" ):
+        add_settings_from_config\
+            ( f"{rc0}",config_dict, **{ **output,'noexpand_macros':True} )
+        return
+    else: trace_string( f"No such rc file: {rc0}",**output )
 
 def expr_value( expr: str, **kwargs: Any ) -> str:
     # expression is a key or literal
@@ -370,8 +386,10 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
                    for location in [ ".","..",os.path.expanduser('~') ]
                    ]
                  if os.path.exists(rc) ]
-    system_settings      ( configuration_dict,rc_files, )
-    trace_string( f"system settings:\n{configuration_dict}",**configuration_dict,**output )
+    trace_string   ( f"Retrieving system settings", **{**configuration_dict,**output} )
+    system_settings( configuration_dict,rc_files,   **{**configuration_dict,**output} )
+    trace_string   ( f" .. system settings:\n{configuration_dict}",
+                  **{ **configuration_dict,**output } )
 
     system   = configuration_dict["SYSTEM"]
     compiler = configuration_dict["COMPILER"]
@@ -396,8 +414,8 @@ def read_config( configuration_dict : dict[str,Any], configfile: str, **kwargs: 
     # this may try to make the src dir, which should not if we are testing
     no_home : bool = kwargs.get("no_home",False)
     add_settings_from_config(
-        configfile,configuration_dict,no_home=no_home,
-        **output )
+        configfile,configuration_dict,
+        **{ **kwargs, **output } )
     trace_string( f"Configuration dict:\n{configuration_dict}",
                   **configuration_dict,**output )
     # close log file and test success/failure

@@ -66,7 +66,8 @@ def module_help_string( **kwargs: Any ) -> str:
     if nonzero_keyword( "PKGCONFIG",**kwargs ) or \
        nonzero_keyword( "PKGCONFIGLIB",**kwargs ):
         notes += "Discoverable by CMake through pkg-config.\n"
-    if note := nonzero_keyword( "MODULENOTE",**kwargs ):
+    if ( note := nonzero_keyword( "MODULENOTE",**kwargs ) ) is not None:
+        trace_string( f"Adding module note:\n{note}",**kwargs )
         notes += f"\n{note}"
     notes += f"\n(modulefile generated {datetime.date.today()})"
 
@@ -85,11 +86,17 @@ The {package} modulefile defines the following variables:
 def package_info( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
     modulename,moduleversion = module_name_and_version( **kwargs )
-    return \
+    info : str = \
 f"""\
 whatis( "Name: {modulename}" )
 whatis( "Version: {moduleversion}" )
-""".strip()
+"""
+    if ( category := kwargs.get("CATEGORY") ) is not None:
+        info += f"""\
+whatis( "Category: {category}" )
+"""
+    info = info.strip()
+    return info
 
 def path_settings( **kwargs: Any ) -> str:
     package,packageversion   = package_names( **kwargs )
@@ -128,7 +135,12 @@ def other_paths( **kwargs: Any ) -> str:
                      ["PYTHONPATHADD","PYTHONPATH"],
                 ]:
         if ( val := nonzero_keyword(cfg,**kwargs) ) is not None:
-            if cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD", ]:
+            if val in [ "1","prefix", ]:
+                #
+                # use prefix as such
+                #
+                paths += f"prepend_path( \"{var}\", prefixdir )\n"
+            elif cfg in [ "BINDIR", "PKGCONFIG", "PKGCONFIGLIB", "PYTHONPATHADD", ]:
                 #
                 # add path relative to prefix
                 #

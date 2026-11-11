@@ -29,6 +29,7 @@ from MrPackMod.process import get_value_from_loaded
 from MrPackMod.scripts import export_compilers_script,\
     cmake_configure_script,cmake_build_script,\
     autotools_configure_script,autotools_build_script,\
+    scons_configure_script,scons_build_script,\
     petsc_configure_script,petsc_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,\
     test_proper_prerequisites,OutputDict
@@ -87,6 +88,31 @@ def autotools_build( **kwargs : Any ) ->Optional[str]:
 
 ################################################################
 ####
+#### Scons
+####
+################################################################
+
+def scons_configure( **kwargs : Any ) -> Optional[str]:
+    output : OutputDict = start_test_stage( "configure",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        scons_configure_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+def scons_build( **kwargs : Any ) ->Optional[str]:
+    if nonzero_keyword("noinstall",**kwargs):
+        return "No installation needed"
+    output : OutputDict = \
+        start_test_stage( "build",**kwargs )
+    retval : Optional[str] = get_value_from_loaded(
+        scons_build_script,[ "",get_dir_names(**kwargs) ],
+        **{ **kwargs,**output, } )
+    success,failure = end_test_stage( [],[],output,**kwargs )
+    return retval
+
+################################################################
+####
 #### Make
 ####
 ################################################################
@@ -102,29 +128,40 @@ def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
         startdir = kwargs.get("startdir")
         script += f"""\n
 cd {startdir}
+report_success_failure \
+    "startdir={startdir} for premake does not exist" \
+    "enter {startdir} for premake actions"
 echo "Doing premake in $(pwd)"
 ( {premake} ) {redirect}
+report_success_failure "premake succeeded" "premake failed"
         """
     return script,"Make setup"
 
 def make_configure( **kwargs : Any ) -> Optional[str]:
     output : OutputDict = \
         start_test_stage(
-            "configure",
-            **{ **kwargs,"title":"make configure", } )
+            "configure", **kwargs )
+    #**{ **kwargs,"title":"make configure", } )
     retval : Optional[str] = get_value_from_loaded(
         make_configure_script,[],**kwargs,**output )
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
 
-def make_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
-    srcdir,prefixdir = srcpfx
+def make_build_script( pmakedirs : tuple[str,DirNamesDict],
+                       **kwargs : dict[str,Any] ) -> tuple[str,str]:
+    _,dirnames = pmakedirs
+    srcdir = dirnames["srcdir"]
+    prefixdir = dirnames["prefixdir"]
+    #builddir = dirnames["builddir"]; 
+
     jcount  : str = kwargs.get("jcount",6)
     targets : str = kwargs.get( "MAKETARGETS","" )
     trace_string( f"making targets: {targets}",**kwargs )
     script = f"""
 cd {srcdir}
+report_success_failure "does not exist {srcdir=}" "entering {srcdir=}"
 make -j {jcount} {targets}
+report_success_failure "make succeeded" "make failed"
     """
 
     if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
@@ -183,8 +220,9 @@ echo "Pipping into: {prefixdir}"
 if [ $? -gt 0 ] ; then
     echo "FAILURE: pipping failed" && exit 1
 fi
-echo "SUCCESS: installed in $( ls {prefixdir} )"
-    """
+echo "SUCCESS: installed in {prefixdir}"
+echo -e "contents:\n$( ls {prefixdir} )"
+"""
     return script,"Pip build install"
 
 def pip_build( **kwargs : Any ) -> Optional[str]:
@@ -252,7 +290,13 @@ echo "Linking lib64 to lib, any previous lib is first erased"
 cd {prefixdir}
 rm -rf lib
 ln -s lib64 lib
-        """
+"""
+    if ( cplibib := nonzero_keyword("CPLIBtoLIB64",**kwargs) ) is not None:
+        script += f"""
+echo "Copying lib to lib64"
+cd {prefixdir}
+cp -r lib/* lib64/
+"""
     return script,"Post-install actions"
 
 def post_install_actions( **kwargs ) -> Optional[str]:

@@ -9,16 +9,29 @@ from MrPackMod.basics     import echo_string,trace_string,echo_warning,\
     clean_title,ensure_dir
 from MrPackMod.modulefile import module_loaded_script
 from MrPackMod.names      import srcdir_name,scriptsdir_name,family_names,package_names,\
-    logfile_name,package_prerequisites
+    logfile_name,package_prerequisites,package_prerequisite_modulenames
 from MrPackMod.process    import get_value_from_loaded,get_value_from_virgin
 # process_execute, process_initiate, process_terminate
 # from MrPackMod.process    import open_logfile # close_logfile
 from MrPackMod.scripts    import modules_proper_script
 
+def test_prerequisites_loaded( **kwargs : dict[str,Any] ) -> str:
+    moduleslist  : list[str] = package_prerequisite_modulenames( **kwargs )
+    all_loaded : bool = True; failures : str = ""
+    trace_string( f"Testing modules loaded for: {moduleslist}",**kwargs )
+    for m in moduleslist:
+        if not os.getenv( f"TACC_{m.upper()}_DIR" ):
+            trace_string( f"Error: no variable TACC_{m.upper()}_DIR defined",**kwargs )
+            all_loaded = False; failures += f"{m},"
+    if not all_loaded:
+        return f"FAILURE: Please load modules: {failures}"
+    else:
+        return f"SUCCESS: All prerequisite modules loaded"
+
 def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
     allgood : bool = True
-    #modulestring : str = package_prerequisites( **kwargs )
-    moduleslist  : list[str] = package_prerequisites( **kwargs ) #modulestring.split()
+    moduleslist  : list[str] = package_prerequisites( **kwargs )
+    trace_string( f"Testing proper prerequisites for: {moduleslist}",**kwargs )
     if len(moduleslist)==0:
         return "SUCCESS: no modules to be tested"
     success : list[str] = []; failure : list[str] = []
@@ -30,8 +43,8 @@ def test_proper_prerequisites( **kwargs : Any ) -> str: # do_config_tests
                 )
         retval : str = get_value_from_virgin(
             modules_proper_script,[module],**{ **kwargs,**output } )
-        msuccess,mfailure = end_test_stage( [],[],output,**kwargs )
-        success += msuccess; failure += mfailure
+        success,failure = end_test_stage( success,failure,output,**kwargs )
+        # success += msuccess; failure += mfailure
     for s in success:
         echo_string(s,**kwargs)
     for f in failure:
@@ -57,14 +70,9 @@ def start_test_stage(
         **kwargs: dict[str, Any],
         ) -> OutputDict:
 
-    title      : str  = str( kwargs.get("title","notitle") )
     cleantitle : str  = clean_title(stage,**kwargs)
     package    : str  = str( kwargs.get("package","nopackage") )
     linedisplay = kwargs.pop("linedisplay",echo_string)
-
-    # Create log file for this test stage, and add it to the stack of logfiles, write header
-    # note: kwargs does not contain "scriptsdir",
-    # then logfile will go to default dir
 
     # VLE this log file is more or less empty. Get rid?
     # except that we use `scriptsdir' left and right
@@ -79,11 +87,7 @@ def start_test_stage(
         "terminal"    : kwargs.get("terminal",""), # actual terminal, or `suppress'
         "linedisplay" : linedisplay,
     }
-    if nonnull(title):
-        trace_string( f"Starting stage for: {title}",**kwargs )
-    else:
-        trace_string( f"Starting stage",**kwargs )
-    # linedisplay( f"see logfile: {logname}",**{ **kwargs,**output } )
+    trace_string( f"Starting stage for: {stage}",**kwargs )
     return output
 
 def end_test_stage(
@@ -92,6 +96,7 @@ def end_test_stage(
         **kwargs : dict[str, Any], 
         ) -> tuple[list[str], list[str]]:
     # close the log file to finish all writes
+    trace_string( "End of test stage",**kwargs )
     if ( loghandle := output.get("loghandle") ) is None:
         error_abort( "Need logfile handle",**kwargs )
     loghandle.close()
@@ -99,8 +104,9 @@ def end_test_stage(
     # then analyze the now completed log file
     if ( logfile := output.get("logfile") ) is None:
         error_abort( "Need logfile name",**kwargs )
+    trace_string( f"End of test stage, analyzing logfile={logfile}",**kwargs )
     success,failure = success_failure_in_logfile\
-        ( logfile,success=success,failure=failure,**kwargs )
+        ( logfile,**{ **kwargs, 'success':success, 'failure':failure, } )
     return success,failure
 
 ##
