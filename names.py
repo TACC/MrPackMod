@@ -305,7 +305,7 @@ def builddir_name( **kwargs: Any ) -> str:
     builddir += f"/{package}/build-{installext}"
     return builddir
 
-def prefixdir_name( **kwargs: Any ) -> str:
+def prefixdir_name( **kwargs: dict[str,Any] ) -> str:
     package,_ = package_names( **kwargs )
     if nonnull( pdir:=kwargs.get("installpath","") ):
         echo_string( f"Using external prefixdir: {pdir}" )
@@ -330,10 +330,11 @@ def prefixdir_name( **kwargs: Any ) -> str:
         # install extension
         prefixdir += "-"+install_extension( **kwargs )
         prefixdir = f"{prefixpath}/{prefixdir}"
+        trace_string( f"prefixdir={prefixpath}/{prefixdir}",**kwargs )
     if not nonnull( prefixdir ):
         raise Exception( "failed to set prefixdir" )
-    if nonnull( var := kwargs.get("installvariant","") ):
-        echo_string( f"using subdir for installvariant: {var}" )
+    if nonnull( var := kwargs.get("INSTALLVARIANT","") ):
+        trace_string( f"using subdir for installvariant: {var}",**kwargs )
         prefixdir = f"{prefixdir}/{var}"
     return prefixdir
 
