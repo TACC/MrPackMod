@@ -165,7 +165,8 @@ def do_existence_test(
     # ldd
     #
     if run_config.get("ldd"):
-        tester_dirnames : DirNamesDict = get_tester_dirnames(program,**kwargs )
+        tester_dirnames : DirNamesDict = get_tester_dirnames\
+            (program,**{ **kwargs, 'noparse':run_config.get("dir")=="bin"} )
         tester_dirnames["builddir"] = os.getenv( dir_variable(package,dirtype) )
         tester_dirnames["prefixdir"] = tester_dirnames["builddir"]
         output = start_test_stage( "ldd",**{ **kwargs,"package":program } )
@@ -204,7 +205,7 @@ def do_existence_test(
         }
         success,failure = do_run_test(
             testtitle,
-            program,dirnames,run_config.get("run_args"),
+            program,dirnames,run_config.get("run_args"),run_config.get("run_value"),
             success,failure,**{ **kwargs,'scriptsdir':scriptsdir} )
     return success,failure
 
@@ -494,7 +495,9 @@ def test_definition_to_dict( test_type : str,test_definition : str,**kwargs : An
 # tester dirnames
 #
 def get_tester_dirnames( program : str,**kwargs ) -> DirNamesDict:
-    if ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
+    if kwargs.get("noparse"):
+        programname,programext = program,"bin"
+    elif ( name_ext := re.search( r'^(.+)\.(.+)$',program ) ) is not None:
         programname,programext = name_ext.groups()
     else: error_abort( f"Can not parse <<{program}>> as name.ext",**kwargs )
     dirnames : DirNamesDict = {
