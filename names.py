@@ -307,6 +307,8 @@ def builddir_name( **kwargs: Any ) -> str:
 
 def prefixdir_name( **kwargs: dict[str,Any] ) -> str:
     package,_ = package_names( **kwargs )
+    trace_string( "Deducing prefixdir name",**kwargs )
+    #breakpoint()
     if ( pdir:=kwargs.get("installpath") ) is not None:
         echo_string( f"Using external prefixdir: {pdir}" )
         prefixdir = pdir
@@ -336,6 +338,7 @@ def prefixdir_name( **kwargs: dict[str,Any] ) -> str:
     if nonnull( var := kwargs.get("INSTALLVARIANT","") ):
         trace_string( f"using subdir for installvariant: {var}",**kwargs )
         prefixdir = f"{prefixdir}/{var}"
+    trace_string( f" .. Deduced prefixdir name=<<{prefixdir}>>",**kwargs )
     return prefixdir
 
 def package_dir_names( **kwargs: Any ) -> tuple[str, str, str, str]:

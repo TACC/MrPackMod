@@ -245,7 +245,7 @@ def install_settings(
                 "INSTALLROOT", "INSTALLROOT","NO_INSTALLROOT_GIVEN",
                 rc_files,**kwargs  ),
             'installpath':setting_from_env_or_rc(
-                "INSTALLPATH", "INSTALLPATH","",
+                "INSTALLPATH", "INSTALLPATH",None,
                 rc_files,**kwargs  ),
             'downloadpath':setting_from_env_or_rc(
                 "DOWNLOADPATH", "DOWNLOADPATH","",
