@@ -358,9 +358,17 @@ derived_setting_triggers = [
     ]
 def set_derived_settings( config_dict : dict[str,Any],**output ) -> None:
     # danger: when testing there is no srcdir
-    config_dict["SRCDIR"]     = srcdir_name(    **config_dict,**output )
-    config_dict["BUILDDIR"]   = builddir_name(  **config_dict,**output )
-    config_dict["PREFIXDIR"]  = prefixdir_name( **config_dict,**output )
+    srcdir = srcdir_name(    **{ **config_dict,**output } )
+    config_dict["SRCDIR"] = srcdir
+    trace_string( f"derived setting SRCDIR={srcdir}",**config_dict )
+
+    builddir = builddir_name(  **{ **config_dict,**output } )
+    config_dict["BUILDDIR"] = builddir
+    trace_string( f"derived setting BUILDDIR={builddir}",**config_dict )
+
+    prefixdir = prefixdir_name( **{ **config_dict,**output } )
+    config_dict["PREFIXDIR"] = prefixdir
+    trace_string( f"derived setting PREFIXDIR={prefixdir}",**config_dict )
 
 #
 # Read configuration, starting with some basics

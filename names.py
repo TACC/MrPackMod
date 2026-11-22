@@ -307,7 +307,7 @@ def builddir_name( **kwargs: Any ) -> str:
 
 def prefixdir_name( **kwargs: dict[str,Any] ) -> str:
     package,_ = package_names( **kwargs )
-    if ( pdir:=kwargs.get("INSTALLPATH") ) is not None:
+    if ( pdir:=kwargs.get("installpath") ) is not None:
         echo_string( f"Using external prefixdir: {pdir}" )
         prefixdir = pdir
     elif nonnull( kwargs.get("noinstall","") ):
