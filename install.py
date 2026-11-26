@@ -1,291 +1,29 @@
 ################################################################
 ####
 #### install.py
-#### install functions for cmake/autotools/make/petsc/pip
+#### install functions for post-install actions and module files;
+#### build-system specific code lives in install_<system>.py
 ####
 ################################################################
 
-#
-# standard python modules
-#
-import datetime
 import os
-import pdb
-import re
-import shutil
+import stat
 from typing import Any, Optional
 
-from MrPackMod.basics  import remove_macros,\
-    echo_string, trace_string,\
-    abort_on_zero_keyword,error_abort,\
-    nonnull,nonzero_keyword, zero_keyword,\
-    ModuleLoadStrategy
-from MrPackMod.error   import abort_on_zero_env
-# from MrPackMod.modulefile import dependency_clauses
-from MrPackMod.names import logfile_name,get_dir_names,\
-    modulefile_path,module_name_and_version,\
-    DirNamesDict,prefixdir_name
+from MrPackMod.basics  import echo_string,trace_string,error_abort,\
+    nonnull,nonzero_keyword
+from MrPackMod.names import modulefile_path,module_name_and_version,\
+    DirNamesDict,prefixdir_name,get_dir_names
 from MrPackMod.process import get_value_from_loaded
-from MrPackMod.scripts import export_compilers_script,\
-    cmake_configure_script,cmake_build_script,\
-    autotools_configure_script,autotools_build_script,\
-    meson_configure_script,meson_build_script,\
-    scons_configure_script,scons_build_script,\
-    petsc_configure_script,petsc_build_script
-from MrPackMod.testing import start_test_stage,end_test_stage,\
-    test_proper_prerequisites,OutputDict
+from MrPackMod.testing import start_test_stage,end_test_stage,OutputDict
 
-################################################################
-####
-#### CMake
-####
-################################################################
-
-def cmake_configure( **kwargs: Any ) -> Optional[str]:
-    if re.match( "FAILURE", ( properness := test_proper_prerequisites( **kwargs ) ) ):
-        error_abort( f"Can not configure due to:\n{properness}",**kwargs )
-    output : OutputDict = \
-        start_test_stage( "cmake configure",**kwargs, )
-    retval : Optional[str] = get_value_from_loaded(
-        cmake_configure_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def cmake_build( **kwargs: Any ) -> Optional[str]:
-    if nonzero_keyword("noinstall",**kwargs):
-        return "No installation needed"
-    output : OutputDict = \
-        start_test_stage( "cmake build",**kwargs, )
-    retval : Optional[str] = get_value_from_loaded(
-        cmake_build_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### Autotools
-####
-################################################################
-
-def autotools_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = start_test_stage( "configure",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        autotools_configure_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def autotools_build( **kwargs : Any ) ->Optional[str]:
-    if nonzero_keyword("noinstall",**kwargs):
-        return "No installation needed"
-    output : OutputDict = \
-        start_test_stage( "build",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        autotools_build_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### Meson
-####
-################################################################
-
-def meson_configure( **kwargs: Any ) -> Optional[str]:
-    if re.match( "FAILURE", ( properness := test_proper_prerequisites( **kwargs ) ) ):
-        error_abort( f"Can not configure due to:\n{properness}",**kwargs )
-    output : OutputDict = \
-        start_test_stage( "meson configure",**kwargs, )
-    retval : Optional[str] = get_value_from_loaded(
-        meson_configure_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def meson_build( **kwargs: Any ) -> Optional[str]:
-    if nonzero_keyword("noinstall",**kwargs):
-        return "No installation needed"
-    output : OutputDict = \
-        start_test_stage( "meson build",**kwargs, )
-    retval : Optional[str] = get_value_from_loaded(
-        meson_build_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### Scons
-####
-################################################################
-
-def scons_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = start_test_stage( "configure",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        scons_configure_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def scons_build( **kwargs : Any ) ->Optional[str]:
-    if nonzero_keyword("noinstall",**kwargs):
-        return "No installation needed"
-    output : OutputDict = \
-        start_test_stage( "build",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        scons_build_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output, } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### Make
-####
-################################################################
-
-def make_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    script : str = ""
-    if premake := nonzero_keyword( "PREMAKE",**kwargs ):
-        premake = remove_macros( premake,**kwargs )
-        trace_string( f"Using premake: {premake}",**kwargs )
-        if redirectloc := nonzero_keyword( "setupredirect",**kwargs ):
-            redirect : str = "1>&3" # This is copied from process.py. Generalize?
-        else: redirect = ""
-        startdir = kwargs.get("startdir")
-        script += f"""\n
-cd {startdir}
-report_success_failure \
-    "enter {startdir} for premake actions" \
-    "startdir={startdir} for premake does not exist"
-echo "Doing premake=<<{premake}>> in $(pwd)"
-( {premake} ) {redirect}
-report_success_failure "premake succeeded" "premake failed"
-        """
-    return script,"Make setup"
-
-def make_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage(
-            "configure", **kwargs )
-    #**{ **kwargs,"title":"make configure", } )
-    retval : Optional[str] = get_value_from_loaded(
-        make_configure_script,[],**kwargs,**output )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def make_build_script( pmakedirs : tuple[str,DirNamesDict],
-                       **kwargs : dict[str,Any] ) -> tuple[str,str]:
-    _,dirnames = pmakedirs
-    srcdir = dirnames["srcdir"]
-    prefixdir = dirnames["prefixdir"]
-    #builddir = dirnames["builddir"]; 
-
-    jcount  : str = kwargs.get("jcount",6)
-    targets : str = kwargs.get( "MAKETARGETS","" )
-    trace_string( f"making targets: {targets}",**kwargs )
-    script = f"""
-cd {srcdir}
-report_success_failure "entering {srcdir=}" "does not exist {srcdir=}" 
-make -j {jcount} {targets}
-report_success_failure "make succeeded" "make failed"
-    """
-
-    if postmake := nonzero_keyword( "POSTMAKE",**kwargs ):
-        # this does DESTDIR and such
-        # maybe should have a better name?
-        trace_string( f"post make: {postmake}",**kwargs )
-        script += f"\n{postmake}\n"
-
-    if postinstall := nonzero_keyword( "POSTINSTALL",**kwargs ):
-        trace_string( f"post install: {postinstall}",**kwargs )
-        script += f"\ncd {prefixdir} && {postinstall}\n"
-
-    return script,"Make build install"
-
-def make_build( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage( "build",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        make_build_script,[ "",get_dir_names(**kwargs) ],
-        **kwargs,**output )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### Pip
-####
-################################################################
-
-def pip_configure_script( dummy : list[str],**kwargs : Any ) -> tuple[str,str]:
-    script : str = "echo SUCCESS: pip configure is noop"
-    return script,"Pip configuring"
-
-def pip_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage( "configure",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        pip_configure_script,[],**kwargs,**output )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def pip_build_script( srcpfx : list[str],**kwargs : Any ) -> tuple[str,str]:
-    print( f"dirs arg : {srcpfx}" )
-    srcdir    = srcpfx["srcdir"]
-    prefixdir = srcpfx["prefixdir"]
-    if ( pip := kwargs.get("PIP") ) is None \
-        and ( pip := os.getenv("PIP") ) is None:
-        pip = "pip3"
-    print( f"srcdir={srcdir}, prefix={prefixdir}, pip={pip}" )
-    jcount  : str = kwargs.get("jcount",6)
-    trace_string( f"pipping in {prefixdir}",**kwargs )
-    script : str = f"""
-cd {srcdir}
-echo "Pipping into: {prefixdir}"
-{pip} install --target={prefixdir} .
-if [ $? -gt 0 ] ; then
-    echo "FAILURE: pipping failed" && exit 1
-fi
-echo "SUCCESS: installed in {prefixdir}"
-echo -e "contents:\n$( ls {prefixdir} )"
-"""
-    return script,"Pip build install"
-
-def pip_build( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage( "build",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        pip_build_script,get_dir_names(**kwargs),
-        **{ **kwargs,**output } )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-################################################################
-####
-#### PETSc has a custom installer
-####
-################################################################
-
-def petsc_configure( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage( "configure",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        petsc_configure_script,[ "",get_dir_names(**kwargs) ],
-        **{ **kwargs,**output} )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
-
-def petsc_build( **kwargs : Any ) -> Optional[str]:
-    output : OutputDict = \
-        start_test_stage( "build",**kwargs )
-    retval : Optional[str] = get_value_from_loaded(
-        petsc_build_script,[],**kwargs,**output )
-    success,failure = end_test_stage( [],[],output,**kwargs )
-    return retval
+from MrPackMod.install_cmake     import cmake_configure,cmake_build
+from MrPackMod.install_autotools import autotools_configure,autotools_build
+from MrPackMod.install_meson     import meson_configure,meson_build
+from MrPackMod.install_scons     import scons_configure,scons_build
+from MrPackMod.install_make      import make_configure,make_build
+from MrPackMod.install_pip       import pip_configure,pip_build
+from MrPackMod.install_petsc     import petsc_configure,petsc_build
 
 ################################################################
 ####
@@ -337,9 +75,6 @@ def post_install_actions( **kwargs ) -> Optional[str]:
     success,failure = end_test_stage( [],[],output,**kwargs )
     return retval
     
-import os
-import stat
-
 def recursive_rx( path: str ) -> None:
     perm_dir = stat.S_IRUSR + stat.S_IWUSR + stat.S_IXUSR \
         + stat.S_IRGRP + stat.S_IXGRP \
@@ -419,4 +154,3 @@ def public_module( **kwargs: Any ) -> None:
     modulefilepath,_ = modulefile_path( **kwargs )
     trace_string( f"Chmod rx modulefilepath={modulefilepath}",**kwargs )
     recursive_rx(modulefilepath)
-

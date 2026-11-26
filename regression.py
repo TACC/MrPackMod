@@ -20,8 +20,9 @@ from MrPackMod.names   import package_names,scriptsdir_name,builddir_name,\
 from MrPackMod.process import process_execute, process_initiate, \
     get_value_from_loaded,package_version_available
 from MrPackMod.scripts import export_compilers_script,\
-    cmake_configure_script,cmake_build_script,make_build_script,\
     file_to_exist_script,ldd_script,run_script,modules_load_script
+from MrPackMod.install_cmake import cmake_configure_script,cmake_build_script
+from MrPackMod.install_make  import make_build_script
 from MrPackMod.testing import start_test_stage,end_test_stage,success_failure_in_logfile,\
     OutputDict
 
