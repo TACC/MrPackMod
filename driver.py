@@ -278,31 +278,35 @@ def configure_action( **kwargs : Any ) -> Optional[str]:
         return install.cmake_configure( **kwargs )
     elif system == "autotools":
         return install.autotools_configure( **kwargs )
-    elif system == "scons":
-        return install.scons_configure( **kwargs )
     elif system == "make":
         return install.make_configure( **kwargs )
+    elif system == "meson":
+        return install.meson_configure( **kwargs )
     elif system == "petsc":
         return install.petsc_configure( **kwargs )
     elif system == "pip":
         return install.pip_configure( **kwargs )
-    else: raise Exception( f"Can only configure for cmake/autotools/make/petsc/pip, not: {system}" )
+    elif system == "scons":
+        return install.scons_configure( **kwargs )
+    else: raise Exception( f"Can only configure for cmake/autotools/make/petsc/pip/scons, not: {system}" )
 
 def build_action( **kwargs : Any ) -> Optional[str]:
     if ( system := kwargs["BUILDSYSTEM"].lower() ) == "cmake":
         return install.cmake_build( **kwargs )
     elif system == "autotools":
         return install.autotools_build( **kwargs )
-    elif system == "scons":
-        return install.scons_build( **kwargs )
     elif system == "make":
         return install.make_build( **kwargs )
+    elif system == "meson":
+        return install.meson_build( **kwargs )
     elif system == "petsc":
         return install.petsc_build( **kwargs )
     elif system == "pip":
         return install.pip_build( **kwargs )
+    elif system == "scons":
+        return install.scons_build( **kwargs )
     else: raise Exception\
-        ( f"Can only build for cmake/autotools/make/petsc/pip, not: {system}" )
+        ( f"Can only build for cmake/autotools/make/petsc/pip/scons, not: {system}" )
 
 def prerequisites_action( **kwargs : Any ) -> None:
     return

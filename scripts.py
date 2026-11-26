@@ -730,6 +730,78 @@ echo "SUCCESS: autotools build succeeded"
 
 ################################################################
 ####
+#### Meson
+####
+################################################################
+
+def meson_configure_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs : dict[str,Any] ) \
+    -> tuple[str,str]:
+    package,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    builddir  : str = dirnames["builddir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    mesonflags : str = kwargs.get("MESONFLAGS","")
+    setupscript : str = ""
+
+    ##
+    ## do configure
+    ##
+    if ( option := nonzero_keyword( "PREFIXOPTION",**kwargs ) ) is not None:
+        prefixoption = option # pdtoolkit
+    else: prefixoption = "--prefix"
+    if ( flags := nonzero_keyword( "CONFIGUREFLAGS",**kwargs ) ) is not None:
+        flags = f" {flags}"
+    else: flags = ""
+    configurescript : str = f"""
+echo "Test for meson executable"
+which meson 2>/dev/null
+report_success_failure "meson executable found" "meson executable not found"
+
+echo "Go to srcdir={srcdir}"
+cd {srcdir}
+echo -e "\\nTest for meson.build file"
+if [ ! -f meson.build ] ; then
+    echo "No meson.build file" && exit 1
+else
+    mesonconfigure="CC=${{TACC_CC}} CXX=${{TACC_CXX}} FORTRAN=${{TACC_FC}} \
+    meson setup {builddir} \
+        {prefixoption}={prefixdir} \
+        {mesonflags} \
+    "
+    echo -e "Meson cmdline:\n${{mesonconfigure}}"
+    eval ${{mesonconfigure}}
+    report_success_failure "meson build succeeded" "meson build failed"
+fi
+"""
+    return setupscript+configurescript,"Meson configuring"
+
+def meson_build_script( pmakedirs : tuple[str,dict[str,Any]],**kwargs: dict[str,Any] ) \
+    -> tuple[str,str]:
+    program,dirnames = pmakedirs # pcmakedirs[0]; cmakedirs = pcmakedirs[1:]
+    srcdir    : str = dirnames["srcdir"]
+    prefixdir : str = dirnames["prefixdir"]
+
+    if ( subdir := nonzero_keyword("MAKESUBDIR",**kwargs) ) is None:
+        subdir = srcdir
+
+    #
+    # Make
+    #
+    jval : str = kwargs.get("jcount",6)
+    makecommand : str = f"meson install"
+    script : str = f"""
+cd {subdir}
+{makecommand}
+    """
+    if extra := nonzero_keyword( "EXTRABUILDTARGETS",**kwargs ):
+        trace_string( f" .. making extra targets: {extra}",**kwargs )
+        script += f"\n{makecommand} {extra}\n"
+
+    return script,"Meson make and install"
+
+################################################################
+####
 #### Scons
 ####
 ################################################################
